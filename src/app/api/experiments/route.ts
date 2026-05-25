@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { experiments, runs } from '@/db/schema';
+import { experiments, runs, scenarios } from '@/db/schema';
 import { desc } from 'drizzle-orm';
-import { DEMO_EXPERIMENTS } from '@/lib/demoData';
+import { DEMO_EXPERIMENTS, DEMO_SCENARIOS } from '@/lib/demoData';
 
 export async function GET() {
   try {
@@ -17,6 +17,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    await db.insert(scenarios).values(DEMO_SCENARIOS).onConflictDoNothing();
     const exp = await db.insert(experiments).values({
       name: body.name,
       agentType: body.agentType,

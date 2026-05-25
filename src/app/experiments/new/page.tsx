@@ -97,6 +97,8 @@ export default function NewExperiment() {
   const [agentType, setAgentType] = useState('custom_webrtc');
   const [apiKey, setApiKey] = useState('');
   const [agentLocator, setAgentLocator] = useState('');
+  const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
+  const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
   const [expName, setExpName] = useState('pre-production voice preflight');
   const [scenarios, setScenarios] = useState<StoredScenario[]>(DEMO_SCENARIOS as StoredScenario[]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -156,6 +158,10 @@ export default function NewExperiment() {
 
   const handleRun = async () => {
     if (!expName.trim() || !agentLocator.trim() || selectedIds.length === 0) return;
+    if (agentType === 'vapi' && !vapiCustomerNumber.trim()) {
+      setError('Add a consented test phone number for the Vapi pilot call.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -163,14 +169,51 @@ export default function NewExperiment() {
     try {
       const agentConfig: Record<string, string> =
         agentType === 'custom_webrtc'
-          ? { endpoint: agentLocator }
-          : agentType === 'vapi'
-            ? { assistantId: agentLocator, apiKey }
+            ? { endpoint: agentLocator }
+            : agentType === 'vapi'
+            ? {
+                assistantId: agentLocator,
+                apiKey,
+                phoneNumberId: vapiPhoneNumberId,
+                customerNumber: vapiCustomerNumber,
+              }
             : agentType === 'livekit'
               ? { roomOrAgent: agentLocator, apiKey }
               : agentType === 'pipecat'
                 ? { agentUrl: agentLocator, apiKey }
                 : { agentId: agentLocator, apiKey };
+
+      if (agentType === 'vapi') {
+        const response = await fetch('/api/experiments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: expName,
+            agentType,
+            agentConfig,
+            webrtcEndpoint: `vapi:${agentLocator}`,
+            scenarioIds: selectedIds,
+            gitSha: 'pilot-local',
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error ?? 'Vapi pilot experiment could not be created');
+        }
+
+        await Promise.all(
+          (data.runs ?? []).map(async (run: { id: string }) => {
+            const startResponse = await fetch(`/api/runs/${run.id}/start`, { method: 'POST' });
+            if (!startResponse.ok) {
+              const startData = await startResponse.json().catch(() => ({}));
+              throw new Error(startData.error ?? `Run ${run.id} could not be started`);
+            }
+          }),
+        );
+
+        router.push(`/experiments/${data.experiment.id}`);
+        return;
+      }
 
       const data = createExperiment({
         name: expName,
@@ -267,6 +310,29 @@ export default function NewExperiment() {
                 </div>
               )}
             </div>
+
+            {agentType === 'vapi' && (
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">Vapi phone number ID</label>
+                  <input
+                    className="input-field"
+                    value={vapiPhoneNumberId}
+                    onChange={(event) => setVapiPhoneNumberId(event.target.value)}
+                    placeholder="Optional if set in server env"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">Consented test phone number</label>
+                  <input
+                    className="input-field"
+                    value={vapiCustomerNumber}
+                    onChange={(event) => setVapiCustomerNumber(event.target.value)}
+                    placeholder="+14155550123"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="grid grid-cols-3 gap-3">
@@ -440,7 +506,7 @@ export default function NewExperiment() {
                 onClick={handleRun}
                 disabled={!expName.trim() || !agentLocator.trim() || selectedIds.length === 0 || loading}
               >
-                {loading ? 'Creating sandbox...' : 'Run simulated phone calls'}
+                {loading ? 'Creating sandbox...' : agentType === 'vapi' ? 'Dial Vapi pilot calls' : 'Run simulated phone calls'}
               </button>
             </div>
           </section>

@@ -58,6 +58,9 @@ export default function RunDetail() {
         .then((r) => r.json())
         .then((d) => {
           setData(d);
+          if (d.run?.provider === 'vapi' && d.run?.externalCallId && ['running', 'evaluating'].includes(d.run.status)) {
+            fetch(`/api/runs/${runId}/poll`, { method: 'POST' }).catch(() => undefined);
+          }
           if (d.run?.status === 'complete' || d.run?.status === 'failed') setPolling(false);
         })
         .catch(() => setData({ error: 'Run not found' }));
@@ -188,7 +191,10 @@ export default function RunDetail() {
                 <p className="text-xs text-gray-400 mt-2">via PESQ narrowband</p>
               </>
             ) : (
-              <div className="text-2xl font-medium text-gray-300">—</div>
+              <div>
+                <div className="text-2xl font-medium text-gray-300">Pending</div>
+                <p className="mt-2 text-xs text-gray-400">MOS will appear when Vapi or the scoring service returns it.</p>
+              </div>
             )}
           </div>
 
@@ -233,6 +239,8 @@ export default function RunDetail() {
             <div className="space-y-2 text-xs">
               {[
                 { label: 'Status', val: run.status },
+                { label: 'Provider', val: run.provider ?? 'synthetic' },
+                { label: 'External status', val: run.externalStatus ?? '—' },
                 { label: 'Turns', val: run.turnCount ?? '—' },
                 { label: 'Duration', val: run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '—' },
               ].map((item) => (

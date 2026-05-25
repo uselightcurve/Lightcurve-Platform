@@ -73,6 +73,13 @@ export default function ExperimentDetail() {
         .then((r) => r.json())
         .then((d) => {
           setData(d);
+          if (d.experiment?.agentType === 'vapi') {
+            (d.runs ?? [])
+              .filter((run: any) => run.externalCallId && ['running', 'evaluating'].includes(run.status))
+              .forEach((run: any) => {
+                fetch(`/api/runs/${run.id}/poll`, { method: 'POST' }).catch(() => undefined);
+              });
+          }
           const allDone = d.runs?.every((r: any) => r.status === 'complete' || r.status === 'failed');
           if (allDone) setPolling(false);
         })

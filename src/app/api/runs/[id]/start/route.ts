@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { runs, scenarios } from '@/db/schema';
+import { experiments, runs, scenarios } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { createRoom } from '@/lib/daily';
+import { startVapiSandboxCall } from '@/lib/vapi';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,11 +12,57 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   
   const run = runData[0];
   
-  // Set to running
-  await db.update(runs).set({ status: 'running', startedAt: new Date() }).where(eq(runs.id, id));
-  
   const scenarioData = await db.select().from(scenarios).where(eq(scenarios.id, run.scenarioId!));
   const scenario = scenarioData[0];
+  if (!scenario) return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
+
+  const experimentData = await db.select().from(experiments).where(eq(experiments.id, run.experimentId!));
+  const experiment = experimentData[0];
+  if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
+
+  if (experiment.agentType === 'vapi') {
+    try {
+      const call = await startVapiSandboxCall(id, experiment, scenario);
+      await db
+        .update(runs)
+        .set({
+          status: 'running',
+          provider: 'vapi',
+          externalCallId: call.id,
+          externalStatus: call.status ?? 'created',
+          startedAt: new Date(),
+        })
+        .where(eq(runs.id, id));
+      await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
+
+      return NextResponse.json({
+        success: true,
+        provider: 'vapi',
+        status: 'running',
+        externalCallId: call.id,
+        externalStatus: call.status ?? 'created',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Vapi call could not be started';
+      await db
+        .update(runs)
+        .set({
+          status: 'failed',
+          provider: 'vapi',
+          externalStatus: 'start_failed',
+          failureSummary: message,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        })
+        .where(eq(runs.id, id));
+
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
+  // Set to running
+  await db.update(runs).set({ status: 'running', startedAt: new Date() }).where(eq(runs.id, id));
+  await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
 
   // 1. Create Daily Room
   let dailyRoomUrl = '';

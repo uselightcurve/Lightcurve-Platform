@@ -100,3 +100,12 @@ jobs:
         env:
           SMOKE_BASE_URL: ${{ steps.deploy.outputs.service_url }}
         run: npm run smoke:production
+
+      - name: Optional Lightcurve release gate
+        if: ${{ vars.RUN_RELEASE_GATE == 'true' }}
+        env:
+          RELEASE_GATE_BASE_URL: ${{ steps.deploy.outputs.service_url }}
+          RELEASE_GATE_EXPERIMENT_ID: ${{ vars.RELEASE_GATE_EXPERIMENT_ID }}
+          LIGHTCURVE_GATE_MIN_MOS: ${{ vars.LIGHTCURVE_GATE_MIN_MOS || '3.8' }}
+          LIGHTCURVE_GATE_MIN_TASK: ${{ vars.LIGHTCURVE_GATE_MIN_TASK || '0.8' }}
+        run: npm run release-gate
