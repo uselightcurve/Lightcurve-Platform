@@ -74,7 +74,7 @@ export default function RunDetail() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-64 text-sm text-gray-400">Loading…</div>
+      <div className="flex items-center justify-center h-64 text-sm text-gray-400">Loading...</div>
     );
   }
 
@@ -89,6 +89,8 @@ export default function RunDetail() {
   }
 
   const run = data.run;
+  const scenario = data.scenario;
+  const persona = scenario?.persona ?? {};
   const traces: any[] = data.traces ?? [];
   const scores: any[] = data.scores ?? [];
 
@@ -123,7 +125,11 @@ export default function RunDetail() {
 
             {traces.length === 0 ? (
               <div className="px-5 py-10 text-sm text-gray-400 text-center">
-                {polling ? 'Waiting for call to start…' : 'No transcript available.'}
+                {polling
+                  ? 'Waiting for call to start...'
+                  : run.provider === 'vapi'
+                    ? 'No transcript captured. For this pilot, the human tester must speak the selected scenario script.'
+                    : 'No transcript available.'}
               </div>
             ) : (
               <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
@@ -133,7 +139,7 @@ export default function RunDetail() {
                     <div key={t.id} className="px-5 py-4">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className={`text-xs font-medium uppercase tracking-wider ${isCaller ? 'text-[#2448bb]' : 'text-gray-500'}`}>
-                          {isCaller ? 'Caller (Synthetic)' : 'Agent'}
+                          {isCaller ? (run.provider === 'vapi' ? 'Caller' : 'Caller (Synthetic)') : 'Agent'}
                         </span>
                         <div className="flex items-center gap-2">
                           {t.totalLatencyMs != null && (
@@ -156,13 +162,34 @@ export default function RunDetail() {
             )}
           </div>
 
+          {scenario && (
+            <div className="card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-800">Selected scenario</h3>
+                  <p className="mt-1 text-sm font-medium text-gray-900">{scenario.name?.replace(/_/g, ' ')}</p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
+                  {scenario.language} / {scenario.domain}
+                </span>
+              </div>
+              {persona.opening_line && (
+                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Caller opening line</p>
+                  <p className="mt-1 text-sm text-slate-700">"{persona.opening_line}"</p>
+                </div>
+              )}
+              {persona.goal && <p className="mt-3 text-sm leading-relaxed text-slate-600">{persona.goal}</p>}
+            </div>
+          )}
+
           {/* Audio Players */}
           {(run.audioCallerUrl || run.audioAgentUrl) && (
             <div className="card p-5 space-y-4">
               <h3 className="text-sm font-medium text-gray-800">Audio recordings</h3>
               {run.audioCallerUrl && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Caller (synthetic)</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">{run.provider === 'vapi' ? 'Caller / phone channel' : 'Caller (synthetic)'}</label>
                   <audio controls src={run.audioCallerUrl} className="w-full h-10" />
                 </div>
               )}
@@ -233,6 +260,13 @@ export default function RunDetail() {
             </div>
           )}
 
+          {run.failureSummary && (
+            <div className="rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] p-4">
+              <div className="text-xs font-medium text-[#8f3d3b]">Failure reason</div>
+              <p className="mt-1 text-xs leading-relaxed text-[#8f3d3b]">{run.failureSummary}</p>
+            </div>
+          )}
+
           {/* Run metadata */}
           <div className="card p-5">
             <h3 className="text-sm font-medium text-gray-800 mb-3">Run info</h3>
@@ -240,9 +274,9 @@ export default function RunDetail() {
               {[
                 { label: 'Status', val: run.status },
                 { label: 'Provider', val: run.provider ?? 'synthetic' },
-                { label: 'External status', val: run.externalStatus ?? '—' },
-                { label: 'Turns', val: run.turnCount ?? '—' },
-                { label: 'Duration', val: run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '—' },
+                { label: 'External status', val: run.externalStatus ?? '-' },
+                { label: 'Turns', val: run.turnCount ?? '-' },
+                { label: 'Duration', val: run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '-' },
               ].map((item) => (
                 <div key={item.label} className="flex justify-between">
                   <span className="text-gray-400">{item.label}</span>

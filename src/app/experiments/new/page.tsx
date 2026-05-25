@@ -312,24 +312,30 @@ export default function NewExperiment() {
             </div>
 
             {agentType === 'vapi' && (
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-600">Vapi phone number ID</label>
-                  <input
-                    className="input-field"
-                    value={vapiPhoneNumberId}
-                    onChange={(event) => setVapiPhoneNumberId(event.target.value)}
-                    placeholder="Optional if set in server env"
-                  />
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] p-3 text-sm leading-relaxed text-[#765b1f]">
+                  Vapi pilot mode dials a real human tester. The selected caller card is the script the tester must act out;
+                  fully automatic synthetic caller audio needs the next bot-to-bot bridge.
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-600">Consented test phone number</label>
-                  <input
-                    className="input-field"
-                    value={vapiCustomerNumber}
-                    onChange={(event) => setVapiCustomerNumber(event.target.value)}
-                    placeholder="+14155550123"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Vapi phone number ID</label>
+                    <input
+                      className="input-field"
+                      value={vapiPhoneNumberId}
+                      onChange={(event) => setVapiPhoneNumberId(event.target.value)}
+                      placeholder="Optional if set in server env"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Consented tester phone number</label>
+                    <input
+                      className="input-field"
+                      value={vapiCustomerNumber}
+                      onChange={(event) => setVapiCustomerNumber(event.target.value)}
+                      placeholder="+14155550123"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -337,7 +343,7 @@ export default function NewExperiment() {
             <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="grid grid-cols-3 gap-3">
                 <MiniMetric label="Input" value="Phone audio" />
-                <MiniMetric label="Caller" value="Synthetic" />
+                <MiniMetric label="Caller" value={agentType === 'vapi' ? 'Human pilot' : 'Synthetic'} />
                 <MiniMetric label="Output" value="MOS + CI" />
               </div>
             </div>
@@ -380,9 +386,13 @@ export default function NewExperiment() {
           <div className="card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-medium text-slate-950">Choose simulated callers</h2>
+                <h2 className="text-base font-medium text-slate-950">
+                  {agentType === 'vapi' ? 'Choose caller scripts' : 'Choose simulated callers'}
+                </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Select the calls that should run before this voice-agent release ships.
+                  {agentType === 'vapi'
+                    ? 'Pick the scenario your human tester will act out on the phone call.'
+                    : 'Select the calls that should run before this voice-agent release ships.'}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -506,7 +516,7 @@ export default function NewExperiment() {
                 onClick={handleRun}
                 disabled={!expName.trim() || !agentLocator.trim() || selectedIds.length === 0 || loading}
               >
-                {loading ? 'Creating sandbox...' : agentType === 'vapi' ? 'Dial Vapi pilot calls' : 'Run simulated phone calls'}
+                {loading ? 'Creating sandbox...' : agentType === 'vapi' ? 'Dial human pilot call' : 'Run simulated phone calls'}
               </button>
             </div>
           </section>

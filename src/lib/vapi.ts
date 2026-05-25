@@ -302,8 +302,25 @@ export function normalizeVapiCall(rawCall: unknown, scenario?: ScenarioRow): Nor
         ? Math.max(0, new Date(endedAt).getTime() - new Date(startedAt).getTime())
         : undefined;
 
+  const mappedStatus = mapRunStatus(status);
+  const runStatus =
+    mappedStatus === 'complete' && traces.length === 0
+      ? 'failed'
+      : mappedStatus;
+  const emptyTranscriptSummary =
+    'No transcript was captured. The Vapi call ended without caller/agent turns, usually because the tester stayed silent or the assistant did not hear usable speech.';
+
+  if (runStatus === 'failed' && traces.length === 0 && taskCompletion == null) {
+    scores.push({
+      metricName: 'task_completed',
+      value: 0,
+      method: 'lightcurve-vapi-import',
+      rationale: emptyTranscriptSummary,
+    });
+  }
+
   return {
-    runStatus: mapRunStatus(status),
+    runStatus,
     externalStatus: status,
     traces,
     scores,
@@ -311,6 +328,6 @@ export function normalizeVapiCall(rawCall: unknown, scenario?: ScenarioRow): Nor
     audioAgentUrl: stringValue(call.recordingUrl ?? call.stereoRecordingUrl ?? asRecord(call.artifact).recordingUrl),
     durationMs,
     endedAt: endedAt ? new Date(endedAt) : undefined,
-    failureSummary,
+    failureSummary: traces.length === 0 ? emptyTranscriptSummary : failureSummary,
   };
 }

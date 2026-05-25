@@ -88,6 +88,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({
     success: true,
     run: updatedRunData[0],
+    scenario: scenario ?? null,
     traces: runTraces,
     scores: runScores,
     externalStatus: normalized.externalStatus,
