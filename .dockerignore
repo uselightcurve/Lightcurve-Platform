@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+.next
+.next-codex
+.next-codex-*
+.next-dev.err.log
+.next-dev.out.log
+node_modules
+npm-debug.log*
+Dockerfile
+README.md
+*.local
+*.log

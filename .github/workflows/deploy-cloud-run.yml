@@ -1,0 +1,102 @@
+name: Deploy Cloud Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: lightcurve-production
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  SERVICE_NAME: ${{ vars.SERVICE_NAME || 'lightcurve' }}
+  REPOSITORY: ${{ vars.AR_REPOSITORY || 'lightcurve' }}
+  IMAGE_NAME: lightcurve-web
+  MIGRATION_IMAGE_NAME: lightcurve-migrate
+  MIGRATION_JOB: lightcurve-db-push
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+  GCS_BUCKET: ${{ vars.GCS_BUCKET }}
+  CLOUD_TASKS_QUEUE: ${{ vars.CLOUD_TASKS_QUEUE }}
+  CLOUD_SQL_CONNECTION_NAME: ${{ vars.CLOUD_SQL_CONNECTION_NAME }}
+  MOS_SERVICE_URL: ${{ vars.MOS_SERVICE_URL }}
+
+jobs:
+  deploy:
+    name: Build, migrate, deploy, and smoke test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate workflow configuration
+        run: |
+          required=(
+            PROJECT_ID
+            REGION
+            SERVICE_NAME
+            REPOSITORY
+            NEXT_PUBLIC_APP_URL
+            GCS_BUCKET
+            CLOUD_TASKS_QUEUE
+            CLOUD_SQL_CONNECTION_NAME
+          )
+
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "Missing GitHub Actions variable for $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Node.js for smoke test
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build images
+        env:
+          WEB_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          MIGRATION_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MIGRATION_IMAGE_NAME }}:${{ github.sha }}
+        run: |
+          docker build --tag "$WEB_IMAGE" .
+          docker build --file Dockerfile.migrate --tag "$MIGRATION_IMAGE" .
+
+      - name: Push images
+        env:
+          WEB_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          MIGRATION_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MIGRATION_IMAGE_NAME }}:${{ github.sha }}
+        run: |
+          docker push "$WEB_IMAGE"
+          docker push "$MIGRATION_IMAGE"
+
+      - name: Run migration and deploy Cloud Run
+        id: deploy
+        env:
+          WEB_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          MIGRATION_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MIGRATION_IMAGE_NAME }}:${{ github.sha }}
+        run: bash scripts/gcp-ci-deploy.sh
+
+      - name: Smoke test deployed service
+        env:
+          SMOKE_BASE_URL: ${{ steps.deploy.outputs.service_url }}
+        run: npm run smoke:production

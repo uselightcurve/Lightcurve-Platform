@@ -1,0 +1,75 @@
+import { existsSync, readFileSync } from 'node:fs';
+
+function loadDotEnv() {
+  if (!existsSync('.env')) return;
+
+  for (const line of readFileSync('.env', 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+
+    const [key, ...valueParts] = trimmed.split('=');
+    if (!key || process.env[key]) continue;
+
+    process.env[key] = valueParts.join('=').replace(/^["']|["']$/g, '');
+  }
+}
+
+loadDotEnv();
+
+const baseUrl = process.env.SMOKE_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+if (!baseUrl) {
+  console.error('Set SMOKE_BASE_URL or NEXT_PUBLIC_APP_URL before running production smoke tests.');
+  process.exit(1);
+}
+
+const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+
+async function assertOk(path, check) {
+  const url = `${normalizedBaseUrl}${path}`;
+  const response = await fetch(url, { headers: { accept: 'application/json,text/html' } });
+
+  if (!response.ok) {
+    throw new Error(`${path} returned ${response.status}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  const body = contentType.includes('application/json') ? await response.json() : await response.text();
+
+  if (check) {
+    check(body);
+  }
+
+  console.log(`ok ${path}`);
+}
+
+try {
+  await assertOk('/', (html) => {
+    if (typeof html !== 'string' || !html.includes('Lightcurve')) {
+      throw new Error('Home page did not render Lightcurve shell.');
+    }
+  });
+
+  await assertOk('/api/integrations/status', (json) => {
+    if (!json || !Array.isArray(json.providers)) {
+      throw new Error('Integration status response is missing providers.');
+    }
+  });
+
+  await assertOk('/api/scenarios', (json) => {
+    if (!json || !Array.isArray(json.scenarios) || json.scenarios.length === 0) {
+      throw new Error('Scenario library did not return scenarios.');
+    }
+  });
+
+  await assertOk('/api/experiments', (json) => {
+    if (!json || !Array.isArray(json.experiments)) {
+      throw new Error('Experiments endpoint did not return a list.');
+    }
+  });
+
+  console.log(`Production smoke test passed for ${normalizedBaseUrl}`);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}

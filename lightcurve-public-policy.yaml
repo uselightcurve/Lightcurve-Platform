@@ -1,0 +1,5 @@
+name: projects/1018016954679/policies/iam.allowedPolicyMemberDomains
+spec:
+  inheritFromParent: false
+  rules:
+  - allowAll: true
