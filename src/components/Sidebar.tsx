@@ -62,13 +62,10 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 flex w-56 flex-col border-r border-slate-200 bg-white">
-      <div className="border-b border-slate-200 px-3 py-3">
-        <Link href="/" className="flex h-9 items-center gap-2 rounded-md px-1.5 text-slate-900">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-slate-100 text-[11px] font-semibold tracking-[-0.02em] text-slate-600">
-            LC
-          </span>
-          <span className="text-sm font-semibold tracking-[-0.01em]">Lightcurve</span>
+    <aside className="fixed inset-y-0 left-0 z-10 flex w-56 flex-col bg-white">
+      <div className="px-3 py-3">
+        <Link href="/" className="flex h-9 items-center rounded-md px-3.5 text-slate-900">
+          <span className="text-[15px] font-bold">Lightcurve</span>
         </Link>
       </div>
       <nav className="flex-1 px-2 py-3">
