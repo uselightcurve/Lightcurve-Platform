@@ -26,6 +26,10 @@ export default function RunDetail() {
   const { id, runId } = useParams<{ id: string; runId: string }>();
   const [data, setData] = useState<any>(null);
   const [polling, setPolling] = useState(true);
+  const [importTranscript, setImportTranscript] = useState('');
+  const [importAudioUrl, setImportAudioUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   useEffect(() => {
     const load = () => {
@@ -58,7 +62,7 @@ export default function RunDetail() {
         .then((r) => r.json())
         .then((d) => {
           setData(d);
-          if (d.run?.provider === 'vapi' && d.run?.externalCallId && ['running', 'evaluating'].includes(d.run.status)) {
+          if (d.run?.externalCallId && ['vapi', 'retell', 'elevenlabs'].includes(d.run?.provider) && ['running', 'evaluating'].includes(d.run.status)) {
             fetch(`/api/runs/${runId}/poll`, { method: 'POST' }).catch(() => undefined);
           }
           if (d.run?.status === 'complete' || d.run?.status === 'failed') setPolling(false);
@@ -98,6 +102,39 @@ export default function RunDetail() {
   const criterionScores = scores.filter((s) => s.metricName !== 'mos');
   const suggestion = criterionScores.find((s) => s.rationale)?.rationale;
 
+  const importReplay = async () => {
+    if (!importTranscript.trim() && !importAudioUrl.trim()) {
+      setImportError('Add a transcript or recording URL to score this replay.');
+      return;
+    }
+
+    setImporting(true);
+    setImportError('');
+    try {
+      const response = await fetch(`/api/runs/${runId}/import-recording`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: importTranscript,
+          audioUrl: importAudioUrl,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? 'Replay import failed');
+      setData((current: any) => ({
+        ...current,
+        run: body.run,
+        traces: body.traces,
+        scores: body.scores,
+      }));
+      setPolling(false);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Replay import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -127,8 +164,10 @@ export default function RunDetail() {
               <div className="px-5 py-10 text-sm text-gray-400 text-center">
                 {polling
                   ? 'Waiting for call to start...'
-                  : run.provider === 'vapi'
-                    ? 'No transcript captured. For this pilot, the human tester must speak the selected scenario script.'
+                  : ['vapi', 'retell', 'elevenlabs'].includes(run.provider)
+                    ? run.externalStatus === 'awaiting_recording_import'
+                      ? 'Waiting for a recording or transcript import. This is the low-cost replay path for expensive live-call providers.'
+                      : 'No transcript captured. In live-provider mode, the human tester must speak the selected scenario script until synthetic caller bridging is enabled.'
                     : 'No transcript available.'}
               </div>
             ) : (
@@ -139,7 +178,7 @@ export default function RunDetail() {
                     <div key={t.id} className="px-5 py-4">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className={`text-xs font-medium uppercase tracking-wider ${isCaller ? 'text-[#2448bb]' : 'text-gray-500'}`}>
-                          {isCaller ? (run.provider === 'vapi' ? 'Caller' : 'Caller (Synthetic)') : 'Agent'}
+                          {isCaller ? (['vapi', 'retell', 'elevenlabs'].includes(run.provider) ? 'Caller' : 'Caller (Synthetic)') : 'Agent'}
                         </span>
                         <div className="flex items-center gap-2">
                           {t.totalLatencyMs != null && (
@@ -183,6 +222,33 @@ export default function RunDetail() {
             </div>
           )}
 
+          {run.externalStatus === 'awaiting_recording_import' && (
+            <div className="card p-5">
+              <h3 className="text-sm font-medium text-gray-800">Import replay</h3>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                Paste an ElevenLabs transcript or recording URL to score this scenario without placing another paid live call.
+              </p>
+              <div className="mt-4 space-y-3">
+                <textarea
+                  className="input-field min-h-[140px]"
+                  value={importTranscript}
+                  onChange={(event) => setImportTranscript(event.target.value)}
+                  placeholder={'Caller: I need help with my refund...\nAgent: I can help with that.'}
+                />
+                <input
+                  className="input-field"
+                  value={importAudioUrl}
+                  onChange={(event) => setImportAudioUrl(event.target.value)}
+                  placeholder="Optional recording URL"
+                />
+              </div>
+              {importError && <p className="mt-3 text-xs text-[#8f3d3b]">{importError}</p>}
+              <button type="button" className="btn-primary mt-4" onClick={importReplay} disabled={importing}>
+                {importing ? 'Importing...' : 'Import and score'}
+              </button>
+            </div>
+          )}
+
           {/* Audio Players */}
           {(run.audioCallerUrl || run.audioAgentUrl) && (
             <div className="card p-5 space-y-4">
@@ -220,7 +286,7 @@ export default function RunDetail() {
             ) : (
               <div>
                 <div className="text-2xl font-medium text-gray-300">Pending</div>
-                <p className="mt-2 text-xs text-gray-400">MOS will appear when Vapi or the scoring service returns it.</p>
+                <p className="mt-2 text-xs text-gray-400">MOS appears from provider analysis, the MOS service, or Lightcurve's proxy score.</p>
               </div>
             )}
           </div>

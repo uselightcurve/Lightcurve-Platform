@@ -176,16 +176,23 @@ $secretNames = @(
   "DAILY_API_KEY",
   "VAPI_API_KEY",
   "VAPI_ASSISTANT_ID",
+  "VAPI_PHONE_NUMBER_ID",
+  "VAPI_TEST_CUSTOMER_NUMBER",
   "RETELL_API_KEY",
   "RETELL_AGENT_ID",
+  "RETELL_FROM_NUMBER",
+  "RETELL_TEST_CUSTOMER_NUMBER",
   "ELEVENLABS_API_KEY",
   "ELEVENLABS_AGENT_ID",
+  "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
+  "ELEVENLABS_TEST_CUSTOMER_NUMBER",
   "LIVEKIT_URL",
   "LIVEKIT_API_KEY",
   "LIVEKIT_API_SECRET",
   "PIPECAT_AGENT_URL",
   "PIPECAT_AUTH_TOKEN",
   "CUSTOM_WEBRTC_WSS_URL",
+  "CUSTOM_AGENT_RUNNER_URL",
   "HUGGINGFACE_TOKEN"
 )
 
@@ -221,6 +228,10 @@ if ($appUrl) {
 if ($envValues["MOS_SERVICE_URL"]) {
   $envVars += "MOS_SERVICE_URL=$($envValues["MOS_SERVICE_URL"])"
 }
+$elevenLabsCostMode = if ($envValues["ELEVENLABS_COST_MODE"]) { $envValues["ELEVENLABS_COST_MODE"] } else { "recording_replay" }
+$syntheticCallerProvider = if ($envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"]) { $envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"] } else { "cheap_tts" }
+$envVars += "ELEVENLABS_COST_MODE=$elevenLabsCostMode"
+$envVars += "LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER=$syntheticCallerProvider"
 
 $deployArgs = @(
   "run", "deploy", $ServiceName,

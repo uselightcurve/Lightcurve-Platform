@@ -1,6 +1,13 @@
 export type ProviderId = 'vapi' | 'retell' | 'elevenlabs' | 'livekit' | 'pipecat' | 'custom_webrtc';
 
-export type ProviderCapability = 'sandbox-run' | 'production-import' | 'recording-import' | 'prompt-recommendation';
+export type ProviderCapability =
+  | 'sandbox-run'
+  | 'human-pilot'
+  | 'synthetic-bridge-coming-soon'
+  | 'low-cost-replay'
+  | 'production-import'
+  | 'recording-import'
+  | 'prompt-recommendation';
 
 export type ProviderDefinition = {
   id: ProviderId;
@@ -44,11 +51,11 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'vapi',
     name: 'Vapi',
-    tagline: 'Hosted assistant calls and production call imports.',
+    tagline: 'Hosted assistant calls, phone logs, and live sandbox pilots.',
     env: ['VAPI_API_KEY', 'VAPI_ASSISTANT_ID', 'VAPI_PHONE_NUMBER_ID'],
     locatorLabel: 'Assistant ID',
     locatorPlaceholder: 'asst_...',
-    capabilities: ['sandbox-run', 'production-import', 'recording-import', 'prompt-recommendation'],
+    capabilities: ['sandbox-run', 'human-pilot', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import', 'prompt-recommendation'],
   },
   {
     id: 'retell',
@@ -57,16 +64,16 @@ export const providerDefinitions: ProviderDefinition[] = [
     env: ['RETELL_API_KEY', 'RETELL_AGENT_ID'],
     locatorLabel: 'Agent ID',
     locatorPlaceholder: 'agent_...',
-    capabilities: ['sandbox-run', 'production-import', 'recording-import', 'prompt-recommendation'],
+    capabilities: ['sandbox-run', 'human-pilot', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import', 'prompt-recommendation'],
   },
   {
     id: 'elevenlabs',
     name: 'ElevenLabs',
-    tagline: 'Conversational AI agents and conversation history.',
+    tagline: 'Conversational AI calls plus low-cost replay imports.',
     env: ['ELEVENLABS_API_KEY', 'ELEVENLABS_AGENT_ID'],
     locatorLabel: 'Agent ID',
     locatorPlaceholder: 'agent_...',
-    capabilities: ['sandbox-run', 'production-import', 'recording-import', 'prompt-recommendation'],
+    capabilities: ['sandbox-run', 'human-pilot', 'low-cost-replay', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import', 'prompt-recommendation'],
   },
   {
     id: 'livekit',
@@ -75,7 +82,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     env: ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'],
     locatorLabel: 'Room or agent name',
     locatorPlaceholder: 'support-agent-room',
-    capabilities: ['sandbox-run', 'production-import', 'recording-import'],
+    capabilities: ['sandbox-run', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import'],
   },
   {
     id: 'pipecat',
@@ -84,7 +91,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     env: ['PIPECAT_AGENT_URL', 'PIPECAT_AUTH_TOKEN'],
     locatorLabel: 'Agent URL',
     locatorPlaceholder: 'https://agent.example.com/pipecat',
-    capabilities: ['sandbox-run', 'production-import', 'recording-import'],
+    capabilities: ['sandbox-run', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import'],
   },
   {
     id: 'custom_webrtc',

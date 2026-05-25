@@ -73,7 +73,7 @@ export default function ExperimentDetail() {
         .then((r) => r.json())
         .then((d) => {
           setData(d);
-          if (d.experiment?.agentType === 'vapi') {
+          if (['vapi', 'retell', 'elevenlabs'].includes(d.experiment?.agentType)) {
             (d.runs ?? [])
               .filter(
                 (run: any) =>

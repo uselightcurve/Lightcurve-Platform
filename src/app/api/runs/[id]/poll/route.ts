@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scenarios, scores, traces } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getVapiCall, normalizeVapiCall } from '@/lib/vapi';
+import { isProviderBackedSandbox, pollProviderSandboxCall } from '@/lib/sandboxProviders';
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,18 +14,17 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const experiment = experimentData[0];
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
 
-  if (run.provider !== 'vapi' && experiment.agentType !== 'vapi') {
-    return NextResponse.json({ error: 'Run is not backed by Vapi' }, { status: 400 });
+  if (!isProviderBackedSandbox(experiment) && !run.provider) {
+    return NextResponse.json({ error: 'Run is not backed by a provider poller' }, { status: 400 });
   }
 
   if (!run.externalCallId) {
-    return NextResponse.json({ error: 'Run does not have a Vapi call id yet' }, { status: 409 });
+    return NextResponse.json({ error: 'Run does not have an external call id yet' }, { status: 409 });
   }
 
   const scenarioData = await db.select().from(scenarios).where(eq(scenarios.id, run.scenarioId!));
   const scenario = scenarioData[0];
-  const call = await getVapiCall(experiment, run.externalCallId);
-  const normalized = normalizeVapiCall(call, scenario);
+  const normalized = await pollProviderSandboxCall(experiment, run, scenario);
 
   await db.delete(traces).where(eq(traces.runId, id));
   if (normalized.traces.length) {

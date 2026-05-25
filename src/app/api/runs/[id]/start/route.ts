@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { createRoom } from '@/lib/daily';
-import { startVapiSandboxCall } from '@/lib/vapi';
+import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandboxProviders';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,16 +20,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const experiment = experimentData[0];
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
 
-  if (experiment.agentType === 'vapi') {
+  if (isProviderBackedSandbox(experiment)) {
     try {
-      const call = await startVapiSandboxCall(id, experiment, scenario);
+      const call = await startProviderSandboxCall(id, experiment, scenario);
+      const runStatus = call.runStatus ?? 'running';
       await db
         .update(runs)
         .set({
-          status: 'running',
-          provider: 'vapi',
+          status: runStatus,
+          provider: call.provider,
           externalCallId: call.id,
-          externalStatus: call.status ?? 'created',
+          externalStatus: call.status,
           startedAt: new Date(),
         })
         .where(eq(runs.id, id));
@@ -37,18 +38,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
       return NextResponse.json({
         success: true,
-        provider: 'vapi',
-        status: 'running',
+        provider: call.provider,
+        status: runStatus,
         externalCallId: call.id,
-        externalStatus: call.status ?? 'created',
+        externalStatus: call.status,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Vapi call could not be started';
+      const message = error instanceof Error ? error.message : 'Provider call could not be started';
       await db
         .update(runs)
         .set({
           status: 'failed',
-          provider: 'vapi',
+          provider: experiment.agentType,
           externalStatus: 'start_failed',
           failureSummary: message,
           startedAt: new Date(),

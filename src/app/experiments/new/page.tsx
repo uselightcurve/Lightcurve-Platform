@@ -16,6 +16,12 @@ const AGENT_TYPES = providerDefinitions.map((provider) => ({
   locatorLabel: provider.locatorLabel,
 }));
 
+const LIVE_PROVIDER_IDS = ['vapi', 'retell', 'elevenlabs'];
+
+function isLiveProvider(provider: string) {
+  return LIVE_PROVIDER_IDS.includes(provider);
+}
+
 const steps = [
   { id: 1, label: 'Agent' },
   { id: 2, label: 'Callers' },
@@ -99,6 +105,9 @@ export default function NewExperiment() {
   const [agentLocator, setAgentLocator] = useState('');
   const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
   const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
+  const [retellFromNumber, setRetellFromNumber] = useState('');
+  const [elevenLabsPhoneNumberId, setElevenLabsPhoneNumberId] = useState('');
+  const [elevenLabsMode, setElevenLabsMode] = useState<'live_call' | 'recording_replay'>('recording_replay');
   const [expName, setExpName] = useState('pre-production voice preflight');
   const [scenarios, setScenarios] = useState<StoredScenario[]>(DEMO_SCENARIOS as StoredScenario[]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -146,6 +155,9 @@ export default function NewExperiment() {
   }, [scenarios]);
 
   const activeAgent = AGENT_TYPES.find((agent) => agent.id === agentType) ?? AGENT_TYPES[0];
+  const liveProvider = isLiveProvider(agentType);
+  const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
+  const callerMode = replayMode ? 'Replay import' : liveProvider ? 'Human pilot' : 'Synthetic';
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -158,8 +170,10 @@ export default function NewExperiment() {
 
   const handleRun = async () => {
     if (!expName.trim() || !agentLocator.trim() || selectedIds.length === 0) return;
-    if (agentType === 'vapi' && !vapiCustomerNumber.trim()) {
-      setError('Add a consented test phone number for the Vapi pilot call.');
+    const usesLiveProvider = isLiveProvider(agentType);
+    const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
+    if (usesLiveProvider && !elevenLabsReplay && !vapiCustomerNumber.trim()) {
+      setError('Add a consented test phone number for the live sandbox call.');
       return;
     }
 
@@ -177,13 +191,28 @@ export default function NewExperiment() {
                 phoneNumberId: vapiPhoneNumberId,
                 customerNumber: vapiCustomerNumber,
               }
+            : agentType === 'retell'
+              ? {
+                  agentId: agentLocator,
+                  apiKey,
+                  fromNumber: retellFromNumber,
+                  customerNumber: vapiCustomerNumber,
+                }
+              : agentType === 'elevenlabs'
+                ? {
+                    agentId: agentLocator,
+                    apiKey,
+                    agentPhoneNumberId: elevenLabsPhoneNumberId,
+                    customerNumber: vapiCustomerNumber,
+                    costMode: elevenLabsMode,
+                  }
             : agentType === 'livekit'
               ? { roomOrAgent: agentLocator, apiKey }
               : agentType === 'pipecat'
                 ? { agentUrl: agentLocator, apiKey }
                 : { agentId: agentLocator, apiKey };
 
-      if (agentType === 'vapi') {
+      if (usesLiveProvider) {
         const response = await fetch('/api/experiments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -191,14 +220,14 @@ export default function NewExperiment() {
             name: expName,
             agentType,
             agentConfig,
-            webrtcEndpoint: `vapi:${agentLocator}`,
+            webrtcEndpoint: `${agentType}:${agentLocator}`,
             scenarioIds: selectedIds,
-            gitSha: 'pilot-local',
+            gitSha: 'live-sandbox',
           }),
         });
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.error ?? 'Vapi pilot experiment could not be created');
+          throw new Error(data.error ?? 'Provider sandbox experiment could not be created');
         }
 
         await Promise.all(
@@ -242,7 +271,7 @@ export default function NewExperiment() {
           </div>
           <h1 className="page-title">New voice-agent sandbox test</h1>
           <p className="page-subtitle max-w-2xl">
-            Connect an agent, choose synthetic phone callers, then run a release gate for MOS, task completion,
+            Connect an agent, choose real-world caller scenarios, then run a sandbox check for MOS, task completion,
             hallucination risk, and latency.
           </p>
         </div>
@@ -256,7 +285,7 @@ export default function NewExperiment() {
               <div>
                 <h2 className="text-base font-medium text-slate-950">Connect your voice agent</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Lightcurve will call this endpoint as a simulated customer, not as a text-only prompt.
+                  Lightcurve tests your voice agent through live calls, replay imports, or the coming isolated caller bridge.
                 </p>
               </div>
               <button type="button" onClick={useMockAgent} className="btn-secondary text-xs">
@@ -311,23 +340,67 @@ export default function NewExperiment() {
               )}
             </div>
 
-            {agentType === 'vapi' && (
+            {liveProvider && (
               <div className="mt-4 space-y-3">
                 <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] p-3 text-sm leading-relaxed text-[#765b1f]">
-                  Vapi pilot mode dials a real human tester. The selected caller card is the script the tester must act out;
-                  fully automatic synthetic caller audio needs the next bot-to-bot bridge.
+                  {replayMode
+                    ? 'ElevenLabs replay mode avoids live call spend: import an existing recording or transcript, then Lightcurve scores it against the selected scenario.'
+                    : `${activeAgent.label} live mode dials a real human tester. The selected caller card is the script the tester must act out; autonomous bot-to-bot caller audio is coming soon.`}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Vapi phone number ID</label>
-                    <input
-                      className="input-field"
-                      value={vapiPhoneNumberId}
-                      onChange={(event) => setVapiPhoneNumberId(event.target.value)}
-                      placeholder="Optional if set in server env"
-                    />
+                {agentType === 'elevenlabs' && (
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setElevenLabsMode('recording_replay')}
+                      className={`rounded-md px-3 py-1.5 ${elevenLabsMode === 'recording_replay' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Low-cost replay
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setElevenLabsMode('live_call')}
+                      className={`rounded-md px-3 py-1.5 ${elevenLabsMode === 'live_call' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Live phone call
+                    </button>
                   </div>
-                  <div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  {agentType === 'vapi' && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Vapi phone number ID</label>
+                      <input
+                        className="input-field"
+                        value={vapiPhoneNumberId}
+                        onChange={(event) => setVapiPhoneNumberId(event.target.value)}
+                        placeholder="Optional if set in server env"
+                      />
+                    </div>
+                  )}
+                  {agentType === 'retell' && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Retell from number</label>
+                      <input
+                        className="input-field"
+                        value={retellFromNumber}
+                        onChange={(event) => setRetellFromNumber(event.target.value)}
+                        placeholder="Optional if set in server env"
+                      />
+                    </div>
+                  )}
+                  {agentType === 'elevenlabs' && !replayMode && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">ElevenLabs phone number ID</label>
+                      <input
+                        className="input-field"
+                        value={elevenLabsPhoneNumberId}
+                        onChange={(event) => setElevenLabsPhoneNumberId(event.target.value)}
+                        placeholder="Optional if set in server env"
+                      />
+                    </div>
+                  )}
+                  {!replayMode && (
+                    <div>
                     <label className="mb-1.5 block text-xs font-medium text-slate-600">Consented tester phone number</label>
                     <input
                       className="input-field"
@@ -335,7 +408,8 @@ export default function NewExperiment() {
                       onChange={(event) => setVapiCustomerNumber(event.target.value)}
                       placeholder="+14155550123"
                     />
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -343,7 +417,7 @@ export default function NewExperiment() {
             <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="grid grid-cols-3 gap-3">
                 <MiniMetric label="Input" value="Phone audio" />
-                <MiniMetric label="Caller" value={agentType === 'vapi' ? 'Human pilot' : 'Synthetic'} />
+                <MiniMetric label="Caller" value={callerMode} />
                 <MiniMetric label="Output" value="MOS + CI" />
               </div>
             </div>
@@ -360,13 +434,13 @@ export default function NewExperiment() {
 
           <aside className="card p-5">
             <p className="section-label">What gets tested</p>
-            <h2 className="mt-2 text-base font-medium text-slate-950">A real phone-call loop</h2>
+            <h2 className="mt-2 text-base font-medium text-slate-950">A sandboxed voice loop</h2>
             <div className="mt-5 space-y-4">
               {[
                 ['Caller behavior', 'Anger, interruptions, accents, code switching, background noise.'],
                 ['Agent outcome', 'Task completion, safety, policy accuracy, escalation handling.'],
-                ['Speech quality', 'MOS score from the recorded call, plus latency per turn.'],
-                ['Release signal', 'Pass or block output for CI/CD and pull-request review.'],
+                ['Speech quality', 'MOS from recorded audio or a proxy score until the MOS service is connected.'],
+                ['Release signal', 'A clean pass/fail readout developers can use before production.'],
               ].map(([label, text]) => (
                 <div key={label} className="flex gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-[#2f5ae0]" />
@@ -387,10 +461,10 @@ export default function NewExperiment() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-medium text-slate-950">
-                  {agentType === 'vapi' ? 'Choose caller scripts' : 'Choose simulated callers'}
+                  {liveProvider ? 'Choose caller scripts' : 'Choose simulated callers'}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  {agentType === 'vapi'
+                  {liveProvider
                     ? 'Pick the scenario your human tester will act out on the phone call.'
                     : 'Select the calls that should run before this voice-agent release ships.'}
                 </p>
@@ -474,7 +548,7 @@ export default function NewExperiment() {
           <section className="card p-5">
             <h2 className="text-base font-medium text-slate-950">Name the release gate</h2>
             <p className="mt-1 text-sm text-slate-500">
-              This creates the sandbox run and prepares the output that developers can attach to CI/CD.
+              This creates the sandbox run and prepares an operator-ready quality report.
             </p>
 
             <div className="mt-5">
@@ -516,7 +590,13 @@ export default function NewExperiment() {
                 onClick={handleRun}
                 disabled={!expName.trim() || !agentLocator.trim() || selectedIds.length === 0 || loading}
               >
-                {loading ? 'Creating sandbox...' : agentType === 'vapi' ? 'Dial human pilot call' : 'Run simulated phone calls'}
+                {loading
+                  ? 'Creating sandbox...'
+                  : replayMode
+                    ? 'Create replay sandbox'
+                    : liveProvider
+                      ? 'Dial human pilot call'
+                      : 'Run simulated phone calls'}
               </button>
             </div>
           </section>
