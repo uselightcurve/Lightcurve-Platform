@@ -1,22 +1,30 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { getExperiment } from '@/lib/workspaceStore';
 
+function formatScenarioName(value: unknown) {
+  return String(value ?? 'Unknown scenario')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
   const color =
-    max === 4.5
-      ? value >= 3.5 ? 'bg-[#2f5ae0]' : value >= 3.0 ? 'bg-[#8a6a20]' : 'bg-[#a94d4a]'
+    max === 5
+      ? value >= 3.8 ? 'bg-[#2f5ae0]' : value >= 3.3 ? 'bg-[#8a6a20]' : 'bg-[#a94d4a]'
       : value >= 0.8 ? 'bg-[#2f5ae0]' : value >= 0.6 ? 'bg-[#8a6a20]' : 'bg-[#a94d4a]';
+
   return (
     <div className="flex items-center gap-2">
       <div className="score-bar-track flex-1">
         <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs font-medium text-gray-700 tabular-nums">
-        {max === 4.5 ? `${value.toFixed(1)}/4.5` : value.toFixed(2)}
+        {max === 5 ? value.toFixed(1) : `${Math.round(value * 100)}%`}
       </span>
     </div>
   );
@@ -33,7 +41,9 @@ function StatusPill({ status }: { status: string }) {
     evaluating: 'status-pill-running',
     failed: 'status-pill-failed',
   };
-  return <span className={map[status] ?? 'status-pill-pending'}>{status}</span>;
+
+  const label = status === 'complete' || status === 'completed' ? 'Pass' : status === 'failed' ? 'Fail' : status;
+  return <span className={map[status] ?? 'status-pill-pending'}>{label}</span>;
 }
 
 export default function ExperimentDetail() {
@@ -64,6 +74,7 @@ export default function ExperimentDetail() {
               runId: run.id,
             })),
           ),
+          scenarios: [],
         });
         setPolling(false);
         return;
@@ -84,7 +95,7 @@ export default function ExperimentDetail() {
                 fetch(`/api/runs/${run.id}/poll`, { method: 'POST' }).catch(() => undefined);
               });
           }
-          const allDone = d.runs?.every((r: any) => r.status === 'complete' || r.status === 'failed');
+          const allDone = d.runs?.every((run: any) => run.status === 'complete' || run.status === 'failed');
           if (allDone) setPolling(false);
         })
         .catch(() => setData({ error: 'Experiment not found' }));
@@ -98,8 +109,8 @@ export default function ExperimentDetail() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-sm text-gray-400">Loading…</div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-sm text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -117,45 +128,65 @@ export default function ExperimentDetail() {
   const exp = data.experiment;
   const runs: any[] = data.runs ?? [];
   const scores: any[] = data.scores ?? [];
+  const scenarios: any[] = data.scenarios ?? [];
+  const scenariosById = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
+  const failedRuns = runs.filter((run) => run.status === 'failed');
+  const firstFailure = failedRuns.find((run) => run.failureSummary)?.failureSummary;
 
   const avgMos = (() => {
-    const vals = scores.filter((s) => s.metricName === 'mos').map((s) => s.value);
+    const vals = scores.filter((score) => score.metricName === 'mos').map((score) => score.value);
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   })();
 
-  const avgTc = (() => {
-    const vals = scores.filter((s) => s.metricName === 'task_completed').map((s) => s.value);
+  const avgTask = (() => {
+    const vals = scores.filter((score) => score.metricName === 'task_completed').map((score) => score.value);
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   })();
 
   return (
     <div>
-      {/* Breadcrumb + header */}
-      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+      <div className="mb-6 flex items-center gap-2 text-sm text-gray-400">
         <Link href="/experiments" className="hover:text-gray-700">Experiments</Link>
         <span>/</span>
-        <span className="text-gray-700 font-medium">{exp.name}</span>
+        <span className="font-medium text-gray-700">{exp.name}</span>
       </div>
 
       <div className="page-header flex items-start justify-between">
         <div>
           <h1 className="page-title">{exp.name}</h1>
-          <p className="page-subtitle">Agent: <span className="capitalize">{exp.agentType}</span> · {runs.length} run{runs.length !== 1 ? 's' : ''}</p>
+          <p className="page-subtitle">
+            Agent: <span className="capitalize">{exp.agentType}</span> - {runs.length} run{runs.length !== 1 ? 's' : ''}
+          </p>
         </div>
         <StatusPill status={exp.status} />
       </div>
 
-      {/* Aggregate score cards */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {failedRuns.length > 0 && (
+        <div className="mb-4 rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] px-4 py-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#8f3d3b]">Release gate failed</p>
+              <p className="mt-1 text-sm leading-relaxed text-[#8f3d3b]">
+                {firstFailure ?? 'One or more scenarios missed the MOS or task-completion threshold.'}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full border border-[#e3c3c1] bg-white px-2 py-0.5 text-xs font-medium text-[#8f3d3b]">
+              {failedRuns.length} failed
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6 grid grid-cols-3 gap-3">
         {[
-          { label: 'Avg MOS', value: avgMos, max: 4.5, fmt: (v: number) => `${v.toFixed(1)} / 4.5` },
-          { label: 'Avg Task completion', value: avgTc, max: 1, fmt: (v: number) => v.toFixed(2) },
-          { label: 'Total runs', value: runs.length, max: null, fmt: (v: number) => String(v) },
+          { label: 'Avg MOS', value: avgMos, max: 5, fmt: (value: number) => value.toFixed(1) },
+          { label: 'Avg Task completion', value: avgTask, max: 1, fmt: (value: number) => `${Math.round(value * 100)}%` },
+          { label: 'Total runs', value: runs.length, max: null, fmt: (value: number) => String(value) },
         ].map((card) => (
           <div key={card.label} className="card p-5">
-            <div className="text-xs font-medium text-gray-400 mb-1">{card.label}</div>
+            <div className="mb-1 text-xs font-medium text-gray-400">{card.label}</div>
             <div className="text-2xl font-medium text-gray-900">
-              {card.value != null ? card.fmt(card.value as number) : '—'}
+              {card.value != null ? card.fmt(card.value as number) : '-'}
             </div>
             {card.max && card.value != null && (
               <div className="mt-2">
@@ -166,13 +197,12 @@ export default function ExperimentDetail() {
         ))}
       </div>
 
-      {/* Runs table */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <h2 className="text-sm font-medium text-gray-800">Runs</h2>
           {polling && (
             <span className="flex items-center gap-1.5 text-xs text-[#2448bb]">
-              <span className="w-1.5 h-1.5 bg-[#2f5ae0] rounded-full animate-pulse" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#2f5ae0]" />
               Live updating
             </span>
           )}
@@ -189,32 +219,38 @@ export default function ExperimentDetail() {
             </tr>
           </thead>
           <tbody>
-            {runs.map((r: any, i: number) => {
-              const runScores = scores.filter((s) => s.runId === r.id);
-              const mos = runScores.find((s) => s.metricName === 'mos');
-              const tc = runScores.find((s) => s.metricName === 'task_completed');
+            {runs.map((run, index) => {
+              const runScores = scores.filter((score) => score.runId === run.id);
+              const mos = runScores.find((score) => score.metricName === 'mos');
+              const task = runScores.find((score) => score.metricName === 'task_completed');
+              const scenario = scenariosById.get(run.scenarioId);
+              const scenarioName = scenario?.name ?? run.scenarioId;
+
               return (
                 <tr
-                  key={r.id}
-                  className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${i === runs.length - 1 ? 'border-0' : ''}`}
+                  key={run.id}
+                  className={`border-b border-gray-100 transition-colors hover:bg-gray-50 ${index === runs.length - 1 ? 'border-0' : ''}`}
                 >
-                  <td className="px-5 py-3.5 font-mono text-xs text-gray-500 max-w-[200px] truncate">
-                    {r.scenarioId}
+                  <td className="max-w-[280px] px-5 py-3.5">
+                    <div className="truncate text-sm font-medium text-gray-800">{formatScenarioName(scenarioName)}</div>
+                    {run.failureSummary && (
+                      <div className="mt-1 truncate text-xs text-[#8f3d3b]">{run.failureSummary}</div>
+                    )}
                   </td>
-                  <td className="px-5 py-3.5"><StatusPill status={r.status} /></td>
-                  <td className="px-5 py-3.5 text-gray-500">{r.turnCount ?? '—'}</td>
-                  <td className="px-5 py-3.5 min-w-[130px]">
-                    {mos ? <ScoreBar value={mos.value} max={4.5} /> : <span className="text-gray-300">—</span>}
+                  <td className="px-5 py-3.5"><StatusPill status={run.status} /></td>
+                  <td className="px-5 py-3.5 text-gray-500">{run.turnCount ?? '-'}</td>
+                  <td className="min-w-[130px] px-5 py-3.5">
+                    {mos ? <ScoreBar value={mos.value} max={5} /> : <span className="text-gray-300">-</span>}
                   </td>
-                  <td className="px-5 py-3.5 min-w-[130px]">
-                    {tc ? <ScoreBar value={tc.value} /> : <span className="text-gray-300">—</span>}
+                  <td className="min-w-[130px] px-5 py-3.5">
+                    {task ? <ScoreBar value={task.value} /> : <span className="text-gray-300">-</span>}
                   </td>
                   <td className="px-5 py-3.5">
                     <Link
-                      href={`/experiments/${id}/runs/${r.id}`}
-                      className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+                      href={`/experiments/${id}/runs/${run.id}`}
+                      className="text-xs text-gray-400 transition-colors hover:text-gray-700"
                     >
-                      View →
+                      View -&gt;
                     </Link>
                   </td>
                 </tr>

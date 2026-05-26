@@ -7,8 +7,8 @@ import { getRun } from '@/lib/workspaceStore';
 function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
   const color =
-    max === 4.5
-      ? value >= 3.5 ? 'bg-[#2f5ae0]' : value >= 3.0 ? 'bg-[#8a6a20]' : 'bg-[#a94d4a]'
+    max === 5
+      ? value >= 3.8 ? 'bg-[#2f5ae0]' : value >= 3.3 ? 'bg-[#8a6a20]' : 'bg-[#a94d4a]'
       : value >= 0.8 ? 'bg-[#2f5ae0]' : value >= 0.6 ? 'bg-[#8a6a20]' : 'bg-[#a94d4a]';
   return (
     <div className="flex items-center gap-2">
@@ -16,7 +16,7 @@ function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
         <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs font-medium text-gray-700 tabular-nums">
-        {max === 4.5 ? `${value.toFixed(1)}/4.5` : value.toFixed(2)}
+        {max === 5 ? value.toFixed(1) : `${Math.round(value * 100)}%`}
       </span>
     </div>
   );
@@ -278,10 +278,10 @@ export default function RunDetail() {
               <>
                 <div className="text-3xl font-medium text-gray-900 mb-3">
                   {mosScore.value.toFixed(1)}
-                  <span className="text-base font-normal text-gray-400"> / 4.5</span>
+                  <span className="text-base font-normal text-gray-400"> / 5</span>
                 </div>
-                <ScoreBar value={mosScore.value} max={4.5} />
-                <p className="text-xs text-gray-400 mt-2">via PESQ narrowband</p>
+                <ScoreBar value={mosScore.value} max={5} />
+                <p className="text-xs text-gray-400 mt-2">LLM-as-judge voice quality proxy</p>
               </>
             ) : (
               <div>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { experiments, runs, scores } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { experiments, runs, scenarios, scores } from '@/db/schema';
+import { eq, inArray } from 'drizzle-orm';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,6 +9,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!expData.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   
   const expRuns = await db.select().from(runs).where(eq(runs.experimentId, id));
+  const scenarioIds = expRuns.map((run) => run.scenarioId).filter(Boolean) as string[];
+  const expScenarios = scenarioIds.length
+    ? await db.select().from(scenarios).where(inArray(scenarios.id, scenarioIds))
+    : [];
   
   const allScores = [];
   for (const r of expRuns) {
@@ -16,5 +20,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     allScores.push(...rScores);
   }
 
-  return NextResponse.json({ experiment: expData[0], runs: expRuns, scores: allScores });
+  return NextResponse.json({ experiment: expData[0], runs: expRuns, scores: allScores, scenarios: expScenarios });
 }
