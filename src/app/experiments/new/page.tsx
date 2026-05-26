@@ -293,23 +293,20 @@ export default function NewExperiment() {
               </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="mt-5 flex flex-wrap gap-2.5">
               {AGENT_TYPES.map((agent) => (
                 <button
                   key={agent.id}
                   type="button"
                   onClick={() => setAgentType(agent.id)}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
+                  className={`inline-flex h-11 items-center gap-2.5 rounded-lg border px-4 text-sm transition-colors ${
                     agentType === agent.id
-                      ? 'border-slate-300 bg-slate-50 ring-1 ring-slate-200'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-[#526dff] bg-[#f4f6ff] text-[#2448bb] ring-1 ring-[#526dff]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <ProviderLogo provider={agent.id} />
-                    <p className="text-sm font-medium text-slate-950">{agent.label}</p>
-                  </div>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500">{agent.detail}</p>
+                  <ProviderLogo provider={agent.id} className="h-5 w-5" />
+                  <span className="font-medium">{agent.label}</span>
                 </button>
               ))}
             </div>
