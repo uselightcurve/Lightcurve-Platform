@@ -40,6 +40,8 @@ const defaultCustomScenario = {
   expectedOutcome: '',
 };
 
+const PAGE_SIZE = 48;
+
 function formatName(name: string) {
   return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -93,6 +95,7 @@ export default function ScenariosPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [customScenario, setCustomScenario] = useState(defaultCustomScenario);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const loaded = getScenarios();
@@ -126,6 +129,13 @@ export default function ScenariosPage() {
       );
     });
   }, [domain, emotion, language, libraryMode, query, scenarios]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [domain, emotion, language, libraryMode, query]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visibleScenarios = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function toggleScenario(id: string) {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -256,12 +266,16 @@ export default function ScenariosPage() {
       </div>
 
       <div className="flex items-center justify-between text-xs text-slate-500">
-        <span>{filtered.length} scenarios shown from {scenarios.length} total</span>
-        <span>Select two or more to run a suite.</span>
+        <span>
+          {filtered.length} scenarios matched from {scenarios.length} total
+        </span>
+        <span>
+          Page {page} of {pageCount}
+        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 2xl:grid-cols-3">
-        {filtered.map((scenario) => {
+        {visibleScenarios.map((scenario) => {
           const isSelected = selected.includes(scenario.id);
           const emotionKey = scenario.persona.emotional_state;
 
@@ -316,6 +330,28 @@ export default function ScenariosPage() {
             </article>
           );
         })}
+      </div>
+
+      <div className="card flex items-center justify-between px-4 py-3">
+        <p className="text-xs text-slate-500">
+          Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            Previous
+          </button>
+          <button
+            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+            disabled={page >= pageCount}
+            onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {showCreate && (

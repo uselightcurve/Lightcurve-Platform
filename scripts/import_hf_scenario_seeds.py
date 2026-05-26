@@ -10,6 +10,7 @@ of a customer's release gate.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -42,6 +43,20 @@ BITEXT_DOMAIN_MAP = {
     "DELIVERY": "ecommerce",
     "INVOICE": "banking",
     "SUBSCRIPTION": "telecom",
+}
+
+MEDICAL_LEVEL_EMOTION = {
+    "Emergency": "urgent",
+    "Soon": "nervous",
+    "Routine": "neutral",
+    "Low": "confused",
+}
+
+ECOMMERCE_URGENCY_EMOTION = {
+    "Immediate": "urgent",
+    "High": "angry",
+    "Medium": "frustrated",
+    "Low": "confused",
 }
 
 BANKING_INTENT_EMOTION = {
@@ -114,7 +129,8 @@ def scenario_seed(
     emotion: str | None = None,
     confidence: float = 0.72,
 ) -> dict[str, Any]:
-    clean_text = re.sub(r"\{\{\s*([^}]+?)\s*\}\}", lambda match: f"sample {match.group(1).strip().lower()}", text)
+    clean_text = text.replace("\ufffd", "'")
+    clean_text = re.sub(r"\{\{\s*([^}]+?)\s*\}\}", lambda match: f"sample {match.group(1).strip().lower()}", clean_text)
     clean_text = re.sub(r"\s+", " ", clean_text).strip()
     clean_intent = slug(intent or clean_text)
     clean_emotion = emotion or infer_emotion(clean_text, clean_intent)
@@ -234,32 +250,141 @@ def import_banking77(api: HfApi, token: str | None, limit: int) -> list[dict[str
     license_name = dataset_license(api, dataset)
     seeds: list[dict[str, Any]] = []
     seen_intents: set[str] = set()
+    seen_text: set[str] = set()
 
-    for offset in range(0, 6000, 100):
-        payload = rows_from_viewer(dataset, "default", "train", offset, 100, token)
-        for item in payload.get("rows", []):
-            row = item.get("row") or {}
-            text = str(row.get("text") or "")
-            intent = str(row.get("label_text") or "banking_support")
-            if intent in seen_intents or len(text) < 14:
-                continue
+    stream = load_dataset(dataset, split="train", streaming=True)
+    for index, row in enumerate(stream):
+        text = str(row.get("text") or "")
+        intent = str(row.get("label_text") or "banking_support")
+        text_key = slug(text)
+        if len(text) < 14 or text_key in seen_text:
+            continue
 
-            seeds.append(
-                scenario_seed(
-                    dataset=dataset,
-                    license_name=license_name,
-                    row_id=str(item.get("row_idx")),
-                    text=text,
-                    intent=intent,
-                    domain="banking",
-                    language="en-US",
-                    emotion=BANKING_INTENT_EMOTION.get(intent),
-                    confidence=0.84,
-                )
+        seeds.append(
+            scenario_seed(
+                dataset=dataset,
+                license_name=license_name,
+                row_id=str(index),
+                text=text,
+                intent=intent,
+                domain="banking",
+                language="en-US",
+                emotion=BANKING_INTENT_EMOTION.get(intent),
+                confidence=0.84 if intent not in seen_intents else 0.76,
             )
-            seen_intents.add(intent)
-            if len(seeds) >= limit:
-                return seeds
+        )
+        seen_intents.add(intent)
+        seen_text.add(text_key)
+        if len(seeds) >= limit:
+            break
+
+    return seeds
+
+
+def import_medical_support(api: HfApi, limit: int) -> list[dict[str, Any]]:
+    dataset = "Ataur77/medical-custmer-support"
+    license_name = dataset_license(api, dataset)
+    seeds: list[dict[str, Any]] = []
+    seen_text: set[str] = set()
+
+    stream = load_dataset(dataset, split="train", streaming=True)
+    for index, row in enumerate(stream):
+        text = str(row.get("customer_query") or "")
+        intent = str(row.get("intent") or row.get("department") or "medical_support")
+        level = str(row.get("level") or "")
+        text_key = slug(text)
+        if len(text) < 14 or text_key in seen_text:
+            continue
+
+        seeds.append(
+            scenario_seed(
+                dataset=dataset,
+                license_name=license_name,
+                row_id=str(index),
+                text=text,
+                intent=intent,
+                domain="healthcare",
+                language="en-US",
+                emotion=MEDICAL_LEVEL_EMOTION.get(level),
+                confidence=0.74,
+            )
+        )
+        seen_text.add(text_key)
+        if len(seeds) >= limit:
+            break
+
+    return seeds
+
+
+def import_ecommerce_complaints(api: HfApi, limit: int) -> list[dict[str, Any]]:
+    dataset = "Ataur77/ecommerce-customer-support"
+    license_name = dataset_license(api, dataset)
+    seeds: list[dict[str, Any]] = []
+    seen_text: set[str] = set()
+
+    stream = load_dataset(dataset, split="train", streaming=True)
+    for index, row in enumerate(stream):
+        text = str(row.get("Complaint") or "")
+        intent = str(row.get("Category") or "ecommerce_support")
+        urgency = str(row.get("Urgency") or "")
+        text_key = slug(text)
+        if len(text) < 14 or text_key in seen_text:
+            continue
+
+        seeds.append(
+            scenario_seed(
+                dataset=dataset,
+                license_name=license_name,
+                row_id=str(index),
+                text=text,
+                intent=intent,
+                domain="ecommerce",
+                language="en-US",
+                emotion=ECOMMERCE_URGENCY_EMOTION.get(urgency),
+                confidence=0.73,
+            )
+        )
+        seen_text.add(text_key)
+        if len(seeds) >= limit:
+            break
+
+    return seeds
+
+
+def import_telecom_mtn(api: HfApi, limit: int) -> list[dict[str, Any]]:
+    dataset = "francis-ogbuagu/MTN_QnA_dataset"
+    license_name = dataset_license(api, dataset)
+    seeds: list[dict[str, Any]] = []
+    seen_text: set[str] = set()
+
+    stream = load_dataset(dataset, split="train", streaming=True)
+    for index, row in enumerate(stream):
+        text = str(row.get("input") or "")
+        answer = str(row.get("response") or "")
+        text_key = slug(text)
+        if len(text) < 14 or text_key in seen_text:
+            continue
+
+        seed = scenario_seed(
+            dataset=dataset,
+            license_name=license_name,
+            row_id=str(index),
+            text=text,
+            intent="telecom_plan_support",
+            domain="telecom",
+            language="en-US",
+            confidence=0.7,
+        )
+        if answer:
+            seed["expectedOutcome"] = (
+                "Agent answers the telecom support question accurately, keeps plan details grounded, "
+                "and does not invent unavailable pricing. Reference answer: "
+                f"{answer[:220]}"
+            )
+        seeds.append(seed)
+        seen_text.add(text_key)
+        if len(seeds) >= limit:
+            break
 
     return seeds
 
@@ -329,26 +454,128 @@ def dedupe(seeds: list[dict[str, Any]], total_limit: int) -> list[dict[str, Any]
     return output
 
 
+VARIANT_PROFILES: tuple[dict[str, Any], ...] = (
+    {
+        "suffix": "noisy_background",
+        "emotion": None,
+        "prefix": "There is background noise where I am calling from. ",
+        "noiseDb": 8,
+        "interrupts": True,
+        "speedWpmDelta": 4,
+    },
+    {
+        "suffix": "impatient_interrupting",
+        "emotion": "frustrated",
+        "prefix": "I am in a hurry and may interrupt if this takes too long. ",
+        "noiseDb": 5,
+        "interrupts": True,
+        "speedWpmDelta": 18,
+    },
+    {
+        "suffix": "confused_repeat",
+        "emotion": "confused",
+        "prefix": "I am confused and may repeat myself. ",
+        "noiseDb": 2,
+        "interrupts": False,
+        "speedWpmDelta": -14,
+    },
+    {
+        "suffix": "urgent_resolution",
+        "emotion": "urgent",
+        "prefix": "I need this handled today. ",
+        "noiseDb": 3,
+        "interrupts": True,
+        "speedWpmDelta": 10,
+    },
+    {
+        "suffix": "low_confidence_stt",
+        "emotion": "nervous",
+        "prefix": "My phone signal is weak, so please confirm details carefully. ",
+        "noiseDb": 9,
+        "interrupts": False,
+        "speedWpmDelta": -6,
+    },
+    {
+        "suffix": "elderly_slow_speech",
+        "emotion": "confused",
+        "prefix": "Please go slowly, I may need you to repeat the next step. ",
+        "noiseDb": 1,
+        "interrupts": False,
+        "speedWpmDelta": -28,
+    },
+)
+
+
+def make_variant(seed: dict[str, Any], profile: dict[str, Any], index: int) -> dict[str, Any]:
+    variant = copy.deepcopy(seed)
+    profile_suffix = str(profile["suffix"])
+    variant["id"] = f"{seed['id']}-{profile_suffix}-{index}"
+    variant["intent"] = f"{seed['intent']}_{profile_suffix}"[:56]
+    variant["goal"] = f"{profile['prefix']}{seed['goal']}"
+    variant["openingLine"] = f"{profile['prefix']}{seed['openingLine']}"
+    variant["emotion"] = profile["emotion"] or seed["emotion"]
+    variant["confidence"] = min(float(seed["confidence"]), 0.68)
+    variant["source"] = {
+        **seed["source"],
+        "rowId": f"{seed['source'].get('rowId', seed['id'])}:{profile_suffix}",
+    }
+    modifiers = variant["voiceModifiers"]
+    modifiers["noiseDb"] = int(profile["noiseDb"])
+    modifiers["interrupts"] = bool(profile["interrupts"])
+    modifiers["speedWpm"] = max(92, min(184, int(modifiers.get("speedWpm", 140)) + int(profile["speedWpmDelta"])))
+    variant["expectedOutcome"] = (
+        f"{seed['expectedOutcome']} Judge whether the agent still succeeds under the "
+        f"{profile_suffix.replace('_', ' ')} condition."
+    )
+    return variant
+
+
+def expand_to_target(seeds: list[dict[str, Any]], total_limit: int) -> list[dict[str, Any]]:
+    expanded = list(seeds)
+    if len(expanded) >= total_limit:
+        return expanded[:total_limit]
+
+    for index, seed in enumerate(seeds):
+        for profile in VARIANT_PROFILES:
+            expanded.append(make_variant(seed, profile, index))
+            if len(expanded) >= total_limit:
+                return dedupe(expanded, total_limit)
+
+    return dedupe(expanded, total_limit)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Import Hugging Face scenario seed data for Lightcurve.")
     parser.add_argument("--output", default="src/data/real-scenario-seeds.json")
-    parser.add_argument("--limit", type=int, default=220)
+    parser.add_argument("--limit", type=int, default=3000)
     args = parser.parse_args()
 
     token = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
     api = HfApi(token=token)
 
     seeds = []
-    seeds.extend(import_bitext(api, limit=120))
+    seeds.extend(import_bitext(api, limit=900))
     for importer in (
-        lambda: import_banking77(api, token=token, limit=40),
-        lambda: import_massive(api, token=token, limit_per_locale=30),
+        lambda: import_banking77(api, token=token, limit=700),
+        lambda: import_medical_support(api, limit=650),
+        lambda: import_telecom_mtn(api, limit=450),
+        lambda: import_ecommerce_complaints(api, limit=350),
+        lambda: import_massive(api, token=token, limit_per_locale=35),
     ):
         try:
             seeds.extend(importer())
         except Exception as exc:
             print(f"Skipped one Hugging Face source: {exc}")
+    existing_path = Path(args.output)
+    if existing_path.exists():
+        try:
+            previous = json.loads(existing_path.read_text(encoding="utf-8"))
+            if isinstance(previous, list):
+                seeds.extend(previous)
+        except Exception:
+            pass
     seeds = dedupe(seeds, args.limit)
+    seeds = expand_to_target(seeds, args.limit)
 
     if not seeds:
         raise SystemExit("No scenario seeds were imported from Hugging Face.")
