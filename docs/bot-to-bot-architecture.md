@@ -31,6 +31,7 @@ Required production secrets for this mode:
 Recommended:
 
 - `VAPI_CALLER_ASSISTANT_ID` for a known-good low-cost caller voice/persona
+- `VAPI_CALLER_PHONE_NUMBER` to prevent accidentally dialing the same number Lightcurve is calling from
 - `VAPI_CALLER_MODEL_PROVIDER=openai`
 - `VAPI_CALLER_MODEL=gpt-4o-mini`
 - `VAPI_CALLER_VOICE_PROVIDER` and `VAPI_CALLER_VOICE_ID` when the Vapi account requires an explicit voice

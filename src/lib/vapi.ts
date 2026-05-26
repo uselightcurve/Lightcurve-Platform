@@ -59,6 +59,17 @@ function numberValue(value: unknown): number | undefined {
   return undefined;
 }
 
+function normalizePhone(value: string | undefined) {
+  if (!value) return undefined;
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 8 ? digits : undefined;
+}
+
+function looksLikePhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 8 && /^[+\d\s().-]+$/.test(value.trim());
+}
+
 function getAgentConfig(experiment: ExperimentRow): Record<string, string> {
   return asRecord(experiment.agentConfig) as Record<string, string>;
 }
@@ -113,6 +124,7 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
   const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? stringValue(process.env.VAPI_PHONE_NUMBER_ID);
   const targetAgentNumber = stringValue(agentConfig.targetAgentNumber) ?? stringValue(process.env.VAPI_TARGET_AGENT_NUMBER);
   const callerAssistantId = stringValue(agentConfig.callerAssistantId) ?? stringValue(process.env.VAPI_CALLER_ASSISTANT_ID);
+  const callerPhoneNumber = stringValue(agentConfig.callerPhoneNumber) ?? stringValue(process.env.VAPI_CALLER_PHONE_NUMBER);
   const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
 
   const missing = [
@@ -125,7 +137,15 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
     throw new Error(`Missing Vapi bot-to-bot configuration: ${missing.join(', ')}`);
   }
 
-  return { apiKey, phoneNumberId, targetAgentNumber, callerAssistantId, apiBase };
+  if (looksLikePhoneNumber(phoneNumberId)) {
+    throw new Error('VAPI_PHONE_NUMBER_ID must be the Vapi phone-number UUID, not the formatted +1 caller number.');
+  }
+
+  if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(callerPhoneNumber)) {
+    throw new Error('Target agent number cannot be the same as the Vapi caller number. Enter the inbound number your agent answers.');
+  }
+
+  return { apiKey, phoneNumberId, targetAgentNumber, callerAssistantId, callerPhoneNumber, apiBase };
 }
 
 function buildCallerAssistant(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {

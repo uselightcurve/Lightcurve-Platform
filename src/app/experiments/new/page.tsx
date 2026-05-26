@@ -50,6 +50,16 @@ function formatName(name: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function looksLikeUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function looksLikePhoneNumber(value: string) {
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  return digits.length >= 8 && /^[+\d\s().-]+$/.test(trimmed);
+}
+
 function Stepper({ step, setStep }: { step: number; setStep: (step: number) => void }) {
   return (
     <div className="flex items-center gap-0">
@@ -166,7 +176,7 @@ export default function NewExperiment() {
   const botToBotProvider = isBotToBotProvider(agentType);
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
   const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
-  const locatorLabel = vapiBotToBotPhone ? 'Agent phone number or SIP URI' : activeAgent.locatorLabel;
+  const locatorLabel = vapiBotToBotPhone ? 'Target agent inbound number or SIP URI' : activeAgent.locatorLabel;
   const locatorPlaceholder = vapiBotToBotPhone ? '+14155550123 or sip:agent@example.com' : activeAgent.placeholder;
   const callerMode = replayMode ? 'Replay import' : vapiBotToBotPhone ? 'Bot-to-bot phone' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
 
@@ -184,6 +194,20 @@ export default function NewExperiment() {
     const usesLiveProvider = isLiveProvider(agentType);
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
     const needsHumanTester = usesLiveProvider && !elevenLabsReplay && !vapiBotToBotPhone;
+    if (vapiBotToBotPhone) {
+      if (looksLikeUuid(agentLocator)) {
+        setError('For Vapi bot-to-bot, enter the target agent phone number or SIP URI here, not a Vapi phone-number ID.');
+        return;
+      }
+      if (!agentLocator.trim().startsWith('sip:') && !looksLikePhoneNumber(agentLocator)) {
+        setError('Enter the phone number or SIP URI your voice agent answers. Example: +14155550123 or sip:agent@example.com.');
+        return;
+      }
+      if (vapiPhoneNumberId.trim() && !looksLikeUuid(vapiPhoneNumberId)) {
+        setError('Vapi caller phone number ID must be the UUID from Vapi, not the +1 phone number.');
+        return;
+      }
+    }
     if (needsHumanTester && !vapiCustomerNumber.trim()) {
       setError('Add a consented test phone number for the live sandbox call.');
       return;
@@ -343,6 +367,11 @@ export default function NewExperiment() {
                   onChange={(event) => setAgentLocator(event.target.value)}
                   placeholder={locatorPlaceholder}
                 />
+                {vapiBotToBotPhone && (
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                    This is the number your customer-facing voice agent answers. Do not put the Vapi caller number here.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
@@ -404,13 +433,18 @@ export default function NewExperiment() {
                 <div className="grid grid-cols-2 gap-4">
                   {agentType === 'vapi' && (
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Vapi phone number ID</label>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                        {vapiBotToBotPhone ? 'Vapi caller phone number ID' : 'Vapi phone number ID'}
+                      </label>
                       <input
                         className="input-field"
                         value={vapiPhoneNumberId}
                         onChange={(event) => setVapiPhoneNumberId(event.target.value)}
-                        placeholder="Optional if set in server env"
+                        placeholder="b1c3cda9-6573-4ba2-b571-79e9509c453a"
                       />
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Use the UUID from Vapi Phone Numbers, not the formatted +1 number.
+                      </p>
                     </div>
                   )}
                   {vapiBotToBotPhone && (
