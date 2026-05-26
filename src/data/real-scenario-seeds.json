@@ -1,0 +1,1552 @@
+[
+  {
+    "id": "seed-hf-0e21a42c97",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "0"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "question about cancelling order sample order number",
+    "openingLine": "question about cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-048021d520",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "998"
+    },
+    "intent": "change_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I try to change several bloody items of order sample order number",
+    "openingLine": "I try to change several bloody items of order sample order number",
+    "expectedOutcome": "Agent handles the change order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e508321614",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "1995"
+    },
+    "intent": "change_shipping_address",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "give me information about a delivery address modification",
+    "openingLine": "give me information about a delivery address modification",
+    "expectedOutcome": "Agent handles the change shipping address request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-789d6b261a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "2968"
+    },
+    "intent": "check_cancellation_fee",
+    "domain": "general",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can't ifnd the bloody termination charge, I need help",
+    "openingLine": "I can't ifnd the bloody termination charge, I need help",
+    "expectedOutcome": "Agent handles the check cancellation fee request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-033003c842",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "3918"
+    },
+    "intent": "check_invoice",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "show me invoicesample invoice number",
+    "openingLine": "show me invoicesample invoice number",
+    "expectedOutcome": "Agent handles the check invoice request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2ac73c21f1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "4918"
+    },
+    "intent": "check_payment_methods",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I try to list your available payment methoids",
+    "openingLine": "I try to list your available payment methoids",
+    "expectedOutcome": "Agent handles the check payment methods request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-d9111d8314",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "5917"
+    },
+    "intent": "check_refund_policy",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "angry",
+    "goal": "i do not know hoow i could check ur reimbursement policy",
+    "openingLine": "i do not know hoow i could check ur reimbursement policy",
+    "expectedOutcome": "Agent handles the check refund policy request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 166,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6b2b67a147",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "6914"
+    },
+    "intent": "complaint",
+    "domain": "general",
+    "language": "en-US",
+    "emotion": "angry",
+    "goal": "help me to file a claim",
+    "openingLine": "help me to file a claim",
+    "expectedOutcome": "Agent handles the complaint request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 166,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0dd4ae955f",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "7914"
+    },
+    "intent": "contact_customer_service",
+    "domain": "general",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I want help to speak to customer support",
+    "openingLine": "I want help to speak to customer support",
+    "expectedOutcome": "Agent handles the contact customer service request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-07b7669df3",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "8914"
+    },
+    "intent": "contact_human_agent",
+    "domain": "general",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "I do not understand you, help me chatting with someone",
+    "openingLine": "I do not understand you, help me chatting with someone",
+    "expectedOutcome": "Agent handles the contact human agent request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-979fe60c0d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "9913"
+    },
+    "intent": "create_account",
+    "domain": "telecom",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "new sample account type acount for wife",
+    "openingLine": "new sample account type acount for wife",
+    "expectedOutcome": "Agent handles the create account request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-a3b103b4cb",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "10910"
+    },
+    "intent": "delete_account",
+    "domain": "telecom",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "closing platinum account",
+    "openingLine": "closing platinum account",
+    "expectedOutcome": "Agent handles the delete account request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0ceaebb508",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "11905"
+    },
+    "intent": "delivery_options",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "could you help me check what delivery methods you offer?",
+    "openingLine": "could you help me check what delivery methods you offer?",
+    "expectedOutcome": "Agent handles the delivery options request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2a8403e722",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "12900"
+    },
+    "intent": "delivery_period",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "need help seeing when my packageis going to arrive",
+    "openingLine": "need help seeing when my packageis going to arrive",
+    "expectedOutcome": "Agent handles the delivery period request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-46568a1474",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "13899"
+    },
+    "intent": "edit_account",
+    "domain": "telecom",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "correcting data on sample account type account",
+    "openingLine": "correcting data on sample account type account",
+    "expectedOutcome": "Agent handles the edit account request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c75f7eeb4a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "14899"
+    },
+    "intent": "get_invoice",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "i dont know what i need to do to download my bill #85632",
+    "openingLine": "i dont know what i need to do to download my bill #85632",
+    "expectedOutcome": "Agent handles the get invoice request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-daf1ae0277",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "15898"
+    },
+    "intent": "get_refund",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "angry",
+    "goal": "how do I get a compensation of my money?",
+    "openingLine": "how do I get a compensation of my money?",
+    "expectedOutcome": "Agent handles the get refund request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 166,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-835be282bb",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "16895"
+    },
+    "intent": "newsletter_subscription",
+    "domain": "telecom",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "i try to unsubscribe to ur companu newsletter",
+    "openingLine": "i try to unsubscribe to ur companu newsletter",
+    "expectedOutcome": "Agent handles the newsletter subscription request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-52fd43b889",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "17894"
+    },
+    "intent": "payment_issue",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "i cant make a payment where can i notify of an error",
+    "openingLine": "i cant make a payment where can i notify of an error",
+    "expectedOutcome": "Agent handles the payment issue request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b5aa3265fc",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "18893"
+    },
+    "intent": "place_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I have to order something, can I get some help?",
+    "openingLine": "I have to order something, can I get some help?",
+    "expectedOutcome": "Agent handles the place order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0bcc094baa",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "19891"
+    },
+    "intent": "recover_password",
+    "domain": "telecom",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "can I reset the PIN of my user profile?",
+    "openingLine": "can I reset the PIN of my user profile?",
+    "expectedOutcome": "Agent handles the recover password request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-4c4e29eb0a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "20886"
+    },
+    "intent": "registration_problems",
+    "domain": "telecom",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I need support with my sign-up",
+    "openingLine": "I need support with my sign-up",
+    "expectedOutcome": "Agent handles the registration problems request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-99a49b809e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "21885"
+    },
+    "intent": "review",
+    "domain": "general",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "uhave a method to leave an opinion about ur services",
+    "openingLine": "uhave a method to leave an opinion about ur services",
+    "expectedOutcome": "Agent handles the review request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-87e22e630d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "22882"
+    },
+    "intent": "set_up_shipping_address",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "error setting the shipping address up",
+    "openingLine": "error setting the shipping address up",
+    "expectedOutcome": "Agent handles the set up shipping address request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b202aa1e53",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "0"
+    },
+    "intent": "card_arrival",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I am still waiting on my card?",
+    "openingLine": "I am still waiting on my card?",
+    "expectedOutcome": "Agent handles the card arrival request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-17b2fb083c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "153"
+    },
+    "intent": "card_linking",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "My card has been found. Is there any way for me to put it back into the app?",
+    "openingLine": "My card has been found. Is there any way for me to put it back into the app?",
+    "expectedOutcome": "Agent handles the card linking request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2f33eb6832",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "292"
+    },
+    "intent": "exchange_rate",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "What is my money worth in other countries?",
+    "openingLine": "What is my money worth in other countries?",
+    "expectedOutcome": "Agent handles the exchange rate request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-42f36b9c37",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "404"
+    },
+    "intent": "card_payment_wrong_exchange_rate",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Last Saturday, I was charged extra for the exchange rate on my payment. Is something wrong?",
+    "openingLine": "Last Saturday, I was charged extra for the exchange rate on my payment. Is something wrong?",
+    "expectedOutcome": "Agent handles the card payment wrong exchange rate request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6b0275423f",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "571"
+    },
+    "intent": "extra_charge_on_statement",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Why is there an extra fee on my statement?",
+    "openingLine": "Why is there an extra fee on my statement?",
+    "expectedOutcome": "Agent handles the extra charge on statement request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6059feb593",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "737"
+    },
+    "intent": "pending_cash_withdrawal",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I would like to know why a withdraw I made for some cash shows up as pending.",
+    "openingLine": "I would like to know why a withdraw I made for some cash shows up as pending.",
+    "expectedOutcome": "Agent handles the pending cash withdrawal request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-94d0899487",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "880"
+    },
+    "intent": "fiat_currency_support",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "How many different currencies can I hold money in?",
+    "openingLine": "How many different currencies can I hold money in?",
+    "expectedOutcome": "Agent handles the fiat currency support request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ec03b16280",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1006"
+    },
+    "intent": "card_delivery_estimate",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Can it specifically be delivered on a certain date?",
+    "openingLine": "Can it specifically be delivered on a certain date?",
+    "expectedOutcome": "Agent handles the card delivery estimate request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-7d7031fb08",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1118"
+    },
+    "intent": "automatic_top_up",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Can I add money automatically to my account while traveling?",
+    "openingLine": "Can I add money automatically to my account while traveling?",
+    "expectedOutcome": "Agent handles the automatic top up request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-a98e694c0a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "33"
+    },
+    "intent": "calendar_query",
+    "domain": "healthcare",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "check when the show starts",
+    "openingLine": "check when the show starts",
+    "expectedOutcome": "Agent handles the calendar query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6ceae937ce",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "51"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "olly list most rated delivery options for chinese food",
+    "openingLine": "olly list most rated delivery options for chinese food",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-42a563acfd",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "52"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "most rated delivery options for chinese food",
+    "openingLine": "most rated delivery options for chinese food",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-afeb7b6eab",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "54"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "olly most rated delivery options for chinese food",
+    "openingLine": "olly most rated delivery options for chinese food",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e2ff06bc2e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "55"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "i want some curry to go any recommendations",
+    "openingLine": "i want some curry to go any recommendations",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e408edd6fb",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "57"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "find my thai takeaways around grassmarket",
+    "openingLine": "find my thai takeaways around grassmarket",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-728660f602",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "87"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "please order some sushi for dinner",
+    "openingLine": "please order some sushi for dinner",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-141a5ddbed",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "88"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "hey i'd like you to order burger",
+    "openingLine": "hey i'd like you to order burger",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-96df1dc110",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "91"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "can i order takeaway dinner from byron's",
+    "openingLine": "can i order takeaway dinner from byron's",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-bad0638d03",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "92"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "does byron's supports takeaways",
+    "openingLine": "does byron's supports takeaways",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f14eb590bb",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:en-US",
+      "license": "review-required",
+      "rowId": "130"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "order a pizza",
+    "openingLine": "order a pizza",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6e4f3977c4",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:hi-IN",
+      "license": "review-required",
+      "rowId": "33"
+    },
+    "intent": "calendar_query",
+    "domain": "healthcare",
+    "language": "hi-IN",
+    "emotion": "neutral",
+    "goal": "\u091c\u093e\u0902\u091a\u0947\u0902 \u0915\u093f show \u0915\u092c \u0936\u0941\u0930\u0942 \u0939\u094b\u0924\u093e \u0939\u0948",
+    "openingLine": "\u091c\u093e\u0902\u091a\u0947\u0902 \u0915\u093f show \u0915\u092c \u0936\u0941\u0930\u0942 \u0939\u094b\u0924\u093e \u0939\u0948",
+    "expectedOutcome": "Agent handles the calendar query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": true,
+      "accent": "IN"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b9a49914b0",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:hi-IN",
+      "license": "review-required",
+      "rowId": "51"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "hi-IN",
+    "emotion": "neutral",
+    "goal": "olly \u092c\u093f\u0939\u093e\u0930\u0940 \u092d\u094b\u091c\u0928 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u0927\u093f\u0915 \u0930\u0947\u091f\u0947\u0921 \u0935\u093f\u0924\u0930\u0923 \u0935\u093f\u0915\u0932\u094d\u092a\u094b\u0902 \u0915\u0940 \u0938\u0942\u091a\u0940 \u092c\u0928\u093e\u090f\u0902",
+    "openingLine": "olly \u092c\u093f\u0939\u093e\u0930\u0940 \u092d\u094b\u091c\u0928 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u0927\u093f\u0915 \u0930\u0947\u091f\u0947\u0921 \u0935\u093f\u0924\u0930\u0923 \u0935\u093f\u0915\u0932\u094d\u092a\u094b\u0902 \u0915\u0940 \u0938\u0942\u091a\u0940 \u092c\u0928\u093e\u090f\u0902",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": true,
+      "accent": "IN"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f75273903b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:hi-IN",
+      "license": "review-required",
+      "rowId": "52"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "hi-IN",
+    "emotion": "neutral",
+    "goal": "chinese \u092d\u094b\u091c\u0928 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u0927\u093f\u0915 \u092e\u0942\u0932\u094d\u092f\u093e\u0902\u0915\u093f\u0924 delivery \u0935\u093f\u0915\u0932\u094d\u092a",
+    "openingLine": "chinese \u092d\u094b\u091c\u0928 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u0927\u093f\u0915 \u092e\u0942\u0932\u094d\u092f\u093e\u0902\u0915\u093f\u0924 delivery \u0935\u093f\u0915\u0932\u094d\u092a",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": true,
+      "accent": "IN"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0d2b0c1c84",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:hi-IN",
+      "license": "review-required",
+      "rowId": "54"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "hi-IN",
+    "emotion": "neutral",
+    "goal": "\u091a\u0940\u0928\u0940 \u092d\u094b\u091c\u0928 \u0915\u0947 \u0932\u093f\u090f \u0911\u0932\u0940 \u092e\u094b\u0938\u094d\u091f \u0930\u0947\u091f\u0947\u0921 \u0921\u093f\u0932\u0940\u0935\u0930\u0940 \u0935\u093f\u0915\u0932\u094d\u092a",
+    "openingLine": "\u091a\u0940\u0928\u0940 \u092d\u094b\u091c\u0928 \u0915\u0947 \u0932\u093f\u090f \u0911\u0932\u0940 \u092e\u094b\u0938\u094d\u091f \u0930\u0947\u091f\u0947\u0921 \u0921\u093f\u0932\u0940\u0935\u0930\u0940 \u0935\u093f\u0915\u0932\u094d\u092a",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": true,
+      "accent": "IN"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f130afdfcc",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:hi-IN",
+      "license": "review-required",
+      "rowId": "87"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "hi-IN",
+    "emotion": "neutral",
+    "goal": "\u0915\u0943\u092a\u092f\u093e \u092e\u0947\u0930\u0947 dinner \u0915\u0947 \u0932\u093f\u090f \u0915\u0941\u091b \u0938\u0942\u092a \u0911\u0930\u094d\u0921\u0930 \u0915\u0947\u0906\u0930 \u0926\u094b",
+    "openingLine": "\u0915\u0943\u092a\u092f\u093e \u092e\u0947\u0930\u0947 dinner \u0915\u0947 \u0932\u093f\u090f \u0915\u0941\u091b \u0938\u0942\u092a \u0911\u0930\u094d\u0921\u0930 \u0915\u0947\u0906\u0930 \u0926\u094b",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": true,
+      "accent": "IN"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0beae0df08",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:hi-IN",
+      "license": "review-required",
+      "rowId": "88"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "hi-IN",
+    "emotion": "neutral",
+    "goal": "\u0905\u0930\u0947 \u092e\u0948\u0902 \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901 \u0915\u0940 \u0906\u092a burger \u0911\u0930\u094d\u0921\u0930 \u0915\u0930\u0947",
+    "openingLine": "\u0905\u0930\u0947 \u092e\u0948\u0902 \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901 \u0915\u0940 \u0906\u092a burger \u0911\u0930\u094d\u0921\u0930 \u0915\u0930\u0947",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": true,
+      "accent": "IN"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-4c0c84e874",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "33"
+    },
+    "intent": "calendar_query",
+    "domain": "healthcare",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "mirar cuando empieza el espect\u00e1culo",
+    "openingLine": "mirar cuando empieza el espect\u00e1culo",
+    "expectedOutcome": "Agent handles the calendar query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-4824464740",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "51"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "alexa opciones de entrega mejor valoradas de comida china",
+    "openingLine": "alexa opciones de entrega mejor valoradas de comida china",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-cac5e8e902",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "52"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "opciones de entrega de comida china m\u00e1s valoradas",
+    "openingLine": "opciones de entrega de comida china m\u00e1s valoradas",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-52ec7d35e1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "54"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "olly las opciones mas votadas de entrega de comida china a domicilio",
+    "openingLine": "olly las opciones mas votadas de entrega de comida china a domicilio",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-01105e5371",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "55"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "quiero pedir curry para llevar alguna recomendaci\u00f3n",
+    "openingLine": "quiero pedir curry para llevar alguna recomendaci\u00f3n",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-4942149ded",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "56"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "quiero pedir curry para llevar hay alguna recomendaci\u00f3n alexa",
+    "openingLine": "quiero pedir curry para llevar hay alguna recomendaci\u00f3n alexa",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e40a9f334e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "57"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "encontrar mi comida thai para llevar tailandesa alrededor de mercado central",
+    "openingLine": "encontrar mi comida thai para llevar tailandesa alrededor de mercado central",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-a198996e14",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "87"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "pide algo de sushi para la cena",
+    "openingLine": "pide algo de sushi para la cena",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-14de7efe01",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "88"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "hola me gustar\u00eda que pidas una hamburguesa",
+    "openingLine": "hola me gustar\u00eda que pidas una hamburguesa",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-62ba2d5f5b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "91"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "puedo pedir cena para llevar de la carola",
+    "openingLine": "puedo pedir cena para llevar de la carola",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-bdebd18399",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "92"
+    },
+    "intent": "takeaway_query",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "el burger king hace pedidos para llevar",
+    "openingLine": "el burger king hace pedidos para llevar",
+    "expectedOutcome": "Agent handles the takeaway query request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0683812ac8",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "AmazonScience/massive:es-ES",
+      "license": "review-required",
+      "rowId": "130"
+    },
+    "intent": "takeaway_order",
+    "domain": "ecommerce",
+    "language": "es-ES",
+    "emotion": "neutral",
+    "goal": "pedir una pizza",
+    "openingLine": "pedir una pizza",
+    "expectedOutcome": "Agent handles the takeaway order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "ES"
+    },
+    "confidence": 0.7,
+    "reviewStatus": "needs-review"
+  }
+]

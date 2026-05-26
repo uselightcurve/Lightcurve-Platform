@@ -1,10 +1,26 @@
 import { NextResponse } from 'next/server';
-import { normalizeDatasetRows, seedToScenario } from '@/lib/datasetScenarios';
+import { normalizeDatasetRows, seedToScenario, type DatasetScenarioSeed } from '@/lib/datasetScenarios';
+import importedSeeds from '@/data/real-scenario-seeds.json';
+
+export const dynamic = 'force-dynamic';
+
+const realScenarioSeeds = (importedSeeds as DatasetScenarioSeed[]).filter((seed) => {
+  return Boolean(seed.id && seed.source && seed.openingLine && seed.reviewStatus);
+});
 
 export async function GET() {
+  if (realScenarioSeeds.length) {
+    return NextResponse.json({
+      seeds: realScenarioSeeds,
+      preview: false,
+      source: 'huggingface',
+    });
+  }
+
   return NextResponse.json({
     seeds: normalizeDatasetRows({ provider: 'huggingface', dataset: 'demo-scenario-seeds' }),
     preview: true,
+    source: 'demo',
   });
 }
 

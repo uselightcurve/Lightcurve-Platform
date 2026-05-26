@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
+    "datasets:import": "python scripts/import_hf_scenario_seeds.py",
     "smoke:production": "node scripts/smoke-production.mjs",
     "release-gate": "node scripts/release-gate.mjs"
   },
