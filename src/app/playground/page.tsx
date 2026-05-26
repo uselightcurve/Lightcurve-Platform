@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DEMO_SCENARIOS, DEMO_TRANSCRIPT } from '@/lib/demoData';
+import { DEMO_TRANSCRIPT } from '@/lib/demoData';
 import { ScoreBar } from '@/components/PageActions';
+import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 import { createPlaygroundExperiment, getAgent, getScenarios, type StoredScenario } from '@/lib/workspaceStore';
 
 function Waveform({ active = false }: { active?: boolean }) {
@@ -23,9 +24,9 @@ function Waveform({ active = false }: { active?: boolean }) {
 export default function PlaygroundPage() {
   const router = useRouter();
   const [callState, setCallState] = useState<'idle' | 'running' | 'complete'>('idle');
-  const [scenarioId, setScenarioId] = useState(DEMO_SCENARIOS[4].id);
+  const [scenarioId, setScenarioId] = useState(REAL_SCENARIO_LIBRARY[0]?.id ?? '');
   const [agent, setAgent] = useState('sandbox-stub-agent');
-  const [scenarios, setScenarios] = useState<StoredScenario[]>(DEMO_SCENARIOS as StoredScenario[]);
+  const [scenarios, setScenarios] = useState<StoredScenario[]>(REAL_SCENARIO_LIBRARY as StoredScenario[]);
   const [visibleTurns, setVisibleTurns] = useState(0);
   const [saved, setSaved] = useState(false);
 

@@ -199,16 +199,14 @@ def import_bitext(api: HfApi, limit: int) -> list[dict[str, Any]]:
     dataset = "bitext/Bitext-customer-support-llm-chatbot-training-dataset"
     license_name = dataset_license(api, dataset)
     seeds: list[dict[str, Any]] = []
-    seen_intents: set[str] = set()
+    seen_text: set[str] = set()
 
     stream = load_dataset(dataset, split="train", streaming=True)
     for index, row in enumerate(stream):
         intent = str(row.get("intent") or row.get("category") or "customer_support")
-        if intent in seen_intents:
-            continue
-
         text = str(row.get("instruction") or row.get("response") or "")
-        if len(text) < 18:
+        text_key = slug(text)
+        if len(text) < 18 or text_key in seen_text:
             continue
 
         category = str(row.get("category") or "").upper()
@@ -224,7 +222,7 @@ def import_bitext(api: HfApi, limit: int) -> list[dict[str, Any]]:
                 confidence=0.78,
             )
         )
-        seen_intents.add(intent)
+        seen_text.add(text_key)
         if len(seeds) >= limit:
             break
 
@@ -237,7 +235,7 @@ def import_banking77(api: HfApi, token: str | None, limit: int) -> list[dict[str
     seeds: list[dict[str, Any]] = []
     seen_intents: set[str] = set()
 
-    for offset in range(0, 1200, 100):
+    for offset in range(0, 6000, 100):
         payload = rows_from_viewer(dataset, "default", "train", offset, 100, token)
         for item in payload.get("rows", []):
             row = item.get("row") or {}
@@ -334,17 +332,17 @@ def dedupe(seeds: list[dict[str, Any]], total_limit: int) -> list[dict[str, Any]
 def main() -> None:
     parser = argparse.ArgumentParser(description="Import Hugging Face scenario seed data for Lightcurve.")
     parser.add_argument("--output", default="src/data/real-scenario-seeds.json")
-    parser.add_argument("--limit", type=int, default=72)
+    parser.add_argument("--limit", type=int, default=220)
     args = parser.parse_args()
 
     token = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
     api = HfApi(token=token)
 
     seeds = []
-    seeds.extend(import_bitext(api, limit=24))
+    seeds.extend(import_bitext(api, limit=120))
     for importer in (
-        lambda: import_banking77(api, token=token, limit=18),
-        lambda: import_massive(api, token=token, limit_per_locale=12),
+        lambda: import_banking77(api, token=token, limit=40),
+        lambda: import_massive(api, token=token, limit_per_locale=30),
     ):
         try:
             seeds.extend(importer())

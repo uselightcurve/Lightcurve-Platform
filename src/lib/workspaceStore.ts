@@ -1,6 +1,7 @@
-import { DEMO_SCENARIOS, DEMO_TRANSCRIPT } from './demoData';
+import { DEMO_TRANSCRIPT } from './demoData';
 import { demoRuns } from './uiDemoData';
 import type { ProviderId } from './integrations';
+import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from './realScenarioLibrary';
 
 export type StoredScenario = {
   id: string;
@@ -181,7 +182,7 @@ type WorkspaceState = {
 };
 
 const defaultState: WorkspaceState = {
-  scenarios: DEMO_SCENARIOS as StoredScenario[],
+  scenarios: REAL_SCENARIO_LIBRARY as StoredScenario[],
   runs: [],
   experiments: [],
   agent: null,
@@ -218,7 +219,7 @@ function readState(): WorkspaceState {
     const planId = BILLING_PLANS.some((plan) => plan.id === parsedPlanId) ? parsedPlanId as BillingPlanId : defaultState.billing.planId;
 
     return {
-      scenarios: parsed.scenarios?.length ? parsed.scenarios : defaultState.scenarios,
+      scenarios: mergeWithRealScenarioLibrary(parsed.scenarios as StoredScenario[] | undefined) as StoredScenario[],
       runs: parsed.runs ?? [],
       experiments: parsed.experiments ?? [],
       agent: parsed.agent ?? null,

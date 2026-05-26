@@ -9,18 +9,9 @@ const realScenarioSeeds = (importedSeeds as DatasetScenarioSeed[]).filter((seed)
 });
 
 export async function GET() {
-  if (realScenarioSeeds.length) {
-    return NextResponse.json({
-      seeds: realScenarioSeeds,
-      preview: false,
-      source: 'huggingface',
-    });
-  }
-
   return NextResponse.json({
-    seeds: normalizeDatasetRows({ provider: 'huggingface', dataset: 'demo-scenario-seeds' }),
-    preview: true,
-    source: 'demo',
+    seeds: realScenarioSeeds,
+    preview: false,
   });
 }
 

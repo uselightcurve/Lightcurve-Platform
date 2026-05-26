@@ -25,6 +25,3856 @@
     "reviewStatus": "needs-review"
   },
   {
+    "id": "seed-hf-1aed97b4f4",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "1"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i have a question about cancelling oorder sample order number",
+    "openingLine": "i have a question about cancelling oorder sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b1575b5537",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "2"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need help cancelling puchase sample order number",
+    "openingLine": "i need help cancelling puchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-973e42b779",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "3"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need to cancel purchase sample order number",
+    "openingLine": "I need to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ed6b32be36",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "4"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I cannot afford this order, cancel purchase sample order number",
+    "openingLine": "I cannot afford this order, cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-1590050319",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "5"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can you help me cancel order sample order number?",
+    "openingLine": "can you help me cancel order sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-80e79c78ce",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "6"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can no longer afford order sample order number, cancel it",
+    "openingLine": "I can no longer afford order sample order number, cancel it",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e82f29c8bc",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "7"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I am trying to cancel purchase sample order number",
+    "openingLine": "I am trying to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-fa8c9747fc",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "8"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I have got to cancel purchase sample order number",
+    "openingLine": "I have got to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-7c6a806a88",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "9"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need help canceling purchase sample order number",
+    "openingLine": "i need help canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-66b9ec66f7",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "10"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i dont know what to do to cancel order sample order number",
+    "openingLine": "i dont know what to do to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-8e67f3c510",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "11"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I have a problem with cancelling purchase sample order number",
+    "openingLine": "I have a problem with cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e9a5c8b5a8",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "12"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "problem with canceling purchase sample order number",
+    "openingLine": "problem with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-37cb24a9fd",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "13"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can you help me canceling order sample order number?",
+    "openingLine": "can you help me canceling order sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-020a56197a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "14"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "help me canceling purchase sample order number",
+    "openingLine": "help me canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-9a31134e65",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "15"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can you help me cancel purchase sample order number?",
+    "openingLine": "can you help me cancel purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-79dd98eb05",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "16"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "what do I have to do to cancel purchase sample order number?",
+    "openingLine": "what do I have to do to cancel purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f625b93a36",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "17"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I bought the same item twice, cancel order sample order number",
+    "openingLine": "I bought the same item twice, cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c365a4d729",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "18"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need help with canceling order sample order number",
+    "openingLine": "need help with canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ba2d470d07",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "19"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i want assistance canceling order sample order number",
+    "openingLine": "i want assistance canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-caf5ac0202",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "20"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I'm trying to cancel order sample order number",
+    "openingLine": "I'm trying to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6e57f2bc5a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "21"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i have problems with canceling order sample order number",
+    "openingLine": "i have problems with canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-bf8c59650a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "22"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "assistance with cancelling pucrhase sample order number",
+    "openingLine": "assistance with cancelling pucrhase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f86da88ba0",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "23"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need help with canceling purchase sample order number",
+    "openingLine": "need help with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-fe6c228fd1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "24"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "help cnceling order sample order number",
+    "openingLine": "help cnceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-7f632ff1fb",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "25"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i want assistance cancelling order sample order number",
+    "openingLine": "i want assistance cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-46a1d4f49b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "26"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need assistance cancelling order sample order number",
+    "openingLine": "need assistance cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-315c5b6fd1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "27"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "problem with cancelling order sample order number",
+    "openingLine": "problem with cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-bb2060cff1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "28"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "assistnace cancelling order sample order number",
+    "openingLine": "assistnace cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-25ca6f915c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "29"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "have a problem with canceling order sample order number",
+    "openingLine": "have a problem with canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6644d4d6b9",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "30"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need help with canceling purchase sample order number",
+    "openingLine": "i need help with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-4b2550ed3e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "32"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "want assistance to cancel order sample order number",
+    "openingLine": "want assistance to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6de1e4dd27",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "33"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i do not know how i can cancel purchase sample order number",
+    "openingLine": "i do not know how i can cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-7ca683e92b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "34"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need assistance to cancel order sample order number",
+    "openingLine": "need assistance to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e354bafa1b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "36"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can no longer afford purchase sample order number",
+    "openingLine": "I can no longer afford purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ce44f63735",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "37"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need assistance canceling purchase sample order number",
+    "openingLine": "i need assistance canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f2e400bb6c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "38"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I would like to cancel purchase sample order number",
+    "openingLine": "I would like to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6e73683ddf",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "39"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i do not want these article i try to cancel order sample order number",
+    "openingLine": "i do not want these article i try to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-d364efaf96",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "40"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need help to cancel purchase sample order number",
+    "openingLine": "i need help to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6341c0df70",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "42"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "problems with cancelling order sample order number",
+    "openingLine": "problems with cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-cf4d263e5b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "44"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "assistance canceling purchase sample order number",
+    "openingLine": "assistance canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-a51882e0e3",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "45"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "could ya help me cancel order sample order number",
+    "openingLine": "could ya help me cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2836db1052",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "46"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "could you help me cancelling order sample order number ?",
+    "openingLine": "could you help me cancelling order sample order number ?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-22cc17c7db",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "47"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "cance order sample order number",
+    "openingLine": "cance order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-95dacfccbe",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "48"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "assistance cancelling purchase sample order number",
+    "openingLine": "assistance cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-261639959e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "49"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "assistance with canceling purchase sample order number",
+    "openingLine": "assistance with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e4c5502c53",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "50"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "canceling order sample order number",
+    "openingLine": "canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-673630f499",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "51"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "how to cancel order sample order number",
+    "openingLine": "how to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-833ecf858a",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "52"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "help me cancelling purchase sample order number",
+    "openingLine": "help me cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-231a0877ca",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "53"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "have a question about cancelling order sample order number",
+    "openingLine": "have a question about cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-35e0ea36f8",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "54"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can't afford purchase sample order number",
+    "openingLine": "I can't afford purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-849d3921a6",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "56"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I ordered some item, cancel purchase sample order number",
+    "openingLine": "I ordered some item, cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-1bbfc572ae",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "57"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need help cancelling order sample order number",
+    "openingLine": "i need help cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-5098200c55",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "58"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can't afford order sample order number, help me cancelling it",
+    "openingLine": "I can't afford order sample order number, help me cancelling it",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-1b6581a6c7",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "60"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I try to cancel purchase sample order number",
+    "openingLine": "I try to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f88e11e166",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "62"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I cannot pay for the last purchase I have made, cancel it",
+    "openingLine": "I cannot pay for the last purchase I have made, cancel it",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0f17775ca4",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "64"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "could you help me cancel purchase sample order number?",
+    "openingLine": "could you help me cancel purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c71677e422",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "65"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I want to cancle purchase sample order number",
+    "openingLine": "I want to cancle purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-15db7f2eb5",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "66"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "help me to cancel my last goddamn purchase",
+    "openingLine": "help me to cancel my last goddamn purchase",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-04b9488424",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "67"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I have a problem witrh cancelling purchase sample order number",
+    "openingLine": "I have a problem witrh cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-9fbb991dbc",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "68"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can uhelp me canceling order sample order number",
+    "openingLine": "can uhelp me canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6db4d0a785",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "69"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "problems with canceling purchase sample order number",
+    "openingLine": "problems with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-5c0afb4260",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "70"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need assistancde cancelling order sample order number",
+    "openingLine": "I need assistancde cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-38efa7b52e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "71"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I bought some item, cancel order sample order number",
+    "openingLine": "I bought some item, cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0bce5c351b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "72"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need help with cancelling order sample order number",
+    "openingLine": "need help with cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-71dd41e690",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "73"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can't pay for this item, can I cancel order sample order number?",
+    "openingLine": "I can't pay for this item, can I cancel order sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-3a431e50dd",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "74"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need help cacneling order sample order number",
+    "openingLine": "I need help cacneling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-aa3088323d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "75"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "where could I cancel purchase sample order number?",
+    "openingLine": "where could I cancel purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ca32515017",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "76"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i bought some damn item help to cancep order sample order number",
+    "openingLine": "i bought some damn item help to cancep order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-3da789c6ec",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "79"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "whag do i need to do to cancel order sample order number",
+    "openingLine": "whag do i need to do to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c90aac6936",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "82"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I want assistance to cancel purchase sample order number",
+    "openingLine": "I want assistance to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2d7db0ac19",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "84"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i want help cancelling purchase sample order number",
+    "openingLine": "i want help cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-8e3b006dee",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "85"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "what do I have to do to cancel order sample order number?",
+    "openingLine": "what do I have to do to cancel order sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-726b42bc04",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "86"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can you help me to cancel purchase sample order number?",
+    "openingLine": "can you help me to cancel purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ee5a6dbfd2",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "89"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i want help to cancel purchase sample order number",
+    "openingLine": "i want help to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f5bc221b66",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "90"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "how do i cancel order sample order number",
+    "openingLine": "how do i cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-662c003091",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "91"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I bought some articles, help me to cancel order sample order number",
+    "openingLine": "I bought some articles, help me to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-91ecef7aa3",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "93"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "where to cancel purchase sample order number",
+    "openingLine": "where to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-06150cb39e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "94"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I want help canceling order sample order number",
+    "openingLine": "I want help canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c3267f79f6",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "95"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I want help cancellkng purchase sample order number",
+    "openingLine": "I want help cancellkng purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-5da43fdad9",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "96"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need help with cancelling order sample order number",
+    "openingLine": "I need help with cancelling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-db710e8134",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "97"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I want assistance to cancel order sample order number",
+    "openingLine": "I want assistance to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-14a2aadc0c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "99"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need assistance cancelling purchase sample order number",
+    "openingLine": "need assistance cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0522c1d73d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "100"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "where can I cancel order sample order number?",
+    "openingLine": "where can I cancel order sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-54ee8075e4",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "101"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "have problems with canceling order sample order number",
+    "openingLine": "have problems with canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2e51959cc8",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "103"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can no longer pay for order sample order number",
+    "openingLine": "I can no longer pay for order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-597ec94bcf",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "106"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i do not know how to cancel order sample order number",
+    "openingLine": "i do not know how to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-463cad670c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "107"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "help with cancelling purchase sample order number",
+    "openingLine": "help with cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-1082cef3b9",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "110"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need assistance canceling order sample order number",
+    "openingLine": "need assistance canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b15f46537c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "111"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I have problems with cancelling purchase sample order number",
+    "openingLine": "I have problems with cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0b4381c058",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "112"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I want assistance canceling purchase sample order number",
+    "openingLine": "I want assistance canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-235b3c48fe",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "113"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "would it be possible to cancel purchase sample order number",
+    "openingLine": "would it be possible to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ba50dba189",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "114"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "could you help me canceling purchase sample order number?",
+    "openingLine": "could you help me canceling purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-efca5afc70",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "119"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can uhelp me cancelling purchase sample order number",
+    "openingLine": "can uhelp me cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c8479794cd",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "120"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "how could icancel purchase sample order number",
+    "openingLine": "how could icancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-1200b9a42e",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "121"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need assistance canceling order sample order number",
+    "openingLine": "i need assistance canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-5cb550b883",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "122"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i do not knwo how to cancel order sample order number",
+    "openingLine": "i do not knwo how to cancel order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-64be322fa7",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "123"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I have ordered some article, cancel purchase sample order number",
+    "openingLine": "I have ordered some article, cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-eac36a70b3",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "124"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "need to cancel purchase sample order number",
+    "openingLine": "need to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-3c5864ce73",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "125"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "have problems with canceling purchase sample order number",
+    "openingLine": "have problems with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6104149554",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "126"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i no longer want purchase sample order number",
+    "openingLine": "i no longer want purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-56f5fd458d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "127"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "want help to cancel purchase sample order number",
+    "openingLine": "want help to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f336069ec7",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "128"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "question about canceling order sample order number",
+    "openingLine": "question about canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b212447d8d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "129"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "is it possible to cancel purchase sample order number ?",
+    "openingLine": "is it possible to cancel purchase sample order number ?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-3fd45aa584",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "131"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need assistance to cancel purchase sample order number",
+    "openingLine": "I need assistance to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-df9c0b5123",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "132"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need assistance cancelling purchase sample order number",
+    "openingLine": "I need assistance cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-a836d61fd2",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "133"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "help with canceling purchase sample order number",
+    "openingLine": "help with canceling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-61f9dfa85b",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "135"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "iwant assistance canceling order sample order number",
+    "openingLine": "iwant assistance canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-bf034662f2",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "137"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i wan help to cancel purchase sample order number",
+    "openingLine": "i wan help to cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-1494f8e6d0",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "141"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "i need help with canceling order sample order number",
+    "openingLine": "i need help with canceling order sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-173eec7bee",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "142"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "cancel purchase sample order number",
+    "openingLine": "cancel purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e7b3279646",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "143"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "assistance with canceling oreder sample order number",
+    "openingLine": "assistance with canceling oreder sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-27ad789a00",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "144"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "problems with cancelling purchase sample order number",
+    "openingLine": "problems with cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-eb74641160",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "149"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "can you help me cancelling purchase sample order number?",
+    "openingLine": "can you help me cancelling purchase sample order number?",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-af96e011fe",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+      "license": "review-required",
+      "rowId": "151"
+    },
+    "intent": "cancel_order",
+    "domain": "ecommerce",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I need help cancelling purchase sample order number",
+    "openingLine": "I need help cancelling purchase sample order number",
+    "expectedOutcome": "Agent handles the cancel order request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.78,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b202aa1e53",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "0"
+    },
+    "intent": "card_arrival",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I am still waiting on my card?",
+    "openingLine": "I am still waiting on my card?",
+    "expectedOutcome": "Agent handles the card arrival request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-17b2fb083c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "153"
+    },
+    "intent": "card_linking",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "My card has been found. Is there any way for me to put it back into the app?",
+    "openingLine": "My card has been found. Is there any way for me to put it back into the app?",
+    "expectedOutcome": "Agent handles the card linking request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2f33eb6832",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "292"
+    },
+    "intent": "exchange_rate",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "What is my money worth in other countries?",
+    "openingLine": "What is my money worth in other countries?",
+    "expectedOutcome": "Agent handles the exchange rate request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-42f36b9c37",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "404"
+    },
+    "intent": "card_payment_wrong_exchange_rate",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Last Saturday, I was charged extra for the exchange rate on my payment. Is something wrong?",
+    "openingLine": "Last Saturday, I was charged extra for the exchange rate on my payment. Is something wrong?",
+    "expectedOutcome": "Agent handles the card payment wrong exchange rate request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6b0275423f",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "571"
+    },
+    "intent": "extra_charge_on_statement",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Why is there an extra fee on my statement?",
+    "openingLine": "Why is there an extra fee on my statement?",
+    "expectedOutcome": "Agent handles the extra charge on statement request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-6059feb593",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "737"
+    },
+    "intent": "pending_cash_withdrawal",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I would like to know why a withdraw I made for some cash shows up as pending.",
+    "openingLine": "I would like to know why a withdraw I made for some cash shows up as pending.",
+    "expectedOutcome": "Agent handles the pending cash withdrawal request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-94d0899487",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "880"
+    },
+    "intent": "fiat_currency_support",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "How many different currencies can I hold money in?",
+    "openingLine": "How many different currencies can I hold money in?",
+    "expectedOutcome": "Agent handles the fiat currency support request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ec03b16280",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1006"
+    },
+    "intent": "card_delivery_estimate",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Can it specifically be delivered on a certain date?",
+    "openingLine": "Can it specifically be delivered on a certain date?",
+    "expectedOutcome": "Agent handles the card delivery estimate request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-7d7031fb08",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1118"
+    },
+    "intent": "automatic_top_up",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Can I add money automatically to my account while traveling?",
+    "openingLine": "Can I add money automatically to my account while traveling?",
+    "expectedOutcome": "Agent handles the automatic top up request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-dbc8a10e77",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1245"
+    },
+    "intent": "card_not_working",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "I can't use my card because it is not working.",
+    "openingLine": "I can't use my card because it is not working.",
+    "expectedOutcome": "Agent handles the card not working request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-9498bc3280",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1356"
+    },
+    "intent": "exchange_via_app",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Can I change from AUD to GBP?",
+    "openingLine": "Can I change from AUD to GBP?",
+    "expectedOutcome": "Agent handles the exchange via app request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-ded2a4b69d",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1474"
+    },
+    "intent": "lost_or_stolen_card",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "Has there been any activity on my card today?",
+    "openingLine": "Has there been any activity on my card today?",
+    "expectedOutcome": "Agent handles the lost or stolen card request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-b8e093e0f8",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1556"
+    },
+    "intent": "age_limit",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I want to open an account for my children",
+    "openingLine": "I want to open an account for my children",
+    "expectedOutcome": "Agent handles the age limit request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-98439f465c",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1666"
+    },
+    "intent": "pin_blocked",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I have exceeded the number of PIN attempts",
+    "openingLine": "I have exceeded the number of PIN attempts",
+    "expectedOutcome": "Agent handles the pin blocked request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f03a62d6fe",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1780"
+    },
+    "intent": "contactless_not_working",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "Should i uninstall the app before i try it again?",
+    "openingLine": "Should i uninstall the app before i try it again?",
+    "expectedOutcome": "Agent handles the contactless not working request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0b2405d29f",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1815"
+    },
+    "intent": "top_up_by_bank_transfer_charge",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Is there a top up fee for transfer?",
+    "openingLine": "Is there a top up fee for transfer?",
+    "expectedOutcome": "Agent handles the top up by bank transfer charge request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-35a5d3cc48",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "1926"
+    },
+    "intent": "pending_top_up",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "How long does a top-up take to go through?",
+    "openingLine": "How long does a top-up take to go through?",
+    "expectedOutcome": "Agent handles the pending top up request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-9b263a54d1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2075"
+    },
+    "intent": "cancel_transfer",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "frustrated",
+    "goal": "Cancel a transaction",
+    "openingLine": "Cancel a transaction",
+    "expectedOutcome": "Agent handles the cancel transfer request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 5,
+      "speedWpm": 154,
+      "interrupts": true,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-d1733d4f94",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2231"
+    },
+    "intent": "top_up_limits",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "What is the max amount of top-ups?",
+    "openingLine": "What is the max amount of top-ups?",
+    "expectedOutcome": "Agent handles the top up limits request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-a430e446d9",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2328"
+    },
+    "intent": "wrong_amount_of_cash_received",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Why did I only receive a partial amount of what I tried to withdraw?",
+    "openingLine": "Why did I only receive a partial amount of what I tried to withdraw?",
+    "expectedOutcome": "Agent handles the wrong amount of cash received request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-9be4f8f765",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2508"
+    },
+    "intent": "card_payment_fee_charged",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "There was a fee charged when I paid with my card.",
+    "openingLine": "There was a fee charged when I paid with my card.",
+    "expectedOutcome": "Agent handles the card payment fee charged request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-778f381e45",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2695"
+    },
+    "intent": "transfer_not_received_by_recipient",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "nervous",
+    "goal": "I am worried that too much time has gone by for a transfer to be completed.",
+    "openingLine": "I am worried that too much time has gone by for a transfer to be completed.",
+    "expectedOutcome": "Agent handles the transfer not received by recipient request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 132,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-3937b42816",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2866"
+    },
+    "intent": "supported_cards_and_currencies",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "How do I use American express to top up my account?",
+    "openingLine": "How do I use American express to top up my account?",
+    "expectedOutcome": "Agent handles the supported cards and currencies request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-5636c0523f",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "2995"
+    },
+    "intent": "getting_virtual_card",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I would like to order a virtual card, where can I get one?",
+    "openingLine": "I would like to order a virtual card, where can I get one?",
+    "expectedOutcome": "Agent handles the getting virtual card request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-7c797da3b6",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3093"
+    },
+    "intent": "card_acceptance",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Is there anywhere I can't use my card?",
+    "openingLine": "Is there anywhere I can't use my card?",
+    "expectedOutcome": "Agent handles the card acceptance request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-78b9956a46",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3152"
+    },
+    "intent": "top_up_reverted",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "My top up did not show up as shown and my money has disappeared, can you help me fix this glitch problem?",
+    "openingLine": "My top up did not show up as shown and my money has disappeared, can you help me fix this glitch problem?",
+    "expectedOutcome": "Agent handles the top up reverted request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-8ef5e893c1",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3298"
+    },
+    "intent": "balance_not_updated_after_cheque_or_cash_deposit",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Why is my last cheque deposit taking so long?",
+    "openingLine": "Why is my last cheque deposit taking so long?",
+    "expectedOutcome": "Agent handles the balance not updated after cheque or cash deposit request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-e168720e19",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3479"
+    },
+    "intent": "card_payment_not_recognised",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "There's a payment with my card that I didn't perform. I don't know that name shown.",
+    "openingLine": "There's a payment with my card that I didn't perform. I don't know that name shown.",
+    "expectedOutcome": "Agent handles the card payment not recognised request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-5cc1d4a2ac",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3647"
+    },
+    "intent": "edit_personal_details",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I am interested in changing my personal details.",
+    "openingLine": "I am interested in changing my personal details.",
+    "expectedOutcome": "Agent handles the edit personal details request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-c55c0c6206",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3768"
+    },
+    "intent": "why_verify_identity",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Why do you have an identity check?",
+    "openingLine": "Why do you have an identity check?",
+    "expectedOutcome": "Agent handles the why verify identity request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0d3576f8bd",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3889"
+    },
+    "intent": "unable_to_verify_identity",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "Can you help me with proving my identity?",
+    "openingLine": "Can you help me with proving my identity?",
+    "expectedOutcome": "Agent handles the unable to verify identity request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-74192cb8f2",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "3991"
+    },
+    "intent": "get_physical_card",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I'm not sure what to do about the PIN, because I don't have one yet.",
+    "openingLine": "I'm not sure what to do about the PIN, because I don't have one yet.",
+    "expectedOutcome": "Agent handles the get physical card request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-84d8fb2f34",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4097"
+    },
+    "intent": "visa_or_mastercard",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Is there a way I can have a mastercard?",
+    "openingLine": "Is there a way I can have a mastercard?",
+    "expectedOutcome": "Agent handles the visa or mastercard request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-0eb37e3e52",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4232"
+    },
+    "intent": "topping_up_by_card",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "My money I had was gone and I could not get gas!",
+    "openingLine": "My money I had was gone and I could not get gas!",
+    "expectedOutcome": "Agent handles the topping up by card request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-bbcceb1ba4",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4335"
+    },
+    "intent": "disposable_card_limits",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Do the disposable cards have any restrictions on them?",
+    "openingLine": "Do the disposable cards have any restrictions on them?",
+    "expectedOutcome": "Agent handles the disposable card limits request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-74c2eaf1da",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4456"
+    },
+    "intent": "compromised_card",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "nervous",
+    "goal": "I think someone is using my card without my permission!",
+    "openingLine": "I think someone is using my card without my permission!",
+    "expectedOutcome": "Agent handles the compromised card request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 132,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-f88f54dbad",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4542"
+    },
+    "intent": "atm_support",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I can use this card at which ATMs?",
+    "openingLine": "I can use this card at which ATMs?",
+    "expectedOutcome": "Agent handles the atm support request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-26eadaeae4",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4628"
+    },
+    "intent": "direct_debit_payment_not_recognised",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "Hi, i found a large amount payment in my old statements which i am sure was not made by me. I am aware that the time has passed but is there a way to raise a dispute for this payment now?",
+    "openingLine": "Hi, i found a large amount payment in my old statements which i am sure was not made by me. I am aware that the time has passed but is there a way to raise a dispute for this payment now?",
+    "expectedOutcome": "Agent handles the direct debit payment not recognised request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-36dd7f4517",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4810"
+    },
+    "intent": "passcode_forgotten",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "confused",
+    "goal": "Help me! I don't know what my password is.",
+    "openingLine": "Help me! I don't know what my password is.",
+    "expectedOutcome": "Agent handles the passcode forgotten request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 116,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
+    "id": "seed-hf-2c88885fa3",
+    "source": {
+      "provider": "huggingface",
+      "dataset": "mteb/banking77",
+      "license": "review-required",
+      "rowId": "4913"
+    },
+    "intent": "declined_cash_withdrawal",
+    "domain": "banking",
+    "language": "en-US",
+    "emotion": "neutral",
+    "goal": "I tried to withdraw cash and got declined, why is that?",
+    "openingLine": "I tried to withdraw cash and got declined, why is that?",
+    "expectedOutcome": "Agent handles the declined cash withdrawal request without inventing policy, pricing, account, or timeline details.",
+    "voiceModifiers": {
+      "noiseDb": 2,
+      "speedWpm": 140,
+      "interrupts": false,
+      "codeSwitching": false,
+      "accent": "US"
+    },
+    "confidence": 0.84,
+    "reviewStatus": "needs-review"
+  },
+  {
     "id": "seed-hf-048021d520",
     "source": {
       "provider": "huggingface",
@@ -597,231 +4447,6 @@
       "accent": "US"
     },
     "confidence": 0.78,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-b202aa1e53",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "0"
-    },
-    "intent": "card_arrival",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "frustrated",
-    "goal": "I am still waiting on my card?",
-    "openingLine": "I am still waiting on my card?",
-    "expectedOutcome": "Agent handles the card arrival request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 5,
-      "speedWpm": 154,
-      "interrupts": true,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-17b2fb083c",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "153"
-    },
-    "intent": "card_linking",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "My card has been found. Is there any way for me to put it back into the app?",
-    "openingLine": "My card has been found. Is there any way for me to put it back into the app?",
-    "expectedOutcome": "Agent handles the card linking request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-2f33eb6832",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "292"
-    },
-    "intent": "exchange_rate",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "What is my money worth in other countries?",
-    "openingLine": "What is my money worth in other countries?",
-    "expectedOutcome": "Agent handles the exchange rate request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-42f36b9c37",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "404"
-    },
-    "intent": "card_payment_wrong_exchange_rate",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "Last Saturday, I was charged extra for the exchange rate on my payment. Is something wrong?",
-    "openingLine": "Last Saturday, I was charged extra for the exchange rate on my payment. Is something wrong?",
-    "expectedOutcome": "Agent handles the card payment wrong exchange rate request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-6b0275423f",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "571"
-    },
-    "intent": "extra_charge_on_statement",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "Why is there an extra fee on my statement?",
-    "openingLine": "Why is there an extra fee on my statement?",
-    "expectedOutcome": "Agent handles the extra charge on statement request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-6059feb593",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "737"
-    },
-    "intent": "pending_cash_withdrawal",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "I would like to know why a withdraw I made for some cash shows up as pending.",
-    "openingLine": "I would like to know why a withdraw I made for some cash shows up as pending.",
-    "expectedOutcome": "Agent handles the pending cash withdrawal request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-94d0899487",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "880"
-    },
-    "intent": "fiat_currency_support",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "How many different currencies can I hold money in?",
-    "openingLine": "How many different currencies can I hold money in?",
-    "expectedOutcome": "Agent handles the fiat currency support request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-ec03b16280",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "1006"
-    },
-    "intent": "card_delivery_estimate",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "Can it specifically be delivered on a certain date?",
-    "openingLine": "Can it specifically be delivered on a certain date?",
-    "expectedOutcome": "Agent handles the card delivery estimate request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
-    "reviewStatus": "needs-review"
-  },
-  {
-    "id": "seed-hf-7d7031fb08",
-    "source": {
-      "provider": "huggingface",
-      "dataset": "mteb/banking77",
-      "license": "review-required",
-      "rowId": "1118"
-    },
-    "intent": "automatic_top_up",
-    "domain": "banking",
-    "language": "en-US",
-    "emotion": "neutral",
-    "goal": "Can I add money automatically to my account while traveling?",
-    "openingLine": "Can I add money automatically to my account while traveling?",
-    "expectedOutcome": "Agent handles the automatic top up request without inventing policy, pricing, account, or timeline details.",
-    "voiceModifiers": {
-      "noiseDb": 2,
-      "speedWpm": 140,
-      "interrupts": false,
-      "codeSwitching": false,
-      "accent": "US"
-    },
-    "confidence": 0.84,
     "reviewStatus": "needs-review"
   },
   {

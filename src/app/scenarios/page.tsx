@@ -1,34 +1,8 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import { DEMO_SCENARIOS } from '@/lib/demoData';
-import { ScoreBar } from '@/components/PageActions';
-import { demoDatasetSeeds, seedToScenario, type DatasetScenarioSeed } from '@/lib/datasetScenarios';
-import { getScenarios, saveScenario } from '@/lib/workspaceStore';
-
-type DemoScenario = {
-  id: string;
-  name: string;
-  language: string;
-  domain: string;
-  persona: {
-    name: string;
-    age: number;
-    accent: string;
-    emotional_state: string;
-    goal: string;
-    noise_db: number;
-    speed_wpm: number;
-    interrupts: boolean;
-    opening_line: string;
-    code_switching?: boolean;
-  };
-  successCriteria: Array<{ type: string; description: string; weight: number }>;
-  callerSeed: number;
-  isPreset: boolean;
-};
-
-const scenarioSeed = DEMO_SCENARIOS as DemoScenario[];
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getScenarios, saveScenario, type StoredScenario } from '@/lib/workspaceStore';
 
 const languageFlags: Record<string, string> = {
   'en-US': 'US',
@@ -38,11 +12,11 @@ const languageFlags: Record<string, string> = {
 };
 
 const domainStyles: Record<string, string> = {
-  retail: 'bg-[#eef2ff] text-[#2448bb] ring-[#cfd8ff]',
   ecommerce: 'bg-[#eef2ff] text-[#2448bb] ring-[#cfd8ff]',
   banking: 'bg-slate-100 text-slate-700 ring-slate-200',
   healthcare: 'bg-slate-100 text-slate-700 ring-slate-200',
   telecom: 'bg-slate-100 text-slate-700 ring-slate-200',
+  general: 'bg-slate-100 text-slate-700 ring-slate-200',
 };
 
 const emotionStyles: Record<string, string> = {
@@ -51,29 +25,27 @@ const emotionStyles: Record<string, string> = {
   urgent: 'bg-slate-100 text-slate-700 ring-slate-200',
   nervous: 'bg-slate-100 text-slate-700 ring-slate-200',
   confused: 'bg-slate-100 text-slate-700 ring-slate-200',
-  neutral: 'bg-slate-100 text-slate-700 ring-slate-200',
-  calm: 'bg-slate-100 text-slate-700 ring-slate-200',
+  neutral: 'bg-slate-50 text-slate-600 ring-slate-200',
+  calm: 'bg-slate-50 text-slate-600 ring-slate-200',
 };
 
-const lastMos: Record<string, number> = {
-  angry_refund_call: 4.1,
-  fraud_dispute_call: 4.3,
-  urgent_clinic_booking: 3.9,
-  internet_outage_credit: 3.2,
-  plan_upgrade_hinglish: 3.4,
-  elderly_bill_payment: 3.7,
+const defaultCustomScenario = {
+  name: '',
+  language: 'en-US',
+  domain: 'ecommerce',
+  emotion: 'frustrated',
+  personaName: 'Customer',
+  goal: '',
+  openingLine: '',
+  expectedOutcome: '',
 };
 
 function formatName(name: string) {
-  return name.replace(/_/g, ' ');
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function Pill({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${className}`}>
-      {children}
-    </span>
-  );
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${className}`}>{children}</span>;
 }
 
 function FilterSelect({
@@ -102,126 +74,166 @@ function FilterSelect({
   );
 }
 
+function scenarioMatchesQuery(scenario: StoredScenario, query: string) {
+  if (!query.trim()) return true;
+  const value = `${scenario.name} ${scenario.domain} ${scenario.language} ${scenario.persona.emotional_state} ${scenario.persona.goal} ${scenario.persona.opening_line}`.toLowerCase();
+  return value.includes(query.trim().toLowerCase());
+}
+
 export default function ScenariosPage() {
+  const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [language, setLanguage] = useState('all');
   const [domain, setDomain] = useState('all');
   const [emotion, setEmotion] = useState('all');
-  const [presetMode, setPresetMode] = useState<'all' | 'preset' | 'custom'>('all');
-  const [forking, setForking] = useState<DemoScenario | null>(null);
-  const [customForks, setCustomForks] = useState<DemoScenario[]>([]);
-  const [showDatasetSeeds, setShowDatasetSeeds] = useState(false);
-  const [datasetSeeds, setDatasetSeeds] = useState<DatasetScenarioSeed[]>(demoDatasetSeeds);
+  const [query, setQuery] = useState('');
+  const [libraryMode, setLibraryMode] = useState<'all' | 'library' | 'custom'>('all');
+  const [scenarios, setScenarios] = useState<StoredScenario[]>([]);
+  const [forking, setForking] = useState<StoredScenario | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [customScenario, setCustomScenario] = useState(defaultCustomScenario);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
 
-  const scenarios = [...customForks, ...scenarioSeed.filter((scenario) => !customForks.some((fork) => fork.id === scenario.id))];
-  const languages = Array.from(new Set(scenarios.map((scenario) => scenario.language)));
-  const domains = Array.from(new Set(scenarios.map((scenario) => scenario.domain)));
-  const emotions = Array.from(new Set(scenarios.map((scenario) => scenario.persona.emotional_state)));
+  useEffect(() => {
+    const loaded = getScenarios();
+    setScenarios(loaded);
+
+    const forkId = new URLSearchParams(window.location.search).get('fork');
+    if (forkId) {
+      const target = loaded.find((scenario) => scenario.id === forkId);
+      if (target) setForking(target);
+    }
+  }, []);
+
+  const languages = useMemo(() => Array.from(new Set(scenarios.map((scenario) => scenario.language))).sort(), [scenarios]);
+  const domains = useMemo(() => Array.from(new Set(scenarios.map((scenario) => scenario.domain))).sort(), [scenarios]);
+  const emotions = useMemo(
+    () => Array.from(new Set(scenarios.map((scenario) => scenario.persona.emotional_state))).sort(),
+    [scenarios],
+  );
 
   const filtered = useMemo(() => {
     return scenarios.filter((scenario) => {
       const isCustom = !scenario.isPreset;
       const matchesMode =
-        presetMode === 'all' || (presetMode === 'preset' && scenario.isPreset) || (presetMode === 'custom' && isCustom);
+        libraryMode === 'all' || (libraryMode === 'library' && scenario.isPreset) || (libraryMode === 'custom' && isCustom);
       return (
         matchesMode &&
+        scenarioMatchesQuery(scenario, query) &&
         (language === 'all' || scenario.language === language) &&
         (domain === 'all' || scenario.domain === domain) &&
         (emotion === 'all' || scenario.persona.emotional_state === emotion)
       );
     });
-  }, [domain, emotion, language, presetMode, scenarios]);
-
-  useEffect(() => {
-    const loaded = getScenarios() as DemoScenario[];
-    const custom = loaded.filter((scenario) => !scenario.isPreset || scenario.id.startsWith('dataset-') || scenario.id.startsWith('custom-'));
-    setCustomForks(custom);
-
-    const forkId = new URLSearchParams(window.location.search).get('fork');
-    if (forkId) {
-      const target = loaded.find((scenario) => scenario.id === forkId) ?? scenarioSeed.find((scenario) => scenario.id === forkId);
-      if (target) setForking(target);
-    }
-  }, []);
+  }, [domain, emotion, language, libraryMode, query, scenarios]);
 
   function toggleScenario(id: string) {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
+  function listenScenario(scenario: StoredScenario) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    if (speakingId === scenario.id) {
+      setSpeakingId(null);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(scenario.persona.opening_line || scenario.persona.goal);
+    utterance.lang = scenario.language;
+    utterance.rate = Math.min(1.2, Math.max(0.75, (scenario.persona.speed_wpm || 140) / 150));
+    utterance.onend = () => setSpeakingId(null);
+    utterance.onerror = () => setSpeakingId(null);
+    setSpeakingId(scenario.id);
+    window.speechSynthesis.speak(utterance);
+  }
+
   function saveFork() {
     if (!forking) return;
-    const fork: DemoScenario = {
+    const fork: StoredScenario = {
       ...forking,
-      id: `custom-${forking.id}`,
-      name: `${forking.name}_custom`,
+      id: `custom-${forking.id}-${Date.now().toString(36)}`,
+      name: `${forking.name} custom`,
       isPreset: false,
+      parentName: forking.name,
       persona: {
         ...forking.persona,
         name: `${forking.persona.name} fork`,
-        emotional_state: forking.persona.emotional_state === 'angry' ? 'frustrated' : forking.persona.emotional_state,
         noise_db: Math.min((forking.persona.noise_db ?? 0) + 2, 12),
       },
     };
     saveScenario(fork);
-    setCustomForks((current) => [fork, ...current.filter((item) => item.id !== fork.id)]);
+    setScenarios(getScenarios());
     setForking(null);
   }
 
-  async function loadDatasetSeeds() {
-    const response = await fetch('/api/datasets/scenario-seeds');
-    const data = await response.json();
-    setDatasetSeeds(data.seeds?.length ? data.seeds : demoDatasetSeeds);
-    setShowDatasetSeeds(true);
-  }
-
-  function approveDatasetSeed(seed: DatasetScenarioSeed) {
-    const scenario = seedToScenario(seed);
-    const fork: DemoScenario = {
-      id: `dataset-${seed.id}`,
-      name: scenario.name,
-      language: scenario.language,
-      domain: scenario.domain,
+  function saveCustomScenario() {
+    if (!customScenario.name.trim() || !customScenario.goal.trim()) return;
+    const openingLine = customScenario.openingLine.trim() || customScenario.goal.trim();
+    const scenario: StoredScenario = {
+      id: `custom-${Date.now().toString(36)}`,
+      name: customScenario.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+      language: customScenario.language,
+      domain: customScenario.domain,
       persona: {
-        name: scenario.persona.name,
-        age: 35,
-        accent: scenario.persona.accent,
-        emotional_state: scenario.persona.emotional_state,
-        goal: scenario.persona.goal,
-        noise_db: scenario.persona.noise_db,
-        speed_wpm: scenario.persona.speed_wpm,
-        interrupts: scenario.persona.interrupts,
-        opening_line: scenario.persona.opening_line,
-        code_switching: scenario.persona.code_switching,
+        name: customScenario.personaName.trim() || 'Customer',
+        age: 36,
+        accent: customScenario.language.split('-')[1] ?? customScenario.language,
+        emotional_state: customScenario.emotion,
+        goal: customScenario.goal.trim(),
+        noise_db: customScenario.emotion === 'angry' || customScenario.emotion === 'frustrated' ? 5 : 2,
+        speed_wpm: customScenario.emotion === 'angry' ? 166 : 140,
+        interrupts: ['angry', 'frustrated', 'urgent'].includes(customScenario.emotion),
+        opening_line: openingLine,
+        code_switching: customScenario.language === 'hi-IN',
       },
-      successCriteria: scenario.successCriteria,
-      callerSeed: scenario.callerSeed,
+      successCriteria: [
+        {
+          type: 'task_completed',
+          description: customScenario.expectedOutcome.trim() || 'Agent completes the customer goal without inventing facts.',
+          weight: 0.5,
+        },
+        { type: 'tone_appropriate', description: `Agent handles ${customScenario.emotion} caller state naturally.`, weight: 0.2 },
+        { type: 'language_match', description: `Agent responds appropriately in ${customScenario.language}.`, weight: 0.15 },
+        { type: 'no_hallucination', description: 'Agent does not invent unavailable facts.', weight: 0.15 },
+      ],
+      callerSeed: Date.now() % 100000,
       isPreset: false,
     };
-    saveScenario(fork);
-    setCustomForks((current) => [fork, ...current.filter((item) => item.id !== fork.id)]);
-    setDatasetSeeds((current) => current.map((item) => (item.id === seed.id ? { ...item, reviewStatus: 'approved' } : item)));
+    saveScenario(scenario);
+    setScenarios(getScenarios());
+    setCustomScenario(defaultCustomScenario);
+    setShowCreate(false);
   }
 
   return (
     <div className="space-y-4">
       <div className="page-header">
         <h1 className="page-title">Scenarios</h1>
-        <p className="page-subtitle">Browse preset callers, fork edge cases, and run suites against your voice agent.</p>
+        <p className="page-subtitle">Real-world caller library for sandboxing voice agents before production.</p>
       </div>
 
       <div className="card p-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-1 flex-wrap items-end gap-2">
+            <label className="min-w-[260px] flex-1 text-xs text-slate-500">
+              <span className="mb-1 block">Search</span>
+              <input
+                className="input-field py-1.5"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search scenarios, goals, domains"
+              />
+            </label>
             <FilterSelect label="Language" value={language} options={languages} onChange={setLanguage} />
             <FilterSelect label="Domain" value={domain} options={domains} onChange={setDomain} />
-            <FilterSelect label="Emotional State" value={emotion} options={emotions} onChange={setEmotion} />
+            <FilterSelect label="Emotion" value={emotion} options={emotions} onChange={setEmotion} />
             <div className="flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-1">
-              {(['all', 'preset', 'custom'] as const).map((mode) => (
+              {(['all', 'library', 'custom'] as const).map((mode) => (
                 <button
                   key={mode}
-                  onClick={() => setPresetMode(mode)}
+                  onClick={() => setLibraryMode(mode)}
                   className={`rounded-md px-3 py-1.5 text-xs capitalize ${
-                    presetMode === mode ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    libraryMode === mode ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {mode}
@@ -233,202 +245,174 @@ export default function ScenariosPage() {
           <div className="flex shrink-0 items-center gap-2">
             {selected.length >= 2 && (
               <a className="btn-secondary" href={`/experiments/new?scenarios=${selected.join(',')}`}>
-                Run as Suite ({selected.length})
+                Run suite ({selected.length})
               </a>
             )}
-            <button className="btn-secondary" onClick={loadDatasetSeeds}>
-              Dataset Seeds
-            </button>
-            <button className="btn-secondary opacity-50" disabled title="Fork a preset to customize">
-              New Scenario
+            <button className="btn-primary" onClick={() => setShowCreate(true)}>
+              Create Scenario
             </button>
           </div>
         </div>
       </div>
 
-      {showDatasetSeeds && (
-        <div className="card overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <div>
-              <h2 className="text-sm font-medium text-slate-950">Dataset scenario seeds</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Public or uploaded rows become reviewable voice scenarios with source and license metadata.
-              </p>
-            </div>
-            <button className="btn-quiet" onClick={() => setShowDatasetSeeds(false)}>
-              Close
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3 p-4 2xl:grid-cols-3">
-            {datasetSeeds.map((seed) => (
-              <article key={seed.id} className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-slate-500">{seed.source.provider} / {seed.source.dataset}</p>
-                    <h3 className="mt-2 text-sm font-medium text-slate-950">{seed.intent.replace(/_/g, ' ')}</h3>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 ring-1 ring-slate-200">
-                    {seed.source.license}
-                  </span>
-                </div>
-                <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{seed.goal}</p>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-600">
-                  <span className="panel-soft px-2 py-2">{seed.language}</span>
-                  <span className="panel-soft px-2 py-2">{seed.domain}</span>
-                  <span className="panel-soft px-2 py-2">{seed.emotion}</span>
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">{Math.round(seed.confidence * 100)}% match</span>
-                  <button
-                    className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
-                    onClick={() => approveDatasetSeed(seed)}
-                    disabled={seed.reviewStatus === 'approved'}
-                  >
-                    {seed.reviewStatus === 'approved' ? 'Approved' : 'Approve'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span>{filtered.length} scenarios shown from {scenarios.length} total</span>
+        <span>Select two or more to run a suite.</span>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 2xl:grid-cols-3">
         {filtered.map((scenario) => {
           const isSelected = selected.includes(scenario.id);
           const emotionKey = scenario.persona.emotional_state;
-          const parentName = scenario.isPreset ? null : scenario.name.replace('_custom', '');
 
           return (
             <article
               key={scenario.id}
-              className={`card flex min-h-[198px] flex-col p-3 ${isSelected ? 'ring-2 ring-[#cfd8ff]' : ''}`}
+              className={`card flex min-h-[218px] flex-col p-4 ${isSelected ? 'ring-2 ring-[#cfd8ff]' : ''}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <button
                   onClick={() => toggleScenario(scenario.id)}
-                  className={`h-4 w-4 rounded border ${isSelected ? 'border-[#2f5ae0] bg-[#2f5ae0]' : 'border-slate-300 bg-white'}`}
+                  className={`mt-0.5 h-4 w-4 rounded border ${isSelected ? 'border-[#2f5ae0] bg-[#2f5ae0]' : 'border-slate-300 bg-white'}`}
                   aria-label={`Select ${scenario.name}`}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <span>{languageFlags[scenario.language] ?? scenario.language.slice(0, 2).toUpperCase()}</span>
                     <span>{scenario.language}</span>
-                    {scenario.isPreset && <span title="Preset scenario">lock</span>}
+                    <span>{scenario.persona.name}</span>
                   </div>
                   <h2 className="mt-1.5 text-sm font-medium leading-tight text-slate-950">{formatName(scenario.name)}</h2>
                 </div>
-                <Pill className={domainStyles[scenario.domain] ?? 'bg-slate-100 text-slate-700 ring-slate-200'}>
-                  {scenario.domain}
-                </Pill>
+                <Pill className={domainStyles[scenario.domain] ?? domainStyles.general}>{scenario.domain}</Pill>
               </div>
 
-              <div className="mt-2.5">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Pill className={emotionStyles[emotionKey] ?? emotionStyles.neutral}>{emotionKey}</Pill>
+                <Pill className="bg-slate-50 text-slate-600 ring-slate-200">{scenario.persona.noise_db ?? 0} dB noise</Pill>
+                <Pill className="bg-slate-50 text-slate-600 ring-slate-200">
+                  {scenario.persona.interrupts ? 'interrupts' : 'no interrupts'}
+                </Pill>
+                {scenario.persona.code_switching && <Pill className="bg-slate-50 text-slate-600 ring-slate-200">code switch</Pill>}
               </div>
 
-              <p className="mt-2.5 line-clamp-2 text-sm leading-5 text-slate-600">{scenario.persona.goal}</p>
-              {parentName && <p className="mt-2 text-xs text-slate-500">Forked from {parentName}</p>}
-
-              <div className="mt-3 grid grid-cols-3 gap-1.5 text-xs text-slate-600">
-                <div className="panel-soft px-2 py-1.5">{scenario.persona.noise_db ?? 0} dB noise</div>
-                <div className="panel-soft px-2 py-1.5">{scenario.persona.interrupts ? 'Interrupts' : 'No interrupts'}</div>
-                <div className="panel-soft px-2 py-1.5">{scenario.persona.code_switching ? 'Code switch' : 'Single language'}</div>
+              <p className="mt-3 line-clamp-2 text-sm leading-5 text-slate-600">{scenario.persona.goal}</p>
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">Caller opening line</p>
+                <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-700">{scenario.persona.opening_line}</p>
               </div>
 
-              <div className="mt-auto flex items-center justify-between gap-2 pt-4">
-                <div className="min-w-28 flex-1">
-                  {lastMos[scenario.name] ? (
-                    <ScoreBar value={lastMos[scenario.name]} max={4.5} />
-                  ) : (
-                    <span className="text-xs text-slate-400">Not run yet</span>
-                  )}
-                </div>
+              <div className="mt-auto flex items-center justify-end gap-2 pt-4">
+                <button onClick={() => listenScenario(scenario)} className="btn-secondary min-h-8 px-3 py-1.5 text-xs">
+                  {speakingId === scenario.id ? 'Stop' : 'Listen'}
+                </button>
                 <button onClick={() => setForking(scenario)} className="btn-secondary min-h-8 px-3 py-1.5 text-xs">
                   Fork
                 </button>
-                <a href={`/experiments/new?scenario=${scenario.id}`} className="btn-primary min-h-8 px-3 py-1.5 text-xs">
+                <button onClick={() => router.push(`/experiments/new?scenario=${scenario.id}`)} className="btn-primary min-h-8 px-3 py-1.5 text-xs">
                   Run
-                </a>
+                </button>
               </div>
             </article>
           );
         })}
       </div>
 
-      {forking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 p-6">
-          <div className="grid w-[920px] grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-            <div className="bg-slate-50 p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-slate-950">Parent scenario</h2>
-                <span className="text-xs text-slate-500">Read only</span>
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 p-6 backdrop-blur-sm">
+          <div className="w-[720px] rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-medium text-slate-950">Create test scenario</h2>
+                <p className="mt-1 text-xs text-slate-500">Capture a customer-specific call your agent must handle.</p>
               </div>
-              <div className="mt-5 space-y-4 opacity-70">
-                {[
-                  ['Language', forking.language],
-                  ['Persona', forking.persona.name],
-                  ['Emotion', forking.persona.emotional_state],
-                  ['Goal', forking.persona.goal],
-                  ['Noise', `${forking.persona.noise_db ?? 0} dB`],
-                ].map(([label, value]) => (
-                  <Fragment key={label}>
-                    <p className="text-xs text-slate-500">{label}</p>
-                    <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{value}</p>
-                  </Fragment>
-                ))}
+              <button onClick={() => setShowCreate(false)} className="btn-quiet">Close</button>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <label className="text-xs text-slate-500">
+                Scenario name
+                <input
+                  className="input-field mt-1"
+                  value={customScenario.name}
+                  onChange={(event) => setCustomScenario((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="refund escalation after failed delivery"
+                />
+              </label>
+              <label className="text-xs text-slate-500">
+                Persona name
+                <input
+                  className="input-field mt-1"
+                  value={customScenario.personaName}
+                  onChange={(event) => setCustomScenario((current) => ({ ...current, personaName: event.target.value }))}
+                />
+              </label>
+              <FilterSelect label="Language" value={customScenario.language} options={['en-US', 'hi-IN', 'es-ES', 'en-GB']} onChange={(value) => setCustomScenario((current) => ({ ...current, language: value }))} />
+              <FilterSelect label="Domain" value={customScenario.domain} options={['ecommerce', 'banking', 'telecom', 'healthcare', 'general']} onChange={(value) => setCustomScenario((current) => ({ ...current, domain: value }))} />
+              <FilterSelect label="Emotion" value={customScenario.emotion} options={['angry', 'frustrated', 'urgent', 'nervous', 'confused', 'neutral']} onChange={(value) => setCustomScenario((current) => ({ ...current, emotion: value }))} />
+              <div />
+              <label className="col-span-2 text-xs text-slate-500">
+                Customer goal
+                <textarea
+                  className="input-field mt-1 h-20"
+                  value={customScenario.goal}
+                  onChange={(event) => setCustomScenario((current) => ({ ...current, goal: event.target.value }))}
+                  placeholder="The caller wants a refund but does not have the order number ready."
+                />
+              </label>
+              <label className="col-span-2 text-xs text-slate-500">
+                Opening line
+                <input
+                  className="input-field mt-1"
+                  value={customScenario.openingLine}
+                  onChange={(event) => setCustomScenario((current) => ({ ...current, openingLine: event.target.value }))}
+                  placeholder="I have called twice and still do not have my refund."
+                />
+              </label>
+              <label className="col-span-2 text-xs text-slate-500">
+                Expected outcome
+                <input
+                  className="input-field mt-1"
+                  value={customScenario.expectedOutcome}
+                  onChange={(event) => setCustomScenario((current) => ({ ...current, expectedOutcome: event.target.value }))}
+                  placeholder="Agent verifies safely, explains next step, and avoids false guarantees."
+                />
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn-primary" onClick={saveCustomScenario}>Save Scenario</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {forking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 p-6 backdrop-blur-sm">
+          <div className="w-[720px] rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-medium text-slate-950">Fork scenario</h2>
+                <p className="mt-1 text-xs text-slate-500">Create a custom version for your product, policy, or market.</p>
+              </div>
+              <button onClick={() => setForking(null)} className="btn-quiet">Close</button>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">Original scenario</p>
+                <p className="mt-2 text-sm font-medium text-slate-950">{formatName(forking.name)}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{forking.persona.goal}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs text-slate-500">Custom fork</p>
+                <p className="mt-2 text-sm font-medium text-slate-950">{formatName(`${forking.name} custom`)}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Increases noise slightly and keeps the same release criteria so you can test a harder variant.
+                </p>
               </div>
             </div>
-            <div className="p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-slate-950">Fork scenario</h2>
-                <button onClick={() => setForking(null)} className="text-slate-400 hover:text-slate-900">
-                  x
-                </button>
-              </div>
-              <div className="mt-5 space-y-3">
-                <label className="block text-xs text-slate-500">
-                  Language
-                  <select className="select-field mt-1 bg-[#f7f9ff]" defaultValue={forking.language}>
-                    <option>{forking.language}</option>
-                    <option>hi-IN</option>
-                    <option>en-US</option>
-                  </select>
-                </label>
-                <label className="block text-xs text-slate-500">
-                  Persona Name
-                  <input className="input-field mt-1 bg-[#f7f9ff]" defaultValue={`${forking.persona.name} fork`} />
-                </label>
-                <label className="block text-xs text-slate-500">
-                  Emotional State
-                  <select className="select-field mt-1 bg-[#f7f9ff]" defaultValue={forking.persona.emotional_state}>
-                    <option>angry</option>
-                    <option>calm</option>
-                    <option>frustrated</option>
-                    <option>neutral</option>
-                  </select>
-                </label>
-                <label className="block text-xs text-slate-500">
-                  Goal
-                  <textarea className="input-field mt-1 h-20 bg-[#f7f9ff]" defaultValue={forking.persona.goal} />
-                </label>
-                <label className="block text-xs text-slate-500">
-                  Noise Level
-                  <input className="mt-2 w-full accent-[#2f5ae0]" type="range" min="0" max="12" defaultValue={forking.persona.noise_db ?? 0} />
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-600">
-                  <input type="checkbox" defaultChecked={Boolean(forking.persona.code_switching)} />
-                  Code-switching
-                </label>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button onClick={() => setForking(null)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button onClick={saveFork} className="btn-primary">
-                  Save Fork
-                </button>
-              </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setForking(null)} className="btn-secondary">Cancel</button>
+              <button onClick={saveFork} className="btn-primary">Save Fork</button>
             </div>
           </div>
         </div>

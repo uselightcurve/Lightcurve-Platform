@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ProviderLogo } from '@/components/ProviderLogo';
-import { DEMO_SCENARIOS } from '@/lib/demoData';
 import { providerDefinitions, type ProviderId } from '@/lib/integrations';
+import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 import { createExperiment, getAgent, getScenarios, type StoredScenario } from '@/lib/workspaceStore';
 
 const AGENT_TYPES = providerDefinitions.map((provider) => ({
@@ -109,7 +109,7 @@ export default function NewExperiment() {
   const [elevenLabsPhoneNumberId, setElevenLabsPhoneNumberId] = useState('');
   const [elevenLabsMode, setElevenLabsMode] = useState<'live_call' | 'recording_replay'>('recording_replay');
   const [expName, setExpName] = useState('pre-production voice preflight');
-  const [scenarios, setScenarios] = useState<StoredScenario[]>(DEMO_SCENARIOS as StoredScenario[]);
+  const [scenarios, setScenarios] = useState<StoredScenario[]>(REAL_SCENARIO_LIBRARY as StoredScenario[]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -165,7 +165,7 @@ export default function NewExperiment() {
 
   const useMockAgent = () => {
     setAgentType('custom_webrtc');
-    setAgentLocator('wss://sandbox.lightcurve.local/mock-agent');
+    setAgentLocator('wss://sandbox.lightcurve.local/caller-bridge-preview');
   };
 
   const handleRun = async () => {
