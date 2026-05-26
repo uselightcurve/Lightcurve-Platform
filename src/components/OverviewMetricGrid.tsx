@@ -7,7 +7,7 @@ import { listExperiments, listRuns } from '@/lib/workspaceStore';
 type MetricPanel = {
   title: string;
   value: string;
-  sublabel: string;
+  sublabel?: string;
   href: string;
   icon: string;
   variant: 'line' | 'bars';
@@ -107,7 +107,7 @@ function InteractiveLine({ panel }: { panel: MetricPanel }) {
   const valueText = active ? formatValue(panel, active.value) : '';
 
   return (
-    <div className="relative mt-4 h-24" onMouseLeave={() => setActive(null)}>
+    <div className="relative mt-5 h-28" onMouseLeave={() => setActive(null)}>
       <div className="absolute inset-x-0 bottom-3 border-t border-slate-200" />
       <div className="absolute bottom-3 left-10 right-4 flex justify-between text-[11px] text-slate-400">
         <span>09 AM</span>
@@ -168,7 +168,7 @@ function InteractiveBars({ panel }: { panel: MetricPanel }) {
   const activeValue = activeIndex === null ? 0 : (panel.series[activeIndex] ?? panel.series[0] ?? 0);
 
   return (
-    <div className="relative mt-4 h-24" onMouseLeave={() => setActiveIndex(null)}>
+    <div className="relative mt-5 h-28" onMouseLeave={() => setActiveIndex(null)}>
       <div className="absolute inset-x-0 bottom-3 border-t border-slate-200" />
       <div className="absolute bottom-3 left-10 right-4 flex justify-between text-[11px] text-slate-400">
         <span>09 AM</span>
@@ -180,7 +180,7 @@ function InteractiveBars({ panel }: { panel: MetricPanel }) {
         <span>0.5</span>
         <span>0</span>
       </div>
-      <div className="absolute bottom-8 left-20 right-16 flex h-16 items-end gap-2">
+      <div className="absolute bottom-8 left-20 right-16 flex h-20 items-end gap-2">
         {panel.series.map((value, index) => (
           <span
             key={`${panel.title}-${index}`}
@@ -206,7 +206,7 @@ function MetricCard({ panel }: { panel: MetricPanel }) {
   return (
     <Link
       href={panel.href}
-      className="card group block min-h-[198px] bg-white p-3.5 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#cfd8ff]"
+      className="card group block min-h-[204px] bg-white p-4 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#cfd8ff]"
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
     >
@@ -217,13 +217,14 @@ function MetricCard({ panel }: { panel: MetricPanel }) {
           </span>
           <h2 className="text-sm font-semibold tracking-[-0.01em]">{panel.title}</h2>
         </div>
-        <span className={`text-xs text-slate-400 transition-opacity ${isFocused ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-          View
-        </span>
-      </div>
-      <div className="mt-4 flex items-end justify-between">
-        <p className="text-[1.7rem] font-semibold leading-none tracking-[-0.02em] text-slate-900">{panel.value}</p>
-        <p className="text-xs text-slate-500">{panel.sublabel}</p>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[1.45rem] font-semibold leading-none tracking-[-0.02em] text-slate-950">
+            {panel.value}
+          </span>
+          <span className={`text-xs text-slate-400 transition-opacity ${isFocused ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            View
+          </span>
+        </div>
       </div>
       {panel.variant === 'bars' ? <InteractiveBars panel={panel} /> : <InteractiveLine panel={panel} />}
     </Link>
