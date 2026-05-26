@@ -18,6 +18,7 @@ const AGENT_TYPES = providerDefinitions.map((provider) => ({
 
 const LIVE_PROVIDER_IDS = ['vapi', 'retell', 'elevenlabs'];
 const BOT_TO_BOT_PROVIDER_IDS = ['livekit', 'pipecat', 'custom_webrtc'];
+const MAX_REAL_PHONE_SCENARIOS = 10;
 
 function isLiveProvider(provider: string) {
   return LIVE_PROVIDER_IDS.includes(provider);
@@ -179,6 +180,8 @@ export default function NewExperiment() {
   const locatorLabel = vapiBotToBotPhone ? 'Target agent inbound number or SIP URI' : activeAgent.locatorLabel;
   const locatorPlaceholder = vapiBotToBotPhone ? '+14155550123 or sip:agent@example.com' : activeAgent.placeholder;
   const callerMode = replayMode ? 'Replay import' : vapiBotToBotPhone ? 'Bot-to-bot phone' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
+  const realPhoneMode = liveProvider && !replayMode;
+  const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -194,6 +197,10 @@ export default function NewExperiment() {
     const usesLiveProvider = isLiveProvider(agentType);
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
     const needsHumanTester = usesLiveProvider && !elevenLabsReplay && !vapiBotToBotPhone;
+    if (usesLiveProvider && !elevenLabsReplay && selectedIds.length > MAX_REAL_PHONE_SCENARIOS) {
+      setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Select a smaller pilot suite, then batch the rest.`);
+      return;
+    }
     if (vapiBotToBotPhone) {
       if (looksLikeUuid(agentLocator)) {
         setError('For Vapi bot-to-bot, enter the target agent phone number or SIP URI here, not a Vapi phone-number ID.');
@@ -557,7 +564,11 @@ export default function NewExperiment() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button type="button" className="btn-secondary text-xs" onClick={() => setSelectedIds(highPressureIds)}>
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() => setSelectedIds(realPhoneMode ? highPressureIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : highPressureIds)}
+                >
                   High-pressure set
                 </button>
                 <button
@@ -566,14 +577,24 @@ export default function NewExperiment() {
                   onClick={() =>
                     selectedIds.length === scenarios.length
                       ? setSelectedIds([])
-                      : setSelectedIds(scenarios.map((scenario) => scenario.id))
+                      : setSelectedIds(
+                          realPhoneMode
+                            ? scenarios.slice(0, MAX_REAL_PHONE_SCENARIOS).map((scenario) => scenario.id)
+                            : scenarios.map((scenario) => scenario.id),
+                        )
                   }
                 >
-                  {selectedIds.length === scenarios.length ? 'Clear all' : 'Select all'}
+                  {selectedIds.length === scenarios.length ? 'Clear all' : realPhoneMode ? `Select first ${MAX_REAL_PHONE_SCENARIOS}` : 'Select all'}
                 </button>
               </div>
             </div>
           </div>
+
+          {selectedTooManyPhoneScenarios && (
+            <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] px-4 py-3 text-sm text-[#765b1f]">
+              Real phone runs are capped at {MAX_REAL_PHONE_SCENARIOS} scenarios per batch so Lightcurve does not accidentally place hundreds of carrier calls. Use bot-to-bot runner mode for large-scale suites.
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             {scenarios.map((scenario) => {
@@ -620,7 +641,7 @@ export default function NewExperiment() {
             <button type="button" className="btn-secondary" onClick={() => setStep(1)}>
               Back
             </button>
-            <button type="button" className="btn-primary" onClick={() => setStep(3)} disabled={selectedIds.length === 0}>
+            <button type="button" className="btn-primary" onClick={() => setStep(3)} disabled={selectedIds.length === 0 || selectedTooManyPhoneScenarios}>
               Configure gate
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
@@ -654,6 +675,12 @@ export default function NewExperiment() {
               <MiniMetric label="Gate" value="MOS 3.8+" />
             </div>
 
+            {selectedTooManyPhoneScenarios && (
+              <div className="mt-4 rounded-lg border border-[#e6cf93] bg-[#fffaf0] px-4 py-3 text-sm text-[#765b1f]">
+                Reduce this real phone batch to {MAX_REAL_PHONE_SCENARIOS} scenarios or fewer before creating the sandbox run.
+              </div>
+            )}
+
             <div className="mt-5">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">CI command preview</p>
               <div className="code-line">
@@ -675,7 +702,7 @@ export default function NewExperiment() {
                 type="button"
                 className="btn-primary"
                 onClick={handleRun}
-                disabled={!expName.trim() || !agentLocator.trim() || selectedIds.length === 0 || loading}
+                disabled={!expName.trim() || !agentLocator.trim() || selectedIds.length === 0 || selectedTooManyPhoneScenarios || loading}
               >
                 {loading
                   ? 'Creating sandbox...'

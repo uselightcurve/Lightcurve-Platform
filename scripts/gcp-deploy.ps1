@@ -250,6 +250,7 @@ $botToBotJudgeModel = if ($envValues["BOT_TO_BOT_JUDGE_MODEL"]) { $envValues["BO
 $botToBotTtsEnabled = if ($envValues["BOT_TO_BOT_TTS_ENABLED"]) { $envValues["BOT_TO_BOT_TTS_ENABLED"] } else { "0" }
 $botToBotMaxTurns = if ($envValues["BOT_TO_BOT_MAX_TURNS"]) { $envValues["BOT_TO_BOT_MAX_TURNS"] } else { "4" }
 $botToBotTaskDeadlineSeconds = if ($envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"]) { $envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"] } else { "900" }
+$maxRealPhoneScenarios = if ($envValues["MAX_REAL_PHONE_SCENARIOS"]) { $envValues["MAX_REAL_PHONE_SCENARIOS"] } else { "10" }
 $vapiCallerModelProvider = if ($envValues["VAPI_CALLER_MODEL_PROVIDER"]) { $envValues["VAPI_CALLER_MODEL_PROVIDER"] } else { "openai" }
 $vapiCallerModel = if ($envValues["VAPI_CALLER_MODEL"]) { $envValues["VAPI_CALLER_MODEL"] } else { "gpt-4o-mini" }
 $envVars += "ELEVENLABS_COST_MODE=$elevenLabsCostMode"
@@ -259,6 +260,7 @@ $envVars += "BOT_TO_BOT_JUDGE_MODEL=$botToBotJudgeModel"
 $envVars += "BOT_TO_BOT_TTS_ENABLED=$botToBotTtsEnabled"
 $envVars += "BOT_TO_BOT_MAX_TURNS=$botToBotMaxTurns"
 $envVars += "BOT_TO_BOT_TASK_DEADLINE_SECONDS=$botToBotTaskDeadlineSeconds"
+$envVars += "MAX_REAL_PHONE_SCENARIOS=$maxRealPhoneScenarios"
 $envVars += "VAPI_CALLER_MODEL_PROVIDER=$vapiCallerModelProvider"
 $envVars += "VAPI_CALLER_MODEL=$vapiCallerModel"
 
