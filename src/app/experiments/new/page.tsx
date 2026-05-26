@@ -17,9 +17,14 @@ const AGENT_TYPES = providerDefinitions.map((provider) => ({
 }));
 
 const LIVE_PROVIDER_IDS = ['vapi', 'retell', 'elevenlabs'];
+const BOT_TO_BOT_PROVIDER_IDS = ['livekit', 'pipecat', 'custom_webrtc'];
 
 function isLiveProvider(provider: string) {
   return LIVE_PROVIDER_IDS.includes(provider);
+}
+
+function isBotToBotProvider(provider: string) {
+  return BOT_TO_BOT_PROVIDER_IDS.includes(provider);
 }
 
 const steps = [
@@ -156,8 +161,9 @@ export default function NewExperiment() {
 
   const activeAgent = AGENT_TYPES.find((agent) => agent.id === agentType) ?? AGENT_TYPES[0];
   const liveProvider = isLiveProvider(agentType);
+  const botToBotProvider = isBotToBotProvider(agentType);
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-  const callerMode = replayMode ? 'Replay import' : liveProvider ? 'Human pilot' : 'Synthetic';
+  const callerMode = replayMode ? 'Replay import' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -183,7 +189,7 @@ export default function NewExperiment() {
     try {
       const agentConfig: Record<string, string> =
         agentType === 'custom_webrtc'
-            ? { endpoint: agentLocator }
+            ? { runnerUrl: agentLocator, apiKey }
             : agentType === 'vapi'
             ? {
                 assistantId: agentLocator,
@@ -207,12 +213,12 @@ export default function NewExperiment() {
                     costMode: elevenLabsMode,
                   }
             : agentType === 'livekit'
-              ? { roomOrAgent: agentLocator, apiKey }
+              ? { runnerUrl: agentLocator, apiKey }
               : agentType === 'pipecat'
-                ? { agentUrl: agentLocator, apiKey }
+                ? { runnerUrl: agentLocator, apiKey }
                 : { agentId: agentLocator, apiKey };
 
-      if (usesLiveProvider) {
+      if (usesLiveProvider || botToBotProvider) {
         const response = await fetch('/api/experiments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -285,11 +291,11 @@ export default function NewExperiment() {
               <div>
                 <h2 className="text-base font-medium text-slate-950">Connect your voice agent</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Lightcurve tests your voice agent through live calls, replay imports, or the coming isolated caller bridge.
+                  Lightcurve tests your voice agent through live calls, replay imports, or the isolated bot-to-bot caller bridge.
                 </p>
               </div>
               <button type="button" onClick={useMockAgent} className="btn-secondary text-xs">
-                Use sandbox stub
+                Use internal runner
               </button>
             </div>
 
@@ -323,18 +329,16 @@ export default function NewExperiment() {
                   placeholder={activeAgent.placeholder}
                 />
               </div>
-              {agentType !== 'custom_webrtc' && (
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
-                  <input
-                    type="password"
-                    className="input-field"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder="Optional. Prefer server env."
-                  />
-                </div>
-              )}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                  placeholder="Optional. Prefer server env."
+                />
+              </div>
             </div>
 
             {liveProvider && (
@@ -342,7 +346,7 @@ export default function NewExperiment() {
                 <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] p-3 text-sm leading-relaxed text-[#765b1f]">
                   {replayMode
                     ? 'ElevenLabs replay mode avoids live call spend: import an existing recording or transcript, then Lightcurve scores it against the selected scenario.'
-                    : `${activeAgent.label} live mode dials a real human tester. The selected caller card is the script the tester must act out; autonomous bot-to-bot caller audio is coming soon.`}
+                    : `${activeAgent.label} live mode dials a consented human tester. The selected caller card is the script the tester acts out while Lightcurve captures the result.`}
                 </div>
                 {agentType === 'elevenlabs' && (
                   <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
@@ -396,7 +400,7 @@ export default function NewExperiment() {
                       />
                     </div>
                   )}
-                  {!replayMode && (
+                  {liveProvider && !replayMode && (
                     <div>
                     <label className="mb-1.5 block text-xs font-medium text-slate-600">Consented tester phone number</label>
                     <input
@@ -408,6 +412,12 @@ export default function NewExperiment() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {botToBotProvider && (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
+                Bot-to-bot mode queues an isolated caller simulator against your agent runner URL. Use the internal runner for a quick smoke test, or point Pipecat/LiveKit/Custom to your own HTTPS runner.
               </div>
             )}
 
@@ -593,7 +603,7 @@ export default function NewExperiment() {
                     ? 'Create replay sandbox'
                     : liveProvider
                       ? 'Dial human pilot call'
-                      : 'Run simulated phone calls'}
+                      : 'Run bot-to-bot sandbox'}
               </button>
             </div>
           </section>

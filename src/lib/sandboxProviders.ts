@@ -42,9 +42,7 @@ function providerOf(experiment: ExperimentRow): ProviderId {
 
 export function isProviderBackedSandbox(experiment: ExperimentRow) {
   const provider = providerOf(experiment);
-  if (LIVE_PHONE_PROVIDERS.has(provider)) return true;
-  const agentConfig = getAgentConfig(experiment);
-  return Boolean(stringValue(agentConfig.runnerUrl) ?? stringValue(process.env.CUSTOM_AGENT_RUNNER_URL));
+  return LIVE_PHONE_PROVIDERS.has(provider);
 }
 
 function scenarioVariables(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {

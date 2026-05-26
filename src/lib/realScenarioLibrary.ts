@@ -49,10 +49,23 @@ function personaName(domain: string, index: number) {
   return names[index % names.length];
 }
 
+function deterministicUuid(value: string) {
+  let hash = 2166136261;
+  let hex = '';
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+    hex += (hash >>> 0).toString(16).padStart(8, '0');
+    if (hex.length >= 32) break;
+  }
+  hex = (hex + '0'.repeat(32)).slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 export const REAL_SCENARIO_LIBRARY: LibraryScenario[] = (importedSeeds as DatasetScenarioSeed[]).map((seed, index) => {
   const scenario = seedToScenario(seed);
   return {
-    id: `real-${seed.id}`,
+    id: deterministicUuid(`lightcurve:${seed.id}:${seed.intent}:${index}`),
     name: formatScenarioName(seed, index),
     language: scenario.language,
     domain: scenario.domain,

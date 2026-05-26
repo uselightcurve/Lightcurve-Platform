@@ -3,7 +3,7 @@ export type ProviderId = 'vapi' | 'retell' | 'elevenlabs' | 'livekit' | 'pipecat
 export type ProviderCapability =
   | 'sandbox-run'
   | 'human-pilot'
-  | 'synthetic-bridge-coming-soon'
+  | 'bot-to-bot-bridge'
   | 'low-cost-replay'
   | 'production-import'
   | 'recording-import'
@@ -55,7 +55,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     env: ['VAPI_API_KEY', 'VAPI_ASSISTANT_ID', 'VAPI_PHONE_NUMBER_ID'],
     locatorLabel: 'Assistant ID',
     locatorPlaceholder: 'asst_...',
-    capabilities: ['sandbox-run', 'human-pilot', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import', 'prompt-recommendation'],
+    capabilities: ['sandbox-run', 'human-pilot', 'bot-to-bot-bridge', 'production-import', 'recording-import', 'prompt-recommendation'],
   },
   {
     id: 'retell',
@@ -64,7 +64,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     env: ['RETELL_API_KEY', 'RETELL_AGENT_ID'],
     locatorLabel: 'Agent ID',
     locatorPlaceholder: 'agent_...',
-    capabilities: ['sandbox-run', 'human-pilot', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import', 'prompt-recommendation'],
+    capabilities: ['sandbox-run', 'human-pilot', 'bot-to-bot-bridge', 'production-import', 'recording-import', 'prompt-recommendation'],
   },
   {
     id: 'elevenlabs',
@@ -73,34 +73,34 @@ export const providerDefinitions: ProviderDefinition[] = [
     env: ['ELEVENLABS_API_KEY', 'ELEVENLABS_AGENT_ID'],
     locatorLabel: 'Agent ID',
     locatorPlaceholder: 'agent_...',
-    capabilities: ['sandbox-run', 'human-pilot', 'low-cost-replay', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import', 'prompt-recommendation'],
+    capabilities: ['sandbox-run', 'human-pilot', 'low-cost-replay', 'bot-to-bot-bridge', 'production-import', 'recording-import', 'prompt-recommendation'],
   },
   {
     id: 'livekit',
     name: 'LiveKit',
-    tagline: 'Realtime agent rooms, recordings, and SIP-ready call flows.',
+    tagline: 'Realtime rooms, recordings, and runner bridges.',
     env: ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'],
-    locatorLabel: 'Room or agent name',
-    locatorPlaceholder: 'support-agent-room',
-    capabilities: ['sandbox-run', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import'],
+    locatorLabel: 'Runner endpoint',
+    locatorPlaceholder: 'https://agent.example.com/lightcurve/run',
+    capabilities: ['sandbox-run', 'bot-to-bot-bridge', 'production-import', 'recording-import'],
   },
   {
     id: 'pipecat',
     name: 'Pipecat',
     tagline: 'Custom Python voice pipelines behind your own endpoint.',
     env: ['PIPECAT_AGENT_URL', 'PIPECAT_AUTH_TOKEN'],
-    locatorLabel: 'Agent URL',
+    locatorLabel: 'Runner endpoint',
     locatorPlaceholder: 'https://agent.example.com/pipecat',
-    capabilities: ['sandbox-run', 'synthetic-bridge-coming-soon', 'production-import', 'recording-import'],
+    capabilities: ['sandbox-run', 'bot-to-bot-bridge', 'production-import', 'recording-import'],
   },
   {
     id: 'custom_webrtc',
     name: 'Custom WebRTC',
-    tagline: 'Bring any websocket media endpoint without changing infra.',
+    tagline: 'Bring any HTTPS/WebRTC bridge without changing infra.',
     env: ['CUSTOM_WEBRTC_WSS_URL'],
-    locatorLabel: 'Media websocket endpoint',
-    locatorPlaceholder: 'wss://agent.example.com/media',
-    capabilities: ['sandbox-run', 'recording-import'],
+    locatorLabel: 'Runner endpoint',
+    locatorPlaceholder: 'https://agent.example.com/lightcurve/run',
+    capabilities: ['sandbox-run', 'bot-to-bot-bridge', 'recording-import'],
   },
 ];
 

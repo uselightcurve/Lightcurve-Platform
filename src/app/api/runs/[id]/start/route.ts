@@ -4,6 +4,7 @@ import { experiments, runs, scenarios } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { createRoom } from '@/lib/daily';
 import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandboxProviders';
+import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment } from '@/lib/botToBotRunner';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -59,6 +60,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
       return NextResponse.json({ error: message }, { status: 502 });
     }
+  }
+
+  if (isBotToBotExperiment(experiment)) {
+    await db
+      .update(runs)
+      .set({
+        status: 'pending',
+        provider: 'bot_to_bot',
+        externalStatus: 'queued',
+        startedAt: new Date(),
+      })
+      .where(eq(runs.id, id));
+    await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
+
+    const queued = await enqueueBotToBotRun(id);
+    if (!queued) {
+      executeBotToBotRun(id, experiment, run, scenario).catch(console.error);
+    }
+
+    return NextResponse.json({
+      success: true,
+      provider: 'bot_to_bot',
+      status: queued ? 'queued' : 'running',
+      externalStatus: queued ? 'cloud_tasks_queued' : 'inline_worker_started',
+    });
   }
 
   // Set to running

@@ -136,6 +136,11 @@ $queueExists = & gcloud.cmd tasks queues list --location=$Region --project $Proj
 if (-not $queueExists) {
   & gcloud.cmd tasks queues create $TasksQueue --location=$Region --project $ProjectId | Out-Host
 }
+$maxConcurrentRuns = if ($envValues["BOT_TO_BOT_MAX_CONCURRENT_RUNS"]) { $envValues["BOT_TO_BOT_MAX_CONCURRENT_RUNS"] } else { "50" }
+& gcloud.cmd tasks queues update $TasksQueue `
+  --location=$Region `
+  --project $ProjectId `
+  --max-concurrent-dispatches=$maxConcurrentRuns | Out-Host
 
 Write-Host "Granting runtime service account minimum app permissions"
 & gcloud.cmd projects add-iam-policy-binding $ProjectId `
@@ -193,7 +198,12 @@ $secretNames = @(
   "PIPECAT_AUTH_TOKEN",
   "CUSTOM_WEBRTC_WSS_URL",
   "CUSTOM_AGENT_RUNNER_URL",
-  "HUGGINGFACE_TOKEN"
+  "HUGGINGFACE_TOKEN",
+  "BOT_TO_BOT_CALLER_MODEL",
+  "BOT_TO_BOT_JUDGE_MODEL",
+  "BOT_TO_BOT_TTS_ENABLED",
+  "BOT_TO_BOT_MAX_TURNS",
+  "BOT_TO_BOT_TASK_DEADLINE_SECONDS"
 )
 
 $activeSecretNames = @()
@@ -230,8 +240,18 @@ if ($envValues["MOS_SERVICE_URL"]) {
 }
 $elevenLabsCostMode = if ($envValues["ELEVENLABS_COST_MODE"]) { $envValues["ELEVENLABS_COST_MODE"] } else { "recording_replay" }
 $syntheticCallerProvider = if ($envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"]) { $envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"] } else { "cheap_tts" }
+$botToBotCallerModel = if ($envValues["BOT_TO_BOT_CALLER_MODEL"]) { $envValues["BOT_TO_BOT_CALLER_MODEL"] } else { "gemini-1.5-flash" }
+$botToBotJudgeModel = if ($envValues["BOT_TO_BOT_JUDGE_MODEL"]) { $envValues["BOT_TO_BOT_JUDGE_MODEL"] } else { "gemini-1.5-flash" }
+$botToBotTtsEnabled = if ($envValues["BOT_TO_BOT_TTS_ENABLED"]) { $envValues["BOT_TO_BOT_TTS_ENABLED"] } else { "0" }
+$botToBotMaxTurns = if ($envValues["BOT_TO_BOT_MAX_TURNS"]) { $envValues["BOT_TO_BOT_MAX_TURNS"] } else { "4" }
+$botToBotTaskDeadlineSeconds = if ($envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"]) { $envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"] } else { "900" }
 $envVars += "ELEVENLABS_COST_MODE=$elevenLabsCostMode"
 $envVars += "LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER=$syntheticCallerProvider"
+$envVars += "BOT_TO_BOT_CALLER_MODEL=$botToBotCallerModel"
+$envVars += "BOT_TO_BOT_JUDGE_MODEL=$botToBotJudgeModel"
+$envVars += "BOT_TO_BOT_TTS_ENABLED=$botToBotTtsEnabled"
+$envVars += "BOT_TO_BOT_MAX_TURNS=$botToBotMaxTurns"
+$envVars += "BOT_TO_BOT_TASK_DEADLINE_SECONDS=$botToBotTaskDeadlineSeconds"
 
 $deployArgs = @(
   "run", "deploy", $ServiceName,

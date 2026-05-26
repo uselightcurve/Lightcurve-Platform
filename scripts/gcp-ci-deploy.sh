@@ -60,6 +60,12 @@ optional_secrets=(
   CUSTOM_WEBRTC_WSS_URL
   CUSTOM_AGENT_RUNNER_URL
   HUGGINGFACE_TOKEN
+  BOT_TO_BOT_CALLER_MODEL
+  BOT_TO_BOT_JUDGE_MODEL
+  BOT_TO_BOT_TTS_ENABLED
+  BOT_TO_BOT_MAX_TURNS
+  BOT_TO_BOT_TASK_DEADLINE_SECONDS
+  BOT_TO_BOT_MAX_CONCURRENT_RUNS
 )
 
 for secret_name in "${optional_secrets[@]}"; do
@@ -82,6 +88,12 @@ env_vars=(
   "GCS_BUCKET=$GCS_BUCKET"
   "ELEVENLABS_COST_MODE=${ELEVENLABS_COST_MODE:-recording_replay}"
   "LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER=${LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER:-cheap_tts}"
+  "BOT_TO_BOT_CALLER_MODEL=${BOT_TO_BOT_CALLER_MODEL:-gemini-1.5-flash}"
+  "BOT_TO_BOT_JUDGE_MODEL=${BOT_TO_BOT_JUDGE_MODEL:-gemini-1.5-flash}"
+  "BOT_TO_BOT_TTS_ENABLED=${BOT_TO_BOT_TTS_ENABLED:-0}"
+  "BOT_TO_BOT_MAX_TURNS=${BOT_TO_BOT_MAX_TURNS:-4}"
+  "BOT_TO_BOT_TASK_DEADLINE_SECONDS=${BOT_TO_BOT_TASK_DEADLINE_SECONDS:-900}"
+  "BOT_TO_BOT_MAX_CONCURRENT_RUNS=${BOT_TO_BOT_MAX_CONCURRENT_RUNS:-50}"
 )
 
 if [[ -n "${MOS_SERVICE_URL:-}" ]]; then
@@ -109,6 +121,17 @@ gcloud run jobs execute "$MIGRATION_JOB" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
   --wait
+
+echo "Updating Cloud Tasks queue concurrency"
+if gcloud tasks queues describe "$CLOUD_TASKS_QUEUE" --project "$PROJECT_ID" --location "$REGION" >/dev/null 2>&1; then
+  gcloud tasks queues update "$CLOUD_TASKS_QUEUE" \
+    --project "$PROJECT_ID" \
+    --location "$REGION" \
+    --max-concurrent-dispatches "${BOT_TO_BOT_MAX_CONCURRENT_RUNS:-50}" \
+    --quiet
+else
+  echo "Cloud Tasks queue $CLOUD_TASKS_QUEUE was not found; skipping concurrency update."
+fi
 
 echo "Deploying Cloud Run service $SERVICE_NAME"
 gcloud run deploy "$SERVICE_NAME" \

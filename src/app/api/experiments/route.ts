@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import { DEMO_EXPERIMENTS, DEMO_SCENARIOS } from '@/lib/demoData';
+import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 
 export async function GET() {
   try {
@@ -17,19 +18,25 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    await db.insert(scenarios).values(DEMO_SCENARIOS).onConflictDoNothing();
+    const scenarioIds = Array.isArray(body.scenarioIds) ? body.scenarioIds : [];
+    const realScenarios = REAL_SCENARIO_LIBRARY.filter((scenario) => scenarioIds.includes(scenario.id));
+    const demoScenarios = DEMO_SCENARIOS.filter((scenario) => scenarioIds.includes(scenario.id));
+    const selectedScenarios = [...realScenarios, ...demoScenarios];
+    if (selectedScenarios.length) {
+      await db.insert(scenarios).values(selectedScenarios).onConflictDoNothing();
+    }
     const exp = await db.insert(experiments).values({
       name: body.name,
       agentType: body.agentType,
       agentConfig: body.agentConfig,
       webrtcEndpoint: body.webrtcEndpoint,
-      scenarioIds: body.scenarioIds,
+      scenarioIds,
       gitSha: body.gitSha,
     }).returning();
 
     const expId = exp[0].id;
     const createdRuns = [];
-    for (const sid of body.scenarioIds) {
+    for (const sid of scenarioIds) {
       const r = await db.insert(runs).values({
         experimentId: expId,
         scenarioId: sid,
