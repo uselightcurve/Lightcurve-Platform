@@ -93,10 +93,16 @@ export default function RunDetail() {
   }
 
   const run = data.run;
+  const experiment = data.experiment;
   const scenario = data.scenario;
   const persona = scenario?.persona ?? {};
   const traces: any[] = data.traces ?? [];
   const scores: any[] = data.scores ?? [];
+  const isVapiBotToBot =
+    run.provider === 'vapi' &&
+    experiment?.agentConfig &&
+    typeof experiment.agentConfig === 'object' &&
+    experiment.agentConfig.callMode === 'bot_to_bot_phone';
 
   const mosScore = scores.find((s) => s.metricName === 'mos');
   const criterionScores = scores.filter((s) => s.metricName !== 'mos');
@@ -167,7 +173,9 @@ export default function RunDetail() {
                   : ['vapi', 'retell', 'elevenlabs'].includes(run.provider)
                     ? run.externalStatus === 'awaiting_recording_import'
                       ? 'Waiting for a recording or transcript import. This is the low-cost replay path for expensive live-call providers.'
-                      : 'No transcript captured. In live-provider mode, the human tester must speak the selected scenario script until synthetic caller bridging is enabled.'
+                      : isVapiBotToBot
+                        ? 'No transcript captured yet. Lightcurve is waiting for Vapi to return bot-to-bot phone turns from the synthetic caller and target agent.'
+                        : 'No transcript captured. In human-pilot mode, the tester must speak the selected scenario script while Lightcurve captures the result.'
                     : 'No transcript available.'}
               </div>
             ) : (

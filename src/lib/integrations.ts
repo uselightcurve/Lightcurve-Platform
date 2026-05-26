@@ -51,8 +51,8 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'vapi',
     name: 'Vapi',
-    tagline: 'Hosted assistant calls, phone logs, and live sandbox pilots.',
-    env: ['VAPI_API_KEY', 'VAPI_ASSISTANT_ID', 'VAPI_PHONE_NUMBER_ID'],
+    tagline: 'Bot-to-bot phone tests, hosted assistant calls, and production imports.',
+    env: ['VAPI_API_KEY', 'VAPI_PHONE_NUMBER_ID'],
     locatorLabel: 'Assistant ID',
     locatorPlaceholder: 'asst_...',
     capabilities: ['sandbox-run', 'human-pilot', 'bot-to-bot-bridge', 'production-import', 'recording-import', 'prompt-recommendation'],

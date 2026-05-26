@@ -183,6 +183,10 @@ $secretNames = @(
   "VAPI_ASSISTANT_ID",
   "VAPI_PHONE_NUMBER_ID",
   "VAPI_TEST_CUSTOMER_NUMBER",
+  "VAPI_TARGET_AGENT_NUMBER",
+  "VAPI_CALLER_ASSISTANT_ID",
+  "VAPI_CALLER_VOICE_PROVIDER",
+  "VAPI_CALLER_VOICE_ID",
   "RETELL_API_KEY",
   "RETELL_AGENT_ID",
   "RETELL_FROM_NUMBER",
@@ -245,6 +249,8 @@ $botToBotJudgeModel = if ($envValues["BOT_TO_BOT_JUDGE_MODEL"]) { $envValues["BO
 $botToBotTtsEnabled = if ($envValues["BOT_TO_BOT_TTS_ENABLED"]) { $envValues["BOT_TO_BOT_TTS_ENABLED"] } else { "0" }
 $botToBotMaxTurns = if ($envValues["BOT_TO_BOT_MAX_TURNS"]) { $envValues["BOT_TO_BOT_MAX_TURNS"] } else { "4" }
 $botToBotTaskDeadlineSeconds = if ($envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"]) { $envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"] } else { "900" }
+$vapiCallerModelProvider = if ($envValues["VAPI_CALLER_MODEL_PROVIDER"]) { $envValues["VAPI_CALLER_MODEL_PROVIDER"] } else { "openai" }
+$vapiCallerModel = if ($envValues["VAPI_CALLER_MODEL"]) { $envValues["VAPI_CALLER_MODEL"] } else { "gpt-4o-mini" }
 $envVars += "ELEVENLABS_COST_MODE=$elevenLabsCostMode"
 $envVars += "LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER=$syntheticCallerProvider"
 $envVars += "BOT_TO_BOT_CALLER_MODEL=$botToBotCallerModel"
@@ -252,6 +258,8 @@ $envVars += "BOT_TO_BOT_JUDGE_MODEL=$botToBotJudgeModel"
 $envVars += "BOT_TO_BOT_TTS_ENABLED=$botToBotTtsEnabled"
 $envVars += "BOT_TO_BOT_MAX_TURNS=$botToBotMaxTurns"
 $envVars += "BOT_TO_BOT_TASK_DEADLINE_SECONDS=$botToBotTaskDeadlineSeconds"
+$envVars += "VAPI_CALLER_MODEL_PROVIDER=$vapiCallerModelProvider"
+$envVars += "VAPI_CALLER_MODEL=$vapiCallerModel"
 
 $deployArgs = @(
   "run", "deploy", $ServiceName,

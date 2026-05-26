@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { runs, scenarios, traces, scores } from '@/db/schema';
+import { experiments, runs, scenarios, traces, scores } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -11,8 +11,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const scenarioData = runData[0].scenarioId
     ? await db.select().from(scenarios).where(eq(scenarios.id, runData[0].scenarioId))
     : [];
+  const experimentData = runData[0].experimentId
+    ? await db.select().from(experiments).where(eq(experiments.id, runData[0].experimentId))
+    : [];
   const runTraces = await db.select().from(traces).where(eq(traces.runId, id));
   const runScores = await db.select().from(scores).where(eq(scores.runId, id));
 
-  return NextResponse.json({ run: runData[0], scenario: scenarioData[0] ?? null, traces: runTraces, scores: runScores });
+  return NextResponse.json({
+    run: runData[0],
+    experiment: experimentData[0] ?? null,
+    scenario: scenarioData[0] ?? null,
+    traces: runTraces,
+    scores: runScores,
+  });
 }

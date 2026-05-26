@@ -110,6 +110,8 @@ export default function NewExperiment() {
   const [agentLocator, setAgentLocator] = useState('');
   const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
   const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
+  const [vapiMode, setVapiMode] = useState<'bot_to_bot_phone' | 'human_pilot'>('bot_to_bot_phone');
+  const [vapiCallerAssistantId, setVapiCallerAssistantId] = useState('');
   const [retellFromNumber, setRetellFromNumber] = useState('');
   const [elevenLabsPhoneNumberId, setElevenLabsPhoneNumberId] = useState('');
   const [elevenLabsMode, setElevenLabsMode] = useState<'live_call' | 'recording_replay'>('recording_replay');
@@ -163,7 +165,10 @@ export default function NewExperiment() {
   const liveProvider = isLiveProvider(agentType);
   const botToBotProvider = isBotToBotProvider(agentType);
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-  const callerMode = replayMode ? 'Replay import' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
+  const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
+  const locatorLabel = vapiBotToBotPhone ? 'Agent phone number or SIP URI' : activeAgent.locatorLabel;
+  const locatorPlaceholder = vapiBotToBotPhone ? '+14155550123 or sip:agent@example.com' : activeAgent.placeholder;
+  const callerMode = replayMode ? 'Replay import' : vapiBotToBotPhone ? 'Bot-to-bot phone' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -178,7 +183,8 @@ export default function NewExperiment() {
     if (!expName.trim() || !agentLocator.trim() || selectedIds.length === 0) return;
     const usesLiveProvider = isLiveProvider(agentType);
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-    if (usesLiveProvider && !elevenLabsReplay && !vapiCustomerNumber.trim()) {
+    const needsHumanTester = usesLiveProvider && !elevenLabsReplay && !vapiBotToBotPhone;
+    if (needsHumanTester && !vapiCustomerNumber.trim()) {
       setError('Add a consented test phone number for the live sandbox call.');
       return;
     }
@@ -191,12 +197,21 @@ export default function NewExperiment() {
         agentType === 'custom_webrtc'
             ? { runnerUrl: agentLocator, apiKey }
             : agentType === 'vapi'
-            ? {
-                assistantId: agentLocator,
-                apiKey,
-                phoneNumberId: vapiPhoneNumberId,
-                customerNumber: vapiCustomerNumber,
-              }
+            ? vapiBotToBotPhone
+              ? {
+                  callMode: 'bot_to_bot_phone',
+                  targetAgentNumber: agentLocator,
+                  apiKey,
+                  phoneNumberId: vapiPhoneNumberId,
+                  callerAssistantId: vapiCallerAssistantId,
+                }
+              : {
+                  callMode: 'human_pilot',
+                  assistantId: agentLocator,
+                  apiKey,
+                  phoneNumberId: vapiPhoneNumberId,
+                  customerNumber: vapiCustomerNumber,
+                }
             : agentType === 'retell'
               ? {
                   agentId: agentLocator,
@@ -320,13 +335,13 @@ export default function NewExperiment() {
             <div className="mt-5 grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                  {activeAgent.locatorLabel}
+                  {locatorLabel}
                 </label>
                 <input
                   className="input-field"
                   value={agentLocator}
                   onChange={(event) => setAgentLocator(event.target.value)}
-                  placeholder={activeAgent.placeholder}
+                  placeholder={locatorPlaceholder}
                 />
               </div>
               <div>
@@ -343,10 +358,30 @@ export default function NewExperiment() {
 
             {liveProvider && (
               <div className="mt-4 space-y-3">
+                {agentType === 'vapi' && (
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setVapiMode('bot_to_bot_phone')}
+                      className={`rounded-md px-3 py-1.5 ${vapiBotToBotPhone ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Bot-to-bot phone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVapiMode('human_pilot')}
+                      className={`rounded-md px-3 py-1.5 ${vapiMode === 'human_pilot' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Human pilot
+                    </button>
+                  </div>
+                )}
                 <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] p-3 text-sm leading-relaxed text-[#765b1f]">
                   {replayMode
                     ? 'ElevenLabs replay mode avoids live call spend: import an existing recording or transcript, then Lightcurve scores it against the selected scenario.'
-                    : `${activeAgent.label} live mode dials a consented human tester. The selected caller card is the script the tester acts out while Lightcurve captures the result.`}
+                    : vapiBotToBotPhone
+                      ? 'Vapi bot-to-bot phone mode uses Lightcurve as the synthetic caller. It dials your agent phone number, acts out the selected scenario, then imports the transcript and scores.'
+                      : `${activeAgent.label} live mode dials a consented human tester. The selected caller card is the script the tester acts out while Lightcurve captures the result.`}
                 </div>
                 {agentType === 'elevenlabs' && (
                   <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
@@ -378,6 +413,17 @@ export default function NewExperiment() {
                       />
                     </div>
                   )}
+                  {vapiBotToBotPhone && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Caller assistant ID</label>
+                      <input
+                        className="input-field"
+                        value={vapiCallerAssistantId}
+                        onChange={(event) => setVapiCallerAssistantId(event.target.value)}
+                        placeholder="Optional. Prefer VAPI_CALLER_ASSISTANT_ID."
+                      />
+                    </div>
+                  )}
                   {agentType === 'retell' && (
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-slate-600">Retell from number</label>
@@ -400,7 +446,7 @@ export default function NewExperiment() {
                       />
                     </div>
                   )}
-                  {liveProvider && !replayMode && (
+                  {liveProvider && !replayMode && !vapiBotToBotPhone && (
                     <div>
                     <label className="mb-1.5 block text-xs font-medium text-slate-600">Consented tester phone number</label>
                     <input
@@ -601,6 +647,8 @@ export default function NewExperiment() {
                   ? 'Creating sandbox...'
                   : replayMode
                     ? 'Create replay sandbox'
+                    : vapiBotToBotPhone
+                      ? 'Run bot-to-bot phone test'
                     : liveProvider
                       ? 'Dial human pilot call'
                       : 'Run bot-to-bot sandbox'}

@@ -33,6 +33,10 @@ export type NormalizedVapiResult = {
   failureSummary?: string;
 };
 
+type NormalizeVapiOptions = {
+  speakerMode?: 'default' | 'lightcurve-caller';
+};
+
 type VapiConfig = {
   apiKey: string;
   assistantId: string;
@@ -57,6 +61,24 @@ function numberValue(value: unknown): number | undefined {
 
 function getAgentConfig(experiment: ExperimentRow): Record<string, string> {
   return asRecord(experiment.agentConfig) as Record<string, string>;
+}
+
+function vapiScenarioVariables(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {
+  const persona = asRecord(scenario.persona);
+  const successCriteria = Array.isArray(scenario.successCriteria) ? scenario.successCriteria : [];
+
+  return {
+    lightcurve_run_id: runId,
+    lightcurve_experiment_id: experiment.id,
+    scenario_name: scenario.name,
+    scenario_language: scenario.language,
+    scenario_domain: scenario.domain ?? '',
+    caller_name: stringValue(persona.name) ?? 'Synthetic caller',
+    caller_emotion: stringValue(persona.emotional_state) ?? 'neutral',
+    caller_goal: stringValue(persona.goal) ?? '',
+    caller_opening_line: stringValue(persona.opening_line) ?? '',
+    success_criteria: JSON.stringify(successCriteria),
+  };
 }
 
 export function getVapiConfig(experiment: ExperimentRow): VapiConfig {
@@ -85,10 +107,73 @@ export function getVapiConfig(experiment: ExperimentRow): VapiConfig {
   return { apiKey, assistantId, phoneNumberId, customerNumber, apiBase };
 }
 
-export async function startVapiSandboxCall(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {
-  const config = getVapiConfig(experiment);
+function getVapiBotToBotConfig(experiment: ExperimentRow) {
+  const agentConfig = getAgentConfig(experiment);
+  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.VAPI_API_KEY);
+  const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? stringValue(process.env.VAPI_PHONE_NUMBER_ID);
+  const targetAgentNumber = stringValue(agentConfig.targetAgentNumber) ?? stringValue(process.env.VAPI_TARGET_AGENT_NUMBER);
+  const callerAssistantId = stringValue(agentConfig.callerAssistantId) ?? stringValue(process.env.VAPI_CALLER_ASSISTANT_ID);
+  const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
+
+  const missing = [
+    !apiKey && 'VAPI_API_KEY',
+    !phoneNumberId && 'VAPI_PHONE_NUMBER_ID',
+    !targetAgentNumber && 'target agent phone number or SIP URI',
+  ].filter(Boolean);
+
+  if (missing.length || !apiKey || !phoneNumberId || !targetAgentNumber) {
+    throw new Error(`Missing Vapi bot-to-bot configuration: ${missing.join(', ')}`);
+  }
+
+  return { apiKey, phoneNumberId, targetAgentNumber, callerAssistantId, apiBase };
+}
+
+function buildCallerAssistant(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {
   const persona = asRecord(scenario.persona);
   const successCriteria = Array.isArray(scenario.successCriteria) ? scenario.successCriteria : [];
+  const openingLine =
+    stringValue(persona.opening_line) ??
+    stringValue(persona.goal) ??
+    `I need help with ${scenario.name.replace(/_/g, ' ')}.`;
+  const callerName = stringValue(persona.name) ?? 'Lightcurve caller';
+  const emotion = stringValue(persona.emotional_state) ?? 'neutral';
+  const goal = stringValue(persona.goal) ?? 'complete the scenario goal';
+  const voiceProvider = stringValue(process.env.VAPI_CALLER_VOICE_PROVIDER);
+  const voiceId = stringValue(process.env.VAPI_CALLER_VOICE_ID);
+
+  return {
+    name: `Lightcurve caller - ${scenario.name}`,
+    firstMessage: openingLine,
+    backgroundSound: 'off',
+    recordingEnabled: true,
+    endCallMessage: 'Thanks. I have what I need.',
+    ...(voiceProvider && voiceId ? { voice: { provider: voiceProvider, voiceId } } : {}),
+    model: {
+      provider: stringValue(process.env.VAPI_CALLER_MODEL_PROVIDER) ?? 'openai',
+      model: stringValue(process.env.VAPI_CALLER_MODEL) ?? 'gpt-4o-mini',
+      temperature: 0.4,
+      messages: [
+        {
+          role: 'system',
+          content: [
+            `You are ${callerName}, a synthetic caller in a Lightcurve pre-production voice AI test.`,
+            `Language: ${scenario.language}.`,
+            `Emotion: ${emotion}.`,
+            `Goal: ${goal}.`,
+            `Success criteria: ${JSON.stringify(successCriteria)}.`,
+            'Speak like a real caller, not like an evaluator.',
+            'Keep each response under 25 words.',
+            'Do not reveal that you are synthetic unless directly asked.',
+            `Metadata: run ${runId}, experiment ${experiment.id}.`,
+          ].join('\n'),
+        },
+      ],
+    },
+  };
+}
+
+export async function startVapiSandboxCall(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {
+  const config = getVapiConfig(experiment);
 
   const payload = {
     assistantId: config.assistantId,
@@ -97,18 +182,8 @@ export async function startVapiSandboxCall(runId: string, experiment: Experiment
       number: config.customerNumber,
     },
     assistantOverrides: {
-      variableValues: {
-        lightcurve_run_id: runId,
-        lightcurve_experiment_id: experiment.id,
-        scenario_name: scenario.name,
-        scenario_language: scenario.language,
-        scenario_domain: scenario.domain ?? '',
-        caller_name: stringValue(persona.name) ?? 'Synthetic caller',
-        caller_emotion: stringValue(persona.emotional_state) ?? 'neutral',
-        caller_goal: stringValue(persona.goal) ?? '',
-        caller_opening_line: stringValue(persona.opening_line) ?? '',
-        success_criteria: JSON.stringify(successCriteria),
-      },
+      backgroundSound: 'off',
+      variableValues: vapiScenarioVariables(runId, experiment, scenario),
     },
   };
 
@@ -139,11 +214,70 @@ export async function startVapiSandboxCall(runId: string, experiment: Experiment
   } satisfies VapiStartResult;
 }
 
-export async function getVapiCall(experiment: ExperimentRow, callId: string) {
-  const config = getVapiConfig(experiment);
-  const response = await fetch(`${config.apiBase.replace(/\/$/, '')}/call/${callId}`, {
+export async function startVapiBotToBotPhoneCall(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {
+  const config = getVapiBotToBotConfig(experiment);
+  const payload: Record<string, unknown> = {
+    phoneNumberId: config.phoneNumberId,
+    customer: {
+      number: config.targetAgentNumber,
+    },
+    metadata: {
+      lightcurve_run_id: runId,
+      lightcurve_experiment_id: experiment.id,
+      lightcurve_mode: 'bot_to_bot_phone',
+      scenario_id: scenario.id,
+      scenario_name: scenario.name,
+    },
+  };
+
+  if (config.callerAssistantId) {
+    payload.assistantId = config.callerAssistantId;
+    payload.assistantOverrides = {
+      backgroundSound: 'off',
+      variableValues: vapiScenarioVariables(runId, experiment, scenario),
+    };
+  } else {
+    payload.assistant = buildCallerAssistant(runId, experiment, scenario);
+  }
+
+  const response = await fetch(`${config.apiBase.replace(/\/$/, '')}/call`, {
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = stringValue(asRecord(raw).message) ?? stringValue(asRecord(raw).error) ?? response.statusText;
+    throw new Error(`Vapi bot-to-bot call start failed: ${message}`);
+  }
+
+  const id = stringValue(asRecord(raw).id) ?? stringValue(asRecord(raw).callId);
+  if (!id) {
+    throw new Error('Vapi bot-to-bot call start did not return a call id.');
+  }
+
+  return {
+    id,
+    status: stringValue(asRecord(raw).status),
+    raw,
+  } satisfies VapiStartResult;
+}
+
+export async function getVapiCall(experiment: ExperimentRow, callId: string) {
+  const agentConfig = getAgentConfig(experiment);
+  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.VAPI_API_KEY);
+  const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
+  if (!apiKey) {
+    throw new Error('Missing Vapi configuration: VAPI_API_KEY');
+  }
+
+  const response = await fetch(`${apiBase.replace(/\/$/, '')}/call/${callId}`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
       Accept: 'application/json',
     },
   });
@@ -164,7 +298,12 @@ function normalizeSpeaker(role: unknown): 'caller' | 'agent' | null {
   return null;
 }
 
-function extractMessages(call: Record<string, any>) {
+function mapSpeakerForMode(speaker: 'caller' | 'agent', options?: NormalizeVapiOptions) {
+  if (options?.speakerMode !== 'lightcurve-caller') return speaker;
+  return speaker === 'agent' ? 'caller' : 'agent';
+}
+
+function extractMessages(call: Record<string, any>, options?: NormalizeVapiOptions) {
   const artifact = asRecord(call.artifact);
   const candidates = [
     artifact.messages,
@@ -187,7 +326,7 @@ function extractMessages(call: Record<string, any>) {
 
         return {
           turnIndex: index,
-          speaker,
+          speaker: mapSpeakerForMode(speaker, options),
           text,
           audioUrl: stringValue(message.audioUrl),
           sttConfidence: numberValue(message.confidence ?? message.sttConfidence),
@@ -207,7 +346,7 @@ function extractMessages(call: Record<string, any>) {
       const speaker = normalizeSpeaker(speakerLabel);
       const text = textParts.join(':').trim();
       if (!speaker || !text) return null;
-      return { turnIndex: index, speaker, text };
+      return { turnIndex: index, speaker: mapSpeakerForMode(speaker, options), text };
     })
     .filter(Boolean) as NormalizedVapiResult['traces'];
 }
@@ -249,10 +388,10 @@ function extractMos(call: Record<string, any>) {
   return numberValue(structuredData.mos ?? analysis.mos ?? call.mos);
 }
 
-export function normalizeVapiCall(rawCall: unknown, scenario?: ScenarioRow): NormalizedVapiResult {
+export function normalizeVapiCall(rawCall: unknown, scenario?: ScenarioRow, options?: NormalizeVapiOptions): NormalizedVapiResult {
   const call = asRecord(rawCall);
   const status = stringValue(call.status) ?? stringValue(call.endedReason) ?? 'unknown';
-  const traces = extractMessages(call);
+  const traces = extractMessages(call, options);
   const latencies = traces
     .map((trace) => trace.totalLatencyMs)
     .filter((value): value is number => typeof value === 'number')
@@ -308,7 +447,9 @@ export function normalizeVapiCall(rawCall: unknown, scenario?: ScenarioRow): Nor
       ? 'failed'
       : mappedStatus;
   const emptyTranscriptSummary =
-    'No transcript was captured. The Vapi call ended without caller/agent turns, usually because the tester stayed silent or the assistant did not hear usable speech.';
+    options?.speakerMode === 'lightcurve-caller'
+      ? 'No transcript was captured. The bot-to-bot phone call ended without usable caller/agent turns. Check that the target agent number answered and spoke.'
+      : 'No transcript was captured. The Vapi call ended without caller/agent turns, usually because the tester stayed silent or the assistant did not hear usable speech.';
 
   if (runStatus === 'failed' && traces.length === 0 && taskCompletion == null) {
     scores.push({

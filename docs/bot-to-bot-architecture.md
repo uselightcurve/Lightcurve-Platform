@@ -12,6 +12,29 @@ Lightcurve bot-to-bot tests run voice-agent scenarios as queued worker jobs, not
 6. The worker records caller/agent traces, latency, task score, MOS proxy, and recommendation.
 7. Optional TTS writes caller/agent audio legs to GCS when `BOT_TO_BOT_TTS_ENABLED=1`.
 
+## Vapi Phone Bot-to-Bot Slice
+
+Vapi can run a real phone bot-to-bot test without asking a human tester to act out the scenario.
+
+1. Lightcurve creates a Vapi outbound call from `VAPI_PHONE_NUMBER_ID`.
+2. The destination is the customer agent phone number or SIP URI from the experiment config, or `VAPI_TARGET_AGENT_NUMBER`.
+3. The Vapi assistant is the Lightcurve synthetic caller. Use `VAPI_CALLER_ASSISTANT_ID` for a prebuilt caller assistant, or let Lightcurve create a transient caller from the selected scenario.
+4. Vapi records and transcribes the call.
+5. Lightcurve polls Vapi, flips the transcript roles so the synthetic assistant is shown as `caller`, and saves traces, MOS, task score, latency, audio, and failure summary.
+
+Required production secrets for this mode:
+
+- `VAPI_API_KEY`
+- `VAPI_PHONE_NUMBER_ID`
+- one of `VAPI_TARGET_AGENT_NUMBER` or an experiment-level target number
+
+Recommended:
+
+- `VAPI_CALLER_ASSISTANT_ID` for a known-good low-cost caller voice/persona
+- `VAPI_CALLER_MODEL_PROVIDER=openai`
+- `VAPI_CALLER_MODEL=gpt-4o-mini`
+- `VAPI_CALLER_VOICE_PROVIDER` and `VAPI_CALLER_VOICE_ID` when the Vapi account requires an explicit voice
+
 ## Customer Runner Contract
 
 For Pipecat, LiveKit adapters, or custom WebRTC bridges, the customer can expose an HTTPS runner:

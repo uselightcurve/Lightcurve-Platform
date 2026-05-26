@@ -1,6 +1,12 @@
 import type { experiments, runs, scenarios } from '@/db/schema';
 import type { ProviderId } from '@/lib/integrations';
-import { getVapiCall, normalizeVapiCall, startVapiSandboxCall, type NormalizedVapiResult } from '@/lib/vapi';
+import {
+  getVapiCall,
+  normalizeVapiCall,
+  startVapiBotToBotPhoneCall,
+  startVapiSandboxCall,
+  type NormalizedVapiResult,
+} from '@/lib/vapi';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
@@ -478,7 +484,10 @@ export async function startProviderSandboxCall(
 ): Promise<SandboxStartResult> {
   const provider = providerOf(experiment);
   if (provider === 'vapi') {
-    const call = await startVapiSandboxCall(runId, experiment, scenario);
+    const agentConfig = getAgentConfig(experiment);
+    const call = stringValue(agentConfig.callMode) === 'bot_to_bot_phone'
+      ? await startVapiBotToBotPhoneCall(runId, experiment, scenario)
+      : await startVapiSandboxCall(runId, experiment, scenario);
     return { provider, id: call.id, status: call.status ?? 'created', raw: call.raw } satisfies SandboxStartResult;
   }
   if (provider === 'retell') return startRetellCall(runId, experiment, scenario);
@@ -492,7 +501,17 @@ export async function pollProviderSandboxCall(experiment: ExperimentRow, run: Ru
 
   if (provider === 'vapi') {
     const call = await getVapiCall(experiment, run.externalCallId);
-    return addMosScore(normalizeVapiCall(call, scenario), asRecord(call));
+    const agentConfig = getAgentConfig(experiment);
+    return addMosScore(
+      normalizeVapiCall(
+        call,
+        scenario,
+        stringValue(agentConfig.callMode) === 'bot_to_bot_phone'
+          ? { speakerMode: 'lightcurve-caller' }
+          : undefined,
+      ),
+      asRecord(call),
+    );
   }
   if (provider === 'retell') {
     const call = await getRetellCall(experiment, run.externalCallId);
