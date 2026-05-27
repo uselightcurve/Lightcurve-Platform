@@ -1,4 +1,5 @@
 import type { experiments, scenarios } from '@/db/schema';
+import { scorePronunciationCapture, type PronunciationSpec } from './pronunciation';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type ScenarioRow = typeof scenarios.$inferSelect;
@@ -449,6 +450,15 @@ export function normalizeVapiCall(rawCall: unknown, scenario?: ScenarioRow, opti
       method: 'vapi-messages',
       rationale: 'Computed from imported Vapi message latencies.',
     });
+  }
+
+  const pronunciation = asRecord(scenario).pronunciation as PronunciationSpec | undefined;
+  if (pronunciation?.targetValue) {
+    const pronunciationScores = scorePronunciationCapture(pronunciation, traces).map((score) => ({
+      ...score,
+      method: 'lightcurve-capture-judge',
+    }));
+    scores.push(...pronunciationScores);
   }
 
   const durationSeconds = numberValue(call.durationSeconds ?? call.duration ?? asRecord(call.artifact).durationSeconds);

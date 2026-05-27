@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { getRun } from '@/lib/workspaceStore';
+import { buildPronunciationReport } from '@/lib/pronunciation';
+import { getRun, getScenarios } from '@/lib/workspaceStore';
 
 function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
@@ -35,6 +36,7 @@ export default function RunDetail() {
     const load = () => {
       const localRun = getRun(runId);
       if (localRun) {
+        const localScenario = getScenarios().find((item) => item.id === localRun.scenarioId);
         setData({
           run: {
             ...localRun,
@@ -53,6 +55,7 @@ export default function RunDetail() {
             runId: localRun.id,
             method: score.metricName === 'mos' ? 'simulated-mos' : 'sandbox-judge',
           })),
+          scenario: localScenario,
         });
         setPolling(false);
         return;
@@ -98,6 +101,9 @@ export default function RunDetail() {
   const persona = scenario?.persona ?? {};
   const traces: any[] = data.traces ?? [];
   const scores: any[] = data.scores ?? [];
+  const pronunciationReport = scenario?.pronunciation
+    ? buildPronunciationReport(scenario.pronunciation, traces)
+    : null;
   const isVapiBotToBot =
     run.provider === 'vapi' &&
     experiment?.agentConfig &&
@@ -105,7 +111,15 @@ export default function RunDetail() {
     experiment.agentConfig.callMode === 'bot_to_bot_phone';
 
   const mosScore = scores.find((s) => s.metricName === 'mos');
-  const criterionScores = scores.filter((s) => s.metricName !== 'mos');
+  const pronunciationMetricNames = new Set([
+    'capture_exact_match',
+    'capture_confirmation',
+    'capture_integrity',
+    'capture_correction',
+    'pace_stability',
+    'capture_overall',
+  ]);
+  const criterionScores = scores.filter((s) => s.metricName !== 'mos' && !pronunciationMetricNames.has(s.metricName));
   const suggestion = criterionScores.find((s) => s.rationale)?.rationale;
 
   const importReplay = async () => {
@@ -227,6 +241,43 @@ export default function RunDetail() {
                 </div>
               )}
               {persona.goal && <p className="mt-3 text-sm leading-relaxed text-slate-600">{persona.goal}</p>}
+            </div>
+          )}
+
+          {pronunciationReport && (
+            <div className="card overflow-hidden">
+              <div className="border-b border-gray-100 px-5 py-3.5">
+                <h2 className="text-sm font-medium text-gray-800">Capture Accuracy</h2>
+                <p className="mt-1 text-xs text-gray-400">
+                  {pronunciationReport.entityType === 'email' ? 'Email' : 'Phone number'} readback and pacing check
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-4 p-5">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Expected</p>
+                  <p className="mt-2 break-all font-mono text-sm text-slate-900">{pronunciationReport.expectedValue}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Captured</p>
+                  <p className="mt-2 break-all font-mono text-sm text-slate-900">{pronunciationReport.capturedValue ?? 'Not found'}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Pacing drift</p>
+                  <p className="mt-2 text-sm text-slate-900">{pronunciationReport.pacing.driftPercent}% during readback</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 p-5">
+                {pronunciationReport.segments.map((segment) => (
+                  <div key={segment.label}>
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-gray-600">{segment.label}</span>
+                      <span className={`text-xs ${segment.pass ? 'text-[#2f6f5f]' : 'text-[#8f3d3b]'}`}>{segment.pass ? 'Pass' : 'Fail'}</span>
+                    </div>
+                    <ScoreBar value={segment.value} />
+                    <p className="mt-1 text-xs leading-snug text-gray-400">{segment.rationale}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

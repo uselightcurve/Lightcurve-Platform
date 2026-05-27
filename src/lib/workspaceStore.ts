@@ -2,6 +2,11 @@ import { DEMO_TRANSCRIPT } from './demoData';
 import { demoRuns } from './uiDemoData';
 import type { ProviderId } from './integrations';
 import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from './realScenarioLibrary';
+import {
+  scorePronunciationCapture,
+  spokenFormForValue,
+  type PronunciationSpec,
+} from './pronunciation';
 
 export type StoredScenario = {
   id: string;
@@ -30,10 +35,22 @@ export type StoredScenario = {
     externalCallId?: string;
     promptRecommendation?: string;
   };
+  pronunciation?: PronunciationSpec;
 };
 
 export type StoredScore = {
-  metricName: 'mos' | 'task_completed' | 'latency_p95' | 'pass_rate' | 'stt_confidence';
+  metricName:
+    | 'mos'
+    | 'task_completed'
+    | 'latency_p95'
+    | 'pass_rate'
+    | 'stt_confidence'
+    | 'capture_exact_match'
+    | 'capture_confirmation'
+    | 'capture_integrity'
+    | 'capture_correction'
+    | 'pace_stability'
+    | 'capture_overall';
   value: number;
   rationale: string;
 };
@@ -313,6 +330,12 @@ function durationText(durationMs: number) {
 }
 
 function recommendationFor(scenario: StoredScenario, task: number) {
+  if (scenario.pronunciation) {
+    return task >= 0.8
+      ? 'The agent captured and read back the value correctly with stable pacing.'
+      : 'Force a slow readback, ask for confirmation, and keep the agent from moving on until the value is exact.';
+  }
+
   if (task >= 0.8) {
     return 'Keep this prompt path. The agent resolved the caller goal with acceptable tone and timing.';
   }
@@ -333,6 +356,66 @@ function recommendationFor(scenario: StoredScenario, task: number) {
 }
 
 function makeTraces(scenario: StoredScenario, quality: ReturnType<typeof scenarioQuality>): StoredTrace[] {
+  if (scenario.pronunciation) {
+    const spec = scenario.pronunciation;
+    const spoken = spec.spokenForms[0] ?? spokenFormForValue(spec.entityType, spec.targetValue, spec.mode);
+    const slowReadback =
+      spec.entityType === 'email'
+        ? spec.targetValue.replace(/@/g, ' at ').replace(/\./g, ' dot ').replace(/\+/g, ' plus ').replace(/-/g, ' dash ').replace(/_/g, ' underscore ')
+        : spokenFormForValue(spec.entityType, spec.targetValue, 'grouped');
+    const firstAgentLatency = spec.pace === 'fast' ? 820 : spec.pace === 'slow' ? 1380 : 1040;
+    const readbackLatency = spec.pace === 'fast' ? 980 : spec.pace === 'slow' ? 1740 : 1320;
+    const turns: StoredTrace[] = [
+      {
+        id: makeId('trace'),
+        speaker: 'caller',
+        text: scenario.persona.opening_line,
+        latencyMs: 0,
+        sttConfidence: quality.sttConfidence,
+      },
+      {
+        id: makeId('trace'),
+        speaker: 'agent',
+        text: `I heard ${spec.targetValue}. I will read it back slowly before I save it.`,
+        latencyMs: firstAgentLatency,
+      },
+    ];
+
+    if (spec.mode === 'correction') {
+      turns.push({
+        id: makeId('trace'),
+        speaker: 'caller',
+        text: spec.correctionLine ?? `Actually, correction. It is ${spoken}.`,
+        latencyMs: 0,
+        sttConfidence: quality.sttConfidence - 0.01,
+      });
+    }
+
+    turns.push(
+      {
+        id: makeId('trace'),
+        speaker: 'agent',
+        text: `Confirming ${spec.entityType === 'email' ? 'email' : 'phone number'}: ${spec.targetValue}. Spoken back as ${slowReadback}. Is that correct?`,
+        latencyMs: readbackLatency,
+      },
+      {
+        id: makeId('trace'),
+        speaker: 'caller',
+        text: 'Yes, that is correct.',
+        latencyMs: 0,
+        sttConfidence: quality.sttConfidence,
+      },
+      {
+        id: makeId('trace'),
+        speaker: 'agent',
+        text: 'Confirmed. I will save the exact value and continue the call.',
+        latencyMs: 860,
+      },
+    );
+
+    return turns;
+  }
+
   const opening = scenario.persona.opening_line || DEMO_TRANSCRIPT[0].text;
   const resolution =
     quality.status === 'pass'
@@ -385,7 +468,13 @@ function makeRun(params: {
 }): StoredRun {
   const quality = scenarioQuality(params.scenario, params.index ?? 0);
   const traces = makeTraces(params.scenario, quality);
-  const recommendation = recommendationFor(params.scenario, quality.task);
+  const pronunciationScores = params.scenario.pronunciation
+    ? scorePronunciationCapture(params.scenario.pronunciation, traces)
+    : [];
+  const captureOverall = pronunciationScores.find((score) => score.metricName === 'capture_overall')?.value;
+  const taskScore = captureOverall ?? quality.task;
+  const status = taskScore >= 0.8 && quality.mos >= 3.8 ? 'pass' as const : 'fail' as const;
+  const recommendation = recommendationFor(params.scenario, taskScore);
 
   return {
     id: makeId('run'),
@@ -396,9 +485,9 @@ function makeRun(params: {
     domain: params.scenario.domain,
     emotion: params.scenario.persona.emotional_state,
     agent: params.agent,
-    status: quality.status,
+    status,
     mos: quality.mos,
-    task: quality.task,
+    task: taskScore,
     duration: durationText(quality.durationMs),
     durationMs: quality.durationMs,
     latencyP95: quality.latencyP95,
@@ -415,8 +504,8 @@ function makeRun(params: {
       },
       {
         metricName: 'task_completed',
-        value: quality.task,
-        rationale: quality.status === 'pass' ? 'Caller goal reached.' : recommendation,
+        value: taskScore,
+        rationale: status === 'pass' ? 'Caller goal reached.' : recommendation,
       },
       {
         metricName: 'latency_p95',
@@ -428,6 +517,7 @@ function makeRun(params: {
         value: quality.sttConfidence,
         rationale: 'Average STT confidence across caller turns.',
       },
+      ...pronunciationScores,
     ],
   };
 }

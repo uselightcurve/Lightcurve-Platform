@@ -2,10 +2,36 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DEMO_TRANSCRIPT } from '@/lib/demoData';
 import { ScoreBar } from '@/components/PageActions';
+import {
+  PRONUNCIATION_PRESETS,
+  buildPronunciationReport,
+  buildPronunciationScenario,
+  createPronunciationSpec,
+  entityLabel,
+  spokenFormForValue,
+  type PronunciationEntityType,
+  type PronunciationMode,
+  type PronunciationPace,
+} from '@/lib/pronunciation';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
-import { createPlaygroundExperiment, getAgent, getScenarios, type StoredScenario } from '@/lib/workspaceStore';
+import {
+  createPlaygroundExperiment,
+  getAgent,
+  getScenarios,
+  saveScenario,
+  type StoredScenario,
+} from '@/lib/workspaceStore';
+
+const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
+const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
+const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
+
+function dedupeScenarios(items: StoredScenario[]) {
+  return items.filter((scenario, index, array) => {
+    return array.findIndex((candidate) => candidate.id === scenario.id) === index;
+  });
+}
 
 function Waveform({ active = false }: { active?: boolean }) {
   return (
@@ -13,7 +39,7 @@ function Waveform({ active = false }: { active?: boolean }) {
       {Array.from({ length: 34 }).map((_, index) => (
         <span
           key={index}
-          className={`w-1 rounded-full ${active ? 'bg-[#2f5ae0]' : 'bg-slate-300'}`}
+          className={`w-1 rounded-full ${active ? 'animate-pulse bg-[#2f5ae0]' : 'bg-slate-300'}`}
           style={{ height: `${12 + ((index * 7) % 34)}px`, opacity: active ? 0.75 + ((index % 4) * 0.06) : 0.55 }}
         />
       ))}
@@ -21,52 +47,135 @@ function Waveform({ active = false }: { active?: boolean }) {
   );
 }
 
+function modeLabel(mode: PronunciationMode) {
+  const labels: Record<PronunciationMode, string> = {
+    normal: 'Normal',
+    spell_out: 'Spell out',
+    grouped: 'Grouped',
+    correction: 'Correction',
+  };
+  return labels[mode];
+}
+
+function speechLang(accent: string) {
+  if (accent === 'hi-IN') return 'hi-IN';
+  if (accent === 'en-IN') return 'en-IN';
+  if (accent === 'en-GB') return 'en-GB';
+  if (accent === 'es-ES') return 'es-ES';
+  return 'en-US';
+}
+
+function speechRate(pace: PronunciationPace) {
+  if (pace === 'slow') return 0.72;
+  if (pace === 'fast') return 1.18;
+  return 0.92;
+}
+
 export default function PlaygroundPage() {
   const router = useRouter();
   const [callState, setCallState] = useState<'idle' | 'running' | 'complete'>('idle');
   const [scenarioId, setScenarioId] = useState(REAL_SCENARIO_LIBRARY[0]?.id ?? '');
   const [agent, setAgent] = useState('sandbox-stub-agent');
-  const [scenarios, setScenarios] = useState<StoredScenario[]>(REAL_SCENARIO_LIBRARY as StoredScenario[]);
+  const [scenarios, setScenarios] = useState<StoredScenario[]>(dedupeScenarios(REAL_SCENARIO_LIBRARY as StoredScenario[]));
   const [visibleTurns, setVisibleTurns] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [pronunciationEnabled, setPronunciationEnabled] = useState(true);
+  const [entityType, setEntityType] = useState<PronunciationEntityType>('email');
+  const [targetValue, setTargetValue] = useState(PRONUNCIATION_PRESETS.email[0]);
+  const [accent, setAccent] = useState('en-US');
+  const [pace, setPace] = useState<PronunciationPace>('normal');
+  const [mode, setMode] = useState<PronunciationMode>('spell_out');
 
   useEffect(() => {
-    setScenarios(getScenarios());
+    setScenarios(dedupeScenarios(getScenarios()));
     const savedAgent = getAgent();
     if (savedAgent?.locator) setAgent(savedAgent.locator);
   }, []);
 
-  const selectedScenario = useMemo(() => {
+  const baseScenario = useMemo(() => {
     return scenarios.find((scenario) => scenario.id === scenarioId) ?? scenarios[0];
   }, [scenarioId, scenarios]);
 
+  const pronunciationSpec = useMemo(() => {
+    return createPronunciationSpec({
+      entityType,
+      targetValue,
+      accent,
+      pace,
+      mode,
+    });
+  }, [accent, entityType, mode, pace, targetValue]);
+
+  const activeScenario = useMemo(() => {
+    if (!baseScenario || !pronunciationEnabled) return baseScenario;
+    return buildPronunciationScenario(baseScenario, pronunciationSpec);
+  }, [baseScenario, pronunciationEnabled, pronunciationSpec]);
+
   const transcript = useMemo(() => {
-    if (!selectedScenario) return DEMO_TRANSCRIPT;
+    if (!activeScenario) return [];
+
+    if (activeScenario.pronunciation) {
+      const spec = activeScenario.pronunciation;
+      const spoken = spec.spokenForms[0] ?? spokenFormForValue(spec.entityType, spec.targetValue, spec.mode);
+      const slowReadback =
+        spec.entityType === 'email'
+          ? spec.targetValue.replace(/@/g, ' at ').replace(/\./g, ' dot ').replace(/\+/g, ' plus ').replace(/-/g, ' dash ').replace(/_/g, ' underscore ')
+          : spokenFormForValue(spec.entityType, spec.targetValue, 'grouped');
+
+      return [
+        {
+          speaker: 'caller' as const,
+          text: `Please update my ${spec.entityType === 'email' ? 'email' : 'phone number'}. It is ${spoken}.`,
+          latencyMs: 0,
+        },
+        {
+          speaker: 'agent' as const,
+          text: `I heard ${spec.targetValue}. I will read it back slowly before I save it.`,
+          latencyMs: pace === 'slow' ? 1380 : pace === 'fast' ? 820 : 1040,
+        },
+        {
+          speaker: 'agent' as const,
+          text: `Confirming ${spec.entityType === 'email' ? 'email' : 'phone number'}: ${spec.targetValue}. Spoken back as ${slowReadback}. Is that correct?`,
+          latencyMs: pace === 'slow' ? 1740 : pace === 'fast' ? 980 : 1320,
+        },
+        {
+          speaker: 'caller' as const,
+          text: 'Yes, that is correct.',
+          latencyMs: 0,
+        },
+      ];
+    }
+
     return [
       {
-        speaker: 'caller',
-        text: selectedScenario.persona.opening_line,
+        speaker: 'caller' as const,
+        text: activeScenario.persona.opening_line,
         latencyMs: 0,
       },
       {
-        speaker: 'agent',
-        text: `I can help with that. I will work on: ${selectedScenario.persona.goal}`,
+        speaker: 'agent' as const,
+        text: `I can help with that. I will work on: ${activeScenario.persona.goal}`,
         latencyMs: 880,
       },
       {
-        speaker: 'caller',
-        text: selectedScenario.persona.interrupts ? 'Please do not put me through another loop.' : 'Please confirm the next step clearly.',
+        speaker: 'caller' as const,
+        text: activeScenario.persona.interrupts ? 'Please do not put me through another loop.' : 'Please confirm the next step clearly.',
         latencyMs: 0,
       },
       {
-        speaker: 'agent',
-        text: selectedScenario.persona.emotional_state === 'neutral'
+        speaker: 'agent' as const,
+        text: activeScenario.persona.emotional_state === 'neutral'
           ? 'Here is the shortest path: I will confirm pricing, complete the change, and summarize it.'
           : 'I understand the urgency. I will give you a clear next step and avoid guessing.',
         latencyMs: 1020,
       },
     ];
-  }, [selectedScenario]);
+  }, [activeScenario, pace]);
+
+  const pronunciationReport = useMemo(() => {
+    if (!activeScenario?.pronunciation) return null;
+    return buildPronunciationReport(activeScenario.pronunciation, transcript);
+  }, [activeScenario, transcript]);
 
   useEffect(() => {
     if (callState !== 'running') return;
@@ -84,6 +193,22 @@ export default function PlaygroundPage() {
     return () => window.clearInterval(interval);
   }, [callState, transcript.length]);
 
+  function selectPreset(value: string) {
+    setTargetValue(value);
+    setCallState('idle');
+    setVisibleTurns(0);
+    setSaved(false);
+  }
+
+  function listenToPronunciation() {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(pronunciationSpec.spokenForms[0]);
+    utterance.lang = speechLang(accent);
+    utterance.rate = speechRate(pace);
+    window.speechSynthesis.speak(utterance);
+  }
+
   function startOrEndCall() {
     setSaved(false);
     if (callState === 'running') {
@@ -96,9 +221,10 @@ export default function PlaygroundPage() {
   }
 
   function saveToExperiments() {
-    if (!selectedScenario) return;
+    if (!activeScenario) return;
+    if (activeScenario.pronunciation) saveScenario(activeScenario);
     const result = createPlaygroundExperiment({
-      scenarioId: selectedScenario.id,
+      scenarioId: activeScenario.id,
       agent,
     });
     setSaved(true);
@@ -110,27 +236,36 @@ export default function PlaygroundPage() {
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${selectedScenario?.name ?? 'sandbox-call'}-transcript.txt`;
+    link.download = `${activeScenario?.name ?? 'sandbox-call'}-transcript.txt`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  if (!activeScenario) {
+    return (
+      <div className="card p-8 text-center">
+        <h1 className="page-title">No scenarios loaded</h1>
+        <p className="page-subtitle">Open the scenario library to load sandbox scenarios.</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">Playground</h1>
-        <p className="page-subtitle">Run one simulated phone call, watch the transcript stream, then save it into experiments.</p>
+        <p className="page-subtitle">Run one sandbox call, test pronunciation capture, then save it into experiments.</p>
       </div>
 
-      <div className="grid grid-cols-[0.4fr_0.6fr] gap-5">
-        <aside className="card flex min-h-[560px] flex-col p-4">
+      <div className="grid grid-cols-[0.38fr_0.62fr] gap-5">
+        <aside className="card flex min-h-[620px] flex-col p-4">
           <h2 className="text-sm font-medium text-slate-950">Scenario configurator</h2>
           <div className="mt-5 space-y-4">
             <label className="block text-xs text-slate-500">
               Scenario
               <select
                 className="select-field mt-1"
-                value={selectedScenario.id}
+                value={baseScenario?.id ?? ''}
                 onChange={(event) => {
                   setScenarioId(event.target.value);
                   setCallState('idle');
@@ -145,26 +280,117 @@ export default function PlaygroundPage() {
                 ))}
               </select>
             </label>
+
             <label className="block text-xs text-slate-500">
               Agent
               <input className="input-field mt-1" value={agent} onChange={(event) => setAgent(event.target.value)} />
             </label>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm text-slate-950">{selectedScenario.persona.name}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{selectedScenario.persona.goal}</p>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-950">Pronunciation action</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Reusable capture test. v1 focuses on emails and phone numbers.</p>
+                </div>
+                <button
+                  type="button"
+                  className={pronunciationEnabled ? 'btn-primary min-h-8 px-3 py-1.5 text-xs' : 'btn-secondary min-h-8 px-3 py-1.5 text-xs'}
+                  onClick={() => {
+                    setPronunciationEnabled((current) => !current);
+                    setCallState('idle');
+                  }}
+                >
+                  {pronunciationEnabled ? 'On' : 'Off'}
+                </button>
+              </div>
+
+              {pronunciationEnabled && (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs text-slate-500">
+                      Entity
+                      <select
+                        className="select-field mt-1"
+                        value={entityType}
+                        onChange={(event) => {
+                          const next = event.target.value as PronunciationEntityType;
+                          setEntityType(next);
+                          setTargetValue(PRONUNCIATION_PRESETS[next][0]);
+                          setMode(next === 'email' ? 'spell_out' : 'grouped');
+                          setCallState('idle');
+                        }}
+                      >
+                        <option value="email">Email</option>
+                        <option value="phone_number">Phone number</option>
+                      </select>
+                    </label>
+                    <label className="block text-xs text-slate-500">
+                      Mode
+                      <select className="select-field mt-1" value={mode} onChange={(event) => setMode(event.target.value as PronunciationMode)}>
+                        {MODES.map((item) => (
+                          <option key={item} value={item}>{modeLabel(item)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <label className="block text-xs text-slate-500">
+                    Target value
+                    <input className="input-field mt-1" value={targetValue} onChange={(event) => setTargetValue(event.target.value)} />
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {PRONUNCIATION_PRESETS[entityType].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`rounded-md border px-2.5 py-1.5 text-xs ${preset === targetValue ? 'border-[#2f5ae0] bg-[#eef2ff] text-[#2448bb]' : 'border-slate-200 bg-white text-slate-600'}`}
+                        onClick={() => selectPreset(preset)}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs text-slate-500">
+                      Accent
+                      <select className="select-field mt-1" value={accent} onChange={(event) => setAccent(event.target.value)}>
+                        {ACCENTS.map((item) => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </label>
+                    <label className="block text-xs text-slate-500">
+                      Pace
+                      <select className="select-field mt-1" value={pace} onChange={(event) => setPace(event.target.value as PronunciationPace)}>
+                        {PACES.map((item) => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Caller pronunciation</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{pronunciationSpec.spokenForms[0]}</p>
+                    <button type="button" className="btn-secondary mt-3 min-h-8 px-3 py-1.5 text-xs" onClick={listenToPronunciation}>
+                      Listen
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+
             <details className="rounded-lg border border-slate-200 bg-white p-3">
               <summary className="cursor-pointer text-sm text-slate-700">Advanced</summary>
               <div className="mt-4 space-y-3">
                 <label className="block text-xs text-slate-500">max_turns<input className="input-field mt-1" defaultValue="8" /></label>
-                <label className="block text-xs text-slate-500">caller_seed<input className="input-field mt-1" defaultValue={selectedScenario.callerSeed} /></label>
+                <label className="block text-xs text-slate-500">caller_seed<input className="input-field mt-1" defaultValue={activeScenario.callerSeed} /></label>
                 <label className="block text-xs text-slate-500">
                   noise_db
-                  <input className="mt-2 w-full accent-[#2f5ae0]" type="range" min="0" max="12" defaultValue={selectedScenario.persona.noise_db} />
+                  <input className="mt-2 w-full accent-[#2f5ae0]" type="range" min="0" max="12" defaultValue={activeScenario.persona.noise_db} />
                 </label>
               </div>
             </details>
           </div>
+
           <button
             onClick={startOrEndCall}
             className="mt-auto flex min-h-12 items-center justify-center rounded-lg border border-[#2f5ae0] bg-[#2f5ae0] px-4 text-sm font-medium text-white hover:bg-[#2448bb]"
@@ -173,7 +399,7 @@ export default function PlaygroundPage() {
           </button>
         </aside>
 
-        <section className="card flex min-h-[560px] flex-col overflow-hidden">
+        <section className="card flex min-h-[620px] flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <h2 className="text-sm font-medium text-slate-950">Live call</h2>
@@ -186,11 +412,13 @@ export default function PlaygroundPage() {
 
           <div className="flex-1 space-y-5 bg-slate-50 p-5">
             {callState === 'idle' ? (
-              <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
+              <div className="flex h-full min-h-[410px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
                 <div className="w-80">
                   <Waveform />
                 </div>
-                <p className="mt-5 text-sm text-slate-500">Pick a scenario and start the simulated phone call.</p>
+                <p className="mt-5 text-sm text-slate-500">
+                  {pronunciationEnabled ? 'Listen to the caller value, then start the sandbox call.' : 'Pick a scenario and start the sandbox call.'}
+                </p>
               </div>
             ) : (
               <>
@@ -205,25 +433,68 @@ export default function PlaygroundPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {transcript.slice(0, callState === 'complete' ? transcript.length : visibleTurns).map((turn) => (
-                    <div key={`${turn.speaker}-${turn.text}`} className="rounded-lg border border-slate-200 bg-white p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase text-slate-500">{turn.speaker}</span>
-                        {turn.latencyMs > 0 && <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-xs text-[#2448bb]">{turn.latencyMs}ms</span>}
+                <div className="grid grid-cols-[1fr_320px] gap-4">
+                  <div className="space-y-3">
+                    {transcript.slice(0, callState === 'complete' ? transcript.length : visibleTurns).map((turn, index) => (
+                      <div key={`${turn.speaker}-${index}-${turn.text}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs uppercase text-slate-500">{turn.speaker}</span>
+                          {turn.latencyMs > 0 && <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-xs text-[#2448bb]">{turn.latencyMs}ms</span>}
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">{turn.text}</p>
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">{turn.text}</p>
+                    ))}
+                  </div>
+
+                  {pronunciationReport && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Capture action</p>
+                          <h3 className="mt-1 text-sm font-medium text-slate-950">{entityLabel(pronunciationReport.entityType)}</h3>
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">{pronunciationReport.accent}</span>
+                      </div>
+
+                      <div className="mt-4 space-y-3 text-xs">
+                        <div>
+                          <p className="text-slate-400">Expected</p>
+                          <p className="mt-1 break-all font-mono text-slate-900">{pronunciationReport.expectedValue}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Agent captured</p>
+                          <p className="mt-1 break-all font-mono text-slate-900">{pronunciationReport.capturedValue ?? 'Pending until readback'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">Pacing</p>
+                          <p className="mt-1 text-slate-700">
+                            {pronunciationReport.pacing.driftPercent}% drift during readback
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {pronunciationReport.segments.slice(0, 5).map((segment) => (
+                          <div key={segment.label}>
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="text-xs text-slate-500">{segment.label}</span>
+                              <span className={`text-xs ${segment.pass ? 'text-[#2f6f5f]' : 'text-[#8f3d3b]'}`}>{segment.pass ? 'Pass' : 'Fail'}</span>
+                            </div>
+                            <ScoreBar value={segment.value} />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 {callState === 'complete' && (
                   <div className="grid grid-cols-3 gap-3">
                     <div className="card p-4"><p className="text-xs text-slate-500">MOS</p><div className="mt-3"><ScoreBar value={4.1} max={4.5} /></div></div>
-                    <div className="card p-4"><p className="text-xs text-slate-500">Task Completion</p><div className="mt-3"><ScoreBar value={0.86} /></div></div>
+                    <div className="card p-4"><p className="text-xs text-slate-500">Task Completion</p><div className="mt-3"><ScoreBar value={pronunciationReport?.segments.find((item) => item.label === 'Overall capture')?.value ?? 0.86} /></div></div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      {selectedScenario.persona.code_switching
-                        ? 'Mirror code-switching and confirm price before benefits.'
+                      {pronunciationReport
+                        ? 'Require exact readback before saving the captured value.'
                         : 'Confirm the next action before repeating policy or tool status.'}
                     </div>
                   </div>
@@ -239,7 +510,7 @@ export default function PlaygroundPage() {
                 <div className="flex-1"><Waveform /></div>
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={downloadTranscript}>Download</button>
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={startOrEndCall}>Re-run</button>
-                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${selectedScenario.id}`)}>Fork Scenario</button>
+                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork Scenario</button>
                 <button className="btn-primary min-h-8 px-3 py-1.5 text-xs" onClick={saveToExperiments}>
                   {saved ? 'Saved' : 'Save to Experiments'}
                 </button>

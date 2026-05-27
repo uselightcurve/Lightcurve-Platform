@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { getExperiment } from '@/lib/workspaceStore';
+import { getExperiment, getScenarios } from '@/lib/workspaceStore';
 
 function formatScenarioName(value: unknown) {
   return String(value ?? 'Unknown scenario')
@@ -55,6 +55,7 @@ export default function ExperimentDetail() {
     const load = () => {
       const local = getExperiment(id);
       if (local) {
+        const localScenarios = getScenarios();
         setData({
           experiment: {
             ...local.experiment,
@@ -65,7 +66,7 @@ export default function ExperimentDetail() {
             ...run,
             status: run.status === 'pass' ? 'complete' : run.status === 'fail' ? 'failed' : run.status,
             turnCount: run.traces.length,
-            scenarioId: run.scenarioName,
+            scenarioId: run.scenarioId,
           })),
           scores: local.runs.flatMap((run) =>
             run.scores.map((score) => ({
@@ -74,7 +75,7 @@ export default function ExperimentDetail() {
               runId: run.id,
             })),
           ),
-          scenarios: [],
+          scenarios: localScenarios,
         });
         setPolling(false);
         return;
@@ -143,6 +144,15 @@ export default function ExperimentDetail() {
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   })();
 
+  const captureScores = scores.filter((score) => score.metricName === 'capture_overall').map((score) => score.value);
+  const paceScores = scores.filter((score) => score.metricName === 'pace_stability').map((score) => score.value);
+  const capturePassRate = captureScores.length
+    ? captureScores.filter((value) => value >= 0.8).length / captureScores.length
+    : null;
+  const avgPace = paceScores.length
+    ? paceScores.reduce((sum, value) => sum + value, 0) / paceScores.length
+    : null;
+
   return (
     <div>
       <div className="mb-6 flex items-center gap-2 text-sm text-gray-400">
@@ -196,6 +206,33 @@ export default function ExperimentDetail() {
           </div>
         ))}
       </div>
+
+      {captureScores.length > 0 && (
+        <div className="card mb-6 p-5">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-medium text-gray-800">Pronunciation capture</h2>
+              <p className="mt-1 text-xs text-gray-400">Email and phone number capture accuracy across this experiment.</p>
+            </div>
+            <span className={capturePassRate != null && capturePassRate >= 0.8 ? 'status-pill-complete' : 'status-pill-failed'}>
+              {capturePassRate != null && capturePassRate >= 0.8 ? 'Pass' : 'Needs work'}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-gray-400">Capture pass rate</p>
+              <div className="mt-2"><ScoreBar value={capturePassRate ?? 0} /></div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Pacing stability</p>
+              <div className="mt-2"><ScoreBar value={avgPace ?? 0} /></div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+              Worst failures are now visible at run level with expected value, captured value, readback, and pacing drift.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">

@@ -1,5 +1,6 @@
 import importedSeeds from '@/data/real-scenario-seeds.json';
 import { seedToScenario, type DatasetScenarioSeed } from './datasetScenarios';
+import type { PronunciationSpec } from './pronunciation';
 
 export type LibraryScenario = {
   id: string;
@@ -28,6 +29,7 @@ export type LibraryScenario = {
     externalCallId?: string;
     promptRecommendation?: string;
   };
+  pronunciation?: PronunciationSpec;
 };
 
 const personaNames: Record<string, string[]> = {
@@ -96,9 +98,12 @@ export function mergeWithRealScenarioLibrary(stored: LibraryScenario[] | undefin
   const customItems = storedItems.filter((scenario) => {
     return !scenario.isPreset || scenario.id.startsWith('custom-') || scenario.id.startsWith('dataset-');
   });
-  const customIds = new Set(customItems.map((scenario) => scenario.id));
+  const dedupedCustomItems = customItems.filter((scenario, index, items) => {
+    return items.findIndex((candidate) => candidate.id === scenario.id) === index;
+  });
+  const customIds = new Set(dedupedCustomItems.map((scenario) => scenario.id));
   return [
-    ...customItems,
+    ...dedupedCustomItems,
     ...REAL_SCENARIO_LIBRARY.filter((scenario) => !customIds.has(scenario.id)),
   ];
 }
