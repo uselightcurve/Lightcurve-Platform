@@ -26,6 +26,7 @@ import {
 const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
+const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Tickets', 'Payments', 'Knowledge Base'];
 
 function dedupeScenarios(items: StoredScenario[]) {
   return items.filter((scenario, index, array) => {
@@ -71,6 +72,169 @@ function speechRate(pace: PronunciationPace) {
   return 0.92;
 }
 
+function environmentForScenario(scenario: StoredScenario, environmentType: string) {
+  const domain = scenario.domain ?? 'general';
+  const name = scenario.persona.name;
+  const valueType = scenario.pronunciation?.entityType === 'email' ? 'Email' : scenario.pronunciation?.entityType === 'phone_number' ? 'Phone' : 'Intent';
+  const targetValue = scenario.pronunciation?.targetValue ?? scenario.persona.goal;
+
+  const environments: Record<string, {
+    title: string;
+    endpoint: string;
+    status: string;
+    rows: Array<{ label: string; value: string }>;
+    timeline: Array<{ tool: string; detail: string }>;
+  }> = {
+    CRM: {
+      title: 'CRM',
+      endpoint: '/sandbox/crm/customer',
+      status: scenario.pronunciation ? 'Contact update open' : 'Customer profile loaded',
+      rows: [
+        { label: 'Customer', value: name },
+        { label: valueType, value: targetValue },
+        { label: 'Record', value: scenario.persona.interrupts ? 'Duplicate match' : `${domain.slice(0, 3).toUpperCase()}-${scenario.callerSeed}` },
+      ],
+      timeline: [
+        { tool: 'crm.lookup_customer', detail: `${name} profile` },
+        { tool: 'crm.validate_field', detail: scenario.pronunciation ? targetValue : 'Required customer field' },
+        { tool: 'crm.save_pending', detail: 'Waits for caller confirmation' },
+      ],
+    },
+    Calendar: {
+      title: 'Calendar',
+      endpoint: '/sandbox/calendar/slots',
+      status: 'Availability fixture',
+      rows: [
+        { label: 'Today', value: domain === 'healthcare' ? 'No slots' : '2 slots' },
+        { label: 'Next open', value: 'Fri 3:30 PM' },
+        { label: 'Timezone', value: scenario.language === 'hi-IN' ? 'IST locked' : 'Caller local' },
+      ],
+      timeline: [
+        { tool: 'calendar.find_slots', detail: 'Available appointment windows' },
+        { tool: 'calendar.detect_conflict', detail: 'Double-booking guard' },
+        { tool: 'calendar.hold_slot', detail: 'Temporary sandbox hold' },
+      ],
+    },
+    Tickets: {
+      title: 'Tickets',
+      endpoint: '/sandbox/tickets/open',
+      status: 'Support fixture',
+      rows: [
+        { label: 'Open ticket', value: scenario.persona.interrupts ? 'Exists' : 'None' },
+        { label: 'Policy', value: domain === 'ecommerce' ? 'Refund review' : 'Escalation path' },
+        { label: 'SLA', value: domain === 'healthcare' ? 'Priority' : 'Standard' },
+      ],
+      timeline: [
+        { tool: 'tickets.search_open', detail: 'Existing issue lookup' },
+        { tool: 'tickets.apply_policy', detail: 'Refund or escalation rule' },
+        { tool: 'tickets.create_note', detail: 'Transcript evidence attached' },
+      ],
+    },
+    Payments: {
+      title: 'Payments',
+      endpoint: '/sandbox/payments/authorize',
+      status: 'Payment fixture',
+      rows: [
+        { label: 'Method', value: domain === 'banking' ? 'ACH' : 'Visa ending 4242' },
+        { label: 'Auth', value: scenario.persona.interrupts ? 'Requires retry' : 'Approved' },
+        { label: 'Fallback', value: 'Confirm consent' },
+      ],
+      timeline: [
+        { tool: 'payments.authorize', detail: 'Sandbox authorization' },
+        { tool: 'payments.handle_failure', detail: 'Failed-card branch available' },
+        { tool: 'payments.write_receipt', detail: 'Receipt waits for confirmation' },
+      ],
+    },
+    'Knowledge Base': {
+      title: 'Knowledge Base',
+      endpoint: '/sandbox/kb/search',
+      status: 'Policy grounding',
+      rows: [
+        { label: 'Article', value: `${domain} policy` },
+        { label: 'Version', value: scenario.persona.interrupts ? 'Conflict found' : 'Current' },
+        { label: 'Escalate', value: 'If policy mismatch' },
+      ],
+      timeline: [
+        { tool: 'kb.search_policy', detail: 'Relevant policy snippets' },
+        { tool: 'kb.compare_versions', detail: 'Outdated-info guard' },
+        { tool: 'kb.cite_answer', detail: 'Grounded response check' },
+      ],
+    },
+  };
+
+  return environments[environmentType] ?? environments.CRM;
+}
+
+function SandboxEnvironmentPanel({
+  scenario,
+  environmentType,
+  callState,
+  visibleTurns,
+}: {
+  scenario: StoredScenario;
+  environmentType: string;
+  callState: 'idle' | 'running' | 'complete';
+  visibleTurns: number;
+}) {
+  const environment = environmentForScenario(scenario, environmentType);
+  const phase = callState === 'complete' ? environment.timeline.length : Math.max(0, Math.min(visibleTurns - 1, environment.timeline.length));
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white">
+      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
+        <span className="h-2 w-2 rounded-full bg-slate-300" />
+        <span className="h-2 w-2 rounded-full bg-slate-300" />
+        <span className={`h-2 w-2 rounded-full ${callState === 'running' ? 'animate-pulse bg-[#2f5ae0]' : callState === 'complete' ? 'bg-[#2f6f5f]' : 'bg-slate-300'}`} />
+        <span className="ml-1 truncate rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
+          {environment.endpoint}
+        </span>
+      </div>
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-slate-950">{environment.title}</p>
+            <p className="mt-1 text-xs text-slate-500">{environment.status}</p>
+          </div>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-500">
+            sandbox
+          </span>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
+          {environment.rows.map((row) => (
+            <div key={row.label} className="grid grid-cols-[76px_1fr] gap-2 text-xs">
+              <span className="text-slate-400">{row.label}</span>
+              <span className="truncate text-slate-800">{row.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Tool timeline</p>
+          {environment.timeline.map((item, index) => {
+            const active = callState === 'running' && phase === index;
+            const complete = callState === 'complete' || phase > index;
+            return (
+              <div
+                key={item.tool}
+                className={`rounded-md border px-3 py-2 ${active ? 'border-[#cfd8ff] bg-[#f5f7ff]' : 'border-slate-100 bg-slate-50'}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <code className="truncate text-[11px] text-slate-800">{item.tool}</code>
+                  <span className={`shrink-0 text-[11px] ${complete ? 'text-[#2f6f5f]' : active ? 'text-[#2448bb]' : 'text-slate-400'}`}>
+                    {complete ? '200 OK' : active ? 'calling' : 'queued'}
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-[11px] text-slate-500">{item.detail}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PlaygroundPage() {
   const router = useRouter();
   const [callState, setCallState] = useState<'idle' | 'running' | 'complete'>('idle');
@@ -85,6 +249,7 @@ export default function PlaygroundPage() {
   const [accent, setAccent] = useState('en-US');
   const [pace, setPace] = useState<PronunciationPace>('normal');
   const [mode, setMode] = useState<PronunciationMode>('spell_out');
+  const [environmentType, setEnvironmentType] = useState('CRM');
 
   useEffect(() => {
     setScenarios(dedupeScenarios(getScenarios()));
@@ -286,6 +451,23 @@ export default function PlaygroundPage() {
               <input className="input-field mt-1" value={agent} onChange={(event) => setAgent(event.target.value)} />
             </label>
 
+            <label className="block text-xs text-slate-500">
+              Sandbox environment
+              <select
+                className="select-field mt-1"
+                value={environmentType}
+                onChange={(event) => {
+                  setEnvironmentType(event.target.value);
+                  setCallState('idle');
+                  setVisibleTurns(0);
+                }}
+              >
+                {ENVIRONMENT_TYPES.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            </label>
+
             <div className="rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -446,8 +628,16 @@ export default function PlaygroundPage() {
                     ))}
                   </div>
 
-                  {pronunciationReport && (
-                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <div className="space-y-4">
+                    <SandboxEnvironmentPanel
+                      scenario={activeScenario}
+                      environmentType={environmentType}
+                      callState={callState}
+                      visibleTurns={visibleTurns}
+                    />
+
+                    {pronunciationReport && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Capture action</p>
@@ -484,8 +674,9 @@ export default function PlaygroundPage() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {callState === 'complete' && (
