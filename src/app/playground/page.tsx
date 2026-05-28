@@ -414,7 +414,7 @@ export default function PlaygroundPage() {
             sandboxEnvironment: environmentType,
           },
           webrtcEndpoint: agent,
-          scenarioIds: [activeScenario.id],
+          scenarioIds: [baseScenario?.id ?? activeScenario.id],
           gitSha: 'playground',
         }),
       });
