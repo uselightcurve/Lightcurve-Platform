@@ -16,15 +16,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-        <body className="min-h-screen bg-[#f3f4f6] text-slate-800" suppressHydrationWarning>
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-screen bg-[#f3f4f6] text-slate-800" suppressHydrationWarning>
+        <ClerkProvider proxyUrl={process.env.NEXT_PUBLIC_CLERK_PROXY_URL}>
           <Script id="strip-extension-hydration-attrs" strategy="beforeInteractive">
             {`document.querySelectorAll('[bis_skin_checked]').forEach(function (node) { node.removeAttribute('bis_skin_checked'); });`}
           </Script>
           <AppShell>{children}</AppShell>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
