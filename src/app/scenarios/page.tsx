@@ -106,7 +106,8 @@ export default function ScenariosPage() {
       try {
         const response = await fetch('/api/scenarios', { cache: 'no-store' });
         if (!response.ok) throw new Error('Unable to load scenario library.');
-        const loaded = (await response.json()) as StoredScenario[];
+        const payload = await response.json();
+        const loaded = (Array.isArray(payload) ? payload : payload.scenarios ?? []) as StoredScenario[];
         if (cancelled) return;
         setScenarios(loaded);
 
@@ -179,12 +180,17 @@ export default function ScenariosPage() {
     if (!forking) return;
     setLoadError('');
     try {
-      const response = await fetch(`/api/scenarios/${forking.id}/fork`, { method: 'POST' });
+      const response = await fetch(`/api/scenarios/${forking.id}/fork`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.error ?? 'Unable to fork scenario.');
       }
-      const fork = (await response.json()) as StoredScenario;
+      const payload = await response.json();
+      const fork = (payload.scenario ?? payload) as StoredScenario;
       setScenarios((current) => [fork, ...current.filter((scenario) => scenario.id !== fork.id)]);
       setForking(null);
     } catch (error) {
@@ -234,7 +240,8 @@ export default function ScenariosPage() {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.error ?? 'Unable to save scenario.');
       }
-      const savedScenario = (await response.json()) as StoredScenario;
+      const payload = await response.json();
+      const savedScenario = (payload.scenario ?? payload) as StoredScenario;
       setScenarios((current) => [savedScenario, ...current.filter((item) => item.id !== savedScenario.id)]);
       setCustomScenario(defaultCustomScenario);
       setShowCreate(false);

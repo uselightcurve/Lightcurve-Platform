@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { scenarios } from '@/db/schema';
 import { desc, isNull, or, eq } from 'drizzle-orm';
-import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
+import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 
 export async function GET() {
@@ -26,7 +26,7 @@ export async function GET() {
         .orderBy(desc(scenarios.createdAt));
     }
 
-    return NextResponse.json({ scenarios: data });
+    return NextResponse.json({ scenarios: mergeWithRealScenarioLibrary(data as any) });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;

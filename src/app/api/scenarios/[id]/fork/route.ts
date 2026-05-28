@@ -8,7 +8,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const account = await requireAccount();
     const { id } = await params;
-    const body = await req.json(); // { name: '...', patch: [...] }
+    const body = await req.json().catch(() => ({})); // { name: '...', patch: [...] }
     
     const parentData = await db
       .select()

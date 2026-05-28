@@ -252,7 +252,8 @@ export default function PlaygroundPage() {
       try {
         const response = await fetch('/api/scenarios', { cache: 'no-store' });
         if (!response.ok) throw new Error('Unable to load scenarios.');
-        const loaded = (await response.json()) as StoredScenario[];
+        const payload = await response.json();
+        const loaded = (Array.isArray(payload) ? payload : payload.scenarios ?? []) as StoredScenario[];
         if (!cancelled) {
           const deduped = dedupeScenarios(loaded);
           setScenarios(deduped);
