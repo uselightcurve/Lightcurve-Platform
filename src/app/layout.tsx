@@ -3,6 +3,7 @@ import Script from "next/script";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 export const metadata: Metadata = {
   title: "Lightcurve Dashboard",
@@ -22,7 +23,9 @@ export default function RootLayout({
           <Script id="strip-extension-hydration-attrs" strategy="beforeInteractive">
             {`document.querySelectorAll('[bis_skin_checked]').forEach(function (node) { node.removeAttribute('bis_skin_checked'); });`}
           </Script>
-          <AppShell>{children}</AppShell>
+          <AnalyticsProvider>
+            <AppShell>{children}</AppShell>
+          </AnalyticsProvider>
         </ClerkProvider>
       </body>
     </html>

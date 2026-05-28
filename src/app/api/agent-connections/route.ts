@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { agentConnections } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { credentialPreview, encryptCredentials } from '@/lib/secretVault';
+import { trackServerEvent } from '@/lib/serverAnalytics';
 
 const PROVIDERS = new Set(['vapi', 'retell', 'elevenlabs', 'livekit', 'pipecat', 'custom_webrtc']);
 const ENDPOINT_TYPES = new Set(['webrtc', 'sip', 'provider_api', 'phone', 'replay_import']);
@@ -96,6 +97,13 @@ export async function POST(req: Request) {
         updatedAt: new Date(),
       })
       .returning();
+
+    await trackServerEvent(account, 'Agent Connection Created', {
+      provider,
+      endpoint_type: endpointType,
+      has_endpoint: Boolean(endpoint),
+      health_status: connection.healthStatus,
+    });
 
     return NextResponse.json({ agentConnection: publicConnection(connection) }, { status: 201 });
   } catch (error) {

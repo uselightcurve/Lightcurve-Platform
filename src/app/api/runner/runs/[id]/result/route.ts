@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { runs, scores, traces } from '@/db/schema';
+import { trackServerEvent } from '@/lib/serverAnalytics';
 
 function asRecord(value: unknown): Record<string, any> {
   return value && typeof value === 'object' ? (value as Record<string, any>) : {};
@@ -87,6 +88,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     })
     .where(eq(runs.id, id))
     .returning();
+
+  if (run.ownerUserId) {
+    await trackServerEvent(run.ownerUserId, 'Sandbox Run Completed', {
+      run_id: id,
+      experiment_id: run.experimentId,
+      provider: updatedRun?.provider ?? body.provider ?? 'bot_to_bot',
+      status,
+      mos: numberValue(judgeScores.mos),
+      task_completion: numberValue(judgeScores.taskCompletion ?? judgeScores.task_completed),
+      latency_p95_ms: numberValue(judgeScores.latencyP95 ?? judgeScores.latency_p95),
+      transcript_turns: transcript.length,
+      source: 'runner_result',
+    });
+  }
 
   return NextResponse.json({ run: updatedRun, traces: transcript.length, scores: scoreRows.length });
 }

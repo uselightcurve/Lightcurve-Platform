@@ -5,6 +5,7 @@ import { desc, eq } from 'drizzle-orm';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 import { assertUsageAvailable, recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
 import { getOwnedAgentConnection, sanitizeAgentConfig } from '@/lib/agentConnections';
+import { trackServerEvent } from '@/lib/serverAnalytics';
 
 const LIVE_PHONE_PROVIDERS = new Set(['vapi', 'retell', 'elevenlabs']);
 const DEFAULT_MAX_REAL_PHONE_SCENARIOS = 10;
@@ -130,12 +131,25 @@ export async function POST(req: Request) {
       sourceExperimentId: expId,
     });
 
+    await trackServerEvent(account, 'Experiment Created', {
+      experiment_id: expId,
+      agent_type: agentConnection?.provider ?? body.agentType,
+      scenario_count: createdRuns.length,
+      live_phone_mode: livePhoneMode,
+      has_agent_connection: Boolean(agentConnectionId),
+    });
+
     return NextResponse.json({ experiment: exp[0], runs: createdRuns });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
     if (error instanceof Response) {
-      return NextResponse.json({ error: await error.text() }, { status: error.status });
+      const message = await error.text();
+      if (error.status === 402) {
+        const account = await requireAccount().catch(() => null);
+        await trackServerEvent(account, 'Usage Limit Blocked Experiment', { status: error.status, message });
+      }
+      return NextResponse.json({ error: message }, { status: error.status });
     }
     console.error('Failed to create experiment', error);
     const message = error instanceof Error ? error.message : '';
