@@ -2,7 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getBillingSummary, type BillingSummary } from '@/lib/workspaceStore';
+import type { Plan } from '@/lib/plans';
+
+type BillingSummary = {
+  plan: Plan;
+  minutesUsed: number;
+  minutesRemaining: number | null;
+  minutesPercent: number;
+  actionsUsed: number;
+  actionsRemaining: number | null;
+  actionsPercent: number;
+};
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
@@ -45,7 +55,13 @@ export function BillingUsageCard() {
   const [summary, setSummary] = useState<BillingSummary | null>(null);
 
   useEffect(() => {
-    const load = () => setSummary(getBillingSummary());
+    const load = async () => {
+      const response = await fetch('/api/billing/summary', { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setSummary(data);
+      }
+    };
     load();
     window.addEventListener('lightcurve-workspace-updated', load);
     return () => window.removeEventListener('lightcurve-workspace-updated', load);

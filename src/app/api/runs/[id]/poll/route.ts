@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { experiments, runs, scenarios, scores, traces } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { experiments, runs, scenarios, scores, traces, usageEvents } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { isProviderBackedSandbox, pollProviderSandboxCall } from '@/lib/sandboxProviders';
+import { recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+  const account = await requireAccount();
   const { id } = await params;
-  const runData = await db.select().from(runs).where(eq(runs.id, id));
+  const runData = await db.select().from(runs).where(and(eq(runs.id, id), eq(runs.ownerUserId, account.userId)));
   const run = runData[0];
   if (!run) return NextResponse.json({ error: 'Run not found' }, { status: 404 });
 
-  const experimentData = await db.select().from(experiments).where(eq(experiments.id, run.experimentId!));
+  const experimentData = await db.select().from(experiments).where(and(eq(experiments.id, run.experimentId!), eq(experiments.ownerUserId, account.userId)));
   const experiment = experimentData[0];
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
 
@@ -79,6 +82,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         .set({ status: 'completed', completedAt: new Date() })
         .where(eq(experiments.id, experiment.id));
     }
+    const existingUsage = await db.select().from(usageEvents).where(and(eq(usageEvents.sourceRunId, id), eq(usageEvents.eventType, 'run_completed'))).limit(1);
+    if (!existingUsage.length) {
+      await recordUsageEvent({
+        userId: account.userId,
+        eventType: 'run_completed',
+        minutes: (updatedRunData[0].durationMs ?? 0) / 60000,
+        sourceRunId: id,
+        sourceExperimentId: experiment.id,
+      });
+    }
   }
 
   const runTraces = await db.select().from(traces).where(eq(traces.runId, id));
@@ -92,4 +105,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     scores: runScores,
     externalStatus: normalized.externalStatus,
   });
+  } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
+    console.error('Failed to poll run', error);
+    return NextResponse.json({ error: 'Run poll failed' }, { status: 500 });
+  }
 }

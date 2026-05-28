@@ -1,15 +1,10 @@
 import Link from 'next/link';
+import { UserProfile } from '@clerk/nextjs';
+import { requireAccount } from '@/lib/account';
 
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-slate-800">{label}</span>
-      <input className="input-field h-10" defaultValue={value} />
-    </label>
-  );
-}
+export default async function ProfileSettingsPage() {
+  const account = await requireAccount();
 
-export default function ProfileSettingsPage() {
   return (
     <div className="space-y-5">
       <div className="page-header">
@@ -27,25 +22,13 @@ export default function ProfileSettingsPage() {
           </Link>
         </aside>
 
-        <section className="card overflow-hidden">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-900">Profile details</h2>
+        <section className="space-y-4">
+          <div className="card p-5">
+            <p className="text-sm font-medium text-slate-900">{account.name || account.email}</p>
+            <p className="mt-1 text-sm text-slate-500">{account.email}</p>
           </div>
-          <div className="grid grid-cols-2 gap-4 p-5">
-            <Field label="Name" value="Ayush Saxena" />
-            <Field label="Email" value="ayush@example.com" />
-            <Field label="Workspace" value="Default project" />
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-slate-800">Role</span>
-              <select className="select-field h-10" defaultValue="Owner">
-                <option>Owner</option>
-                <option>Developer</option>
-                <option>Viewer</option>
-              </select>
-            </label>
-          </div>
-          <div className="flex justify-end border-t border-slate-200 px-5 py-4">
-            <button className="toolbar-button toolbar-button-primary">Save profile</button>
+          <div className="card overflow-hidden p-4">
+            <UserProfile routing="hash" />
           </div>
         </section>
       </div>

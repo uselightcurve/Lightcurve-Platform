@@ -3,15 +3,27 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
 import { executeBotToBotRun } from '@/lib/botToBotRunner';
+import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+function requireRunnerToken(req: Request) {
+  const expected = process.env.RUNNER_INGEST_TOKEN;
+  if (!expected) return true;
+  const actual = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  return actual === expected;
+}
+
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!requireRunnerToken(req)) {
+    return NextResponse.json({ error: 'Unauthorized runner' }, { status: 401 });
+  }
+
   const { id } = await params;
   const runData = await db.select().from(runs).where(eq(runs.id, id));
   const run = runData[0];
   if (!run) return NextResponse.json({ error: 'Run not found' }, { status: 404 });
 
   const experimentData = await db.select().from(experiments).where(eq(experiments.id, run.experimentId!));
-  const experiment = experimentData[0];
+  const experiment = experimentData[0] ? await hydrateExperimentAgentConfig(experimentData[0]) : undefined;
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
 
   const scenarioData = await db.select().from(scenarios).where(eq(scenarios.id, run.scenarioId!));

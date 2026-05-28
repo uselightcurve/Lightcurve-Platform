@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { createRoom } from '@/lib/daily';
 import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandboxProviders';
 import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment } from '@/lib/botToBotRunner';
+import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
+import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+  const account = await requireAccount();
+  await assertUsageAvailable(account.userId, { actions: 1 });
   const { id } = await params;
-  const runData = await db.select().from(runs).where(eq(runs.id, id));
+  const runData = await db.select().from(runs).where(and(eq(runs.id, id), eq(runs.ownerUserId, account.userId)));
   if (!runData.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   
   const run = runData[0];
@@ -17,8 +22,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const scenario = scenarioData[0];
   if (!scenario) return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
 
-  const experimentData = await db.select().from(experiments).where(eq(experiments.id, run.experimentId!));
-  const experiment = experimentData[0];
+  const experimentData = await db.select().from(experiments).where(and(eq(experiments.id, run.experimentId!), eq(experiments.ownerUserId, account.userId)));
+  const experiment = experimentData[0] ? await hydrateExperimentAgentConfig(experimentData[0]) : undefined;
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
 
   if (isProviderBackedSandbox(experiment)) {
@@ -108,4 +113,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   runSyntheticCallerLoop(id, dailyRoomUrl, scenario).catch(console.error);
 
   return NextResponse.json({ success: true, status: 'running' });
+  } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
+    if (error instanceof Response) return NextResponse.json({ error: await error.text() }, { status: error.status });
+    console.error('Failed to start run', error);
+    return NextResponse.json({ error: 'Run could not be started' }, { status: 500 });
+  }
 }

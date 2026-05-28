@@ -43,6 +43,15 @@ async function assertOk(path, check) {
   console.log(`ok ${path}`);
 }
 
+async function assertProtected(path) {
+  const url = `${normalizedBaseUrl}${path}`;
+  const response = await fetch(url, { headers: { accept: 'application/json' }, redirect: 'manual' });
+  if (![302, 303, 307, 308, 401, 403, 404].includes(response.status)) {
+    throw new Error(`${path} should require auth, got ${response.status}`);
+  }
+  console.log(`ok ${path} protected`);
+}
+
 try {
   await assertOk('/', (html) => {
     if (typeof html !== 'string' || !html.includes('Lightcurve')) {
@@ -56,17 +65,8 @@ try {
     }
   });
 
-  await assertOk('/api/scenarios', (json) => {
-    if (!json || !Array.isArray(json.scenarios) || json.scenarios.length === 0) {
-      throw new Error('Scenario library did not return scenarios.');
-    }
-  });
-
-  await assertOk('/api/experiments', (json) => {
-    if (!json || !Array.isArray(json.experiments)) {
-      throw new Error('Experiments endpoint did not return a list.');
-    }
-  });
+  await assertProtected('/api/scenarios');
+  await assertProtected('/api/experiments');
 
   console.log(`Production smoke test passed for ${normalizedBaseUrl}`);
 } catch (error) {

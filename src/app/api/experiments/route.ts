@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
-import { desc } from 'drizzle-orm';
-import { DEMO_EXPERIMENTS, DEMO_SCENARIOS } from '@/lib/demoData';
+import { desc, eq } from 'drizzle-orm';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
+import { assertUsageAvailable, recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
+import { getOwnedAgentConnection, sanitizeAgentConfig } from '@/lib/agentConnections';
 
 const LIVE_PHONE_PROVIDERS = new Set(['vapi', 'retell', 'elevenlabs']);
 const DEFAULT_MAX_REAL_PHONE_SCENARIOS = 10;
@@ -19,21 +20,37 @@ function maxRealPhoneScenarios() {
 
 export async function GET() {
   try {
-    const data = await db.select().from(experiments).orderBy(desc(experiments.createdAt));
+    const account = await requireAccount();
+    const data = await db
+      .select()
+      .from(experiments)
+      .where(eq(experiments.ownerUserId, account.userId))
+      .orderBy(desc(experiments.createdAt));
     return NextResponse.json({ experiments: data });
   } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
     console.error('Failed to load experiments', error);
-    return NextResponse.json({ experiments: DEMO_EXPERIMENTS, preview: true });
+    return NextResponse.json({ error: 'Experiments unavailable' }, { status: 503 });
   }
 }
 
 export async function POST(req: Request) {
   try {
+    const account = await requireAccount();
     const body = await req.json();
     const scenarioIds = Array.isArray(body.scenarioIds) ? body.scenarioIds : [];
-    const agentConfig = asRecord(body.agentConfig);
+    const agentConnectionId = typeof body.agentConnectionId === 'string' ? body.agentConnectionId : null;
+    const agentConnection = agentConnectionId
+      ? await getOwnedAgentConnection(agentConnectionId, account.userId)
+      : null;
+    if (agentConnectionId && !agentConnection) {
+      return NextResponse.json({ error: 'Agent connection not found' }, { status: 404 });
+    }
+
+    const agentConfig = sanitizeAgentConfig(body.agentConfig);
     const livePhoneMode =
-      LIVE_PHONE_PROVIDERS.has(String(body.agentType)) &&
+      LIVE_PHONE_PROVIDERS.has(String(agentConnection?.provider ?? body.agentType)) &&
       !(body.agentType === 'elevenlabs' && agentConfig.costMode === 'recording_replay');
     const phoneScenarioLimit = maxRealPhoneScenarios();
 
@@ -45,18 +62,22 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+    await assertUsageAvailable(account.userId, { actions: Math.max(1, scenarioIds.length) });
 
     const realScenarios = REAL_SCENARIO_LIBRARY.filter((scenario) => scenarioIds.includes(scenario.id));
-    const demoScenarios = DEMO_SCENARIOS.filter((scenario) => scenarioIds.includes(scenario.id));
-    const selectedScenarios = [...realScenarios, ...demoScenarios];
-    if (selectedScenarios.length) {
-      await db.insert(scenarios).values(selectedScenarios).onConflictDoNothing();
+    if (realScenarios.length) {
+      await db.insert(scenarios).values(realScenarios.map((scenario) => ({
+        ...scenario,
+        ownerUserId: null,
+      }))).onConflictDoNothing();
     }
     const exp = await db.insert(experiments).values({
+      ownerUserId: account.userId,
       name: body.name,
-      agentType: body.agentType,
-      agentConfig: body.agentConfig,
-      webrtcEndpoint: body.webrtcEndpoint,
+      agentType: agentConnection?.provider ?? body.agentType,
+      agentConnectionId,
+      agentConfig,
+      webrtcEndpoint: agentConnection?.endpoint ?? body.webrtcEndpoint ?? '',
       scenarioIds,
       gitSha: body.gitSha,
     }).returning();
@@ -65,15 +86,27 @@ export async function POST(req: Request) {
     const createdRuns = [];
     for (const sid of scenarioIds) {
       const r = await db.insert(runs).values({
+        ownerUserId: account.userId,
         experimentId: expId,
         scenarioId: sid,
         status: 'pending'
       }).returning();
       createdRuns.push(r[0]);
     }
+    await recordUsageEvent({
+      userId: account.userId,
+      eventType: 'experiment_created',
+      actions: Math.max(1, createdRuns.length),
+      sourceExperimentId: expId,
+    });
 
     return NextResponse.json({ experiment: exp[0], runs: createdRuns });
   } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
+    if (error instanceof Response) {
+      return NextResponse.json({ error: await error.text() }, { status: error.status });
+    }
     console.error('Failed to create experiment', error);
     const message = error instanceof Error ? error.message : '';
     const databaseUnavailable =

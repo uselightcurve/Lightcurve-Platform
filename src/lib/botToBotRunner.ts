@@ -1,9 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { eq } from 'drizzle-orm';
 import type { experiments, runs, scenarios } from '@/db/schema';
 import { db } from '@/db';
 import { scores, traces, runs as runsTable } from '@/db/schema';
 import { VOICE_MAP } from '@/lib/constants';
+import { generateWithLightcurveModel } from '@/lib/vertex';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
@@ -76,7 +76,7 @@ export async function enqueueBotToBotRun(runId: string) {
   const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID;
   const queue = process.env.CLOUD_TASKS_QUEUE;
   const location = process.env.CLOUD_TASKS_LOCATION || process.env.GCP_REGION;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.RUNNER_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
 
   if (!project || !queue || !location || !appUrl) return false;
 
@@ -88,7 +88,10 @@ export async function enqueueBotToBotRun(runId: string) {
       httpRequest: {
         httpMethod: 'POST',
         url: `${appUrl.replace(/\/$/, '')}/api/bot-to-bot/runs/${runId}/worker`,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(process.env.RUNNER_INGEST_TOKEN ? { Authorization: `Bearer ${process.env.RUNNER_INGEST_TOKEN}` } : {}),
+        },
         body: Buffer.from(JSON.stringify({ runId })).toString('base64'),
       },
       dispatchDeadline: { seconds: Number(process.env.BOT_TO_BOT_TASK_DEADLINE_SECONDS ?? 900) },
@@ -197,14 +200,7 @@ async function nextCallerTurn(
   const opening = stringValue(persona.opening_line) ?? goal;
   if (turnIndex === 0) return opening;
 
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy_key') {
-    if (turnIndex === 1) return `That sounds vague. I need you to complete this: ${goal}`;
-    return 'Okay, please summarize exactly what happens next.';
-  }
-
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: process.env.BOT_TO_BOT_CALLER_MODEL ?? 'gemini-1.5-flash' });
-  const result = await model.generateContent(`
+  const prompt = `
 You are the caller in a voice-agent sandbox test.
 Stay in character. Keep the response under 22 words.
 Language: ${scenario.language}
@@ -213,8 +209,17 @@ Goal: ${goal}
 Conversation:
 ${conversation.map((turn) => `${turn.speaker}: ${turn.text}`).join('\n')}
 If the agent clearly solved the goal, say: That answers it. Please confirm the next step.
-`);
-  return result.response.text().replace(/\s+/g, ' ').trim();
+`;
+  const modelText = await generateWithLightcurveModel(
+    process.env.BOT_TO_BOT_CALLER_MODEL ?? 'gemini-2.5-flash-lite',
+    prompt,
+  );
+  if (modelText) return modelText.replace(/\s+/g, ' ').trim();
+
+  {
+    if (turnIndex === 1) return `That sounds vague. I need you to complete this: ${goal}`;
+    return 'Okay, please summarize exactly what happens next.';
+  }
 }
 
 async function judgeBotToBotRun(
@@ -238,7 +243,45 @@ async function judgeBotToBotRun(
     };
   }
 
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy_key') {
+  const judgePrompt = `
+You are Lightcurve's voice AI evaluator. Return only JSON.
+Scenario goal: ${stringValue(persona.goal) ?? ''}
+Success criteria: ${JSON.stringify(scenario.successCriteria)}
+Latency p95 ms: ${latencyP95}
+Transcript:
+${transcript.map((turn) => `${turn.speaker}: ${turn.text}`).join('\n')}
+
+Score:
+- mos: 1-5 Lightcurve audio quality/prosody proxy.
+- taskCompletion: 0-1.
+- rationale: one sentence.
+- recommendation: one sentence.
+
+Return:
+{"mos":4.0,"taskCompletion":0.8,"rationale":"one sentence","recommendation":"one sentence"}
+`;
+  const judgeText = await generateWithLightcurveModel(
+    process.env.BOT_TO_BOT_JUDGE_MODEL ?? 'gemini-2.5-flash',
+    judgePrompt,
+  );
+
+  if (judgeText) {
+    try {
+      const text = judgeText.replace(/```json|```/g, '').trim();
+      const parsed = asRecord(JSON.parse(text));
+      return {
+        mos: clamp(Number(parsed.mos ?? 3.5), 1, 5),
+        taskCompletion: clamp(Number(parsed.taskCompletion ?? parsed.task_completion ?? 0.5), 0, 1),
+        sttConfidence: Number(baseStt.toFixed(2)),
+        rationale: stringValue(parsed.rationale) ?? 'LLM judge completed the sandbox evaluation.',
+        recommendation: stringValue(parsed.recommendation) ?? 'Review failed turns and tighten the agent prompt.',
+      };
+    } catch {
+      console.warn('LLM judge returned non-JSON; falling back to heuristic scoring.');
+    }
+  }
+
+  {
     const taskCompletion = transcript.some((turn) => turn.speaker === 'agent' && /confirm|next step|route|verify|policy/i.test(turn.text))
       ? 0.84
       : 0.55;
@@ -247,40 +290,17 @@ async function judgeBotToBotRun(
       mos: Number(mos.toFixed(1)),
       taskCompletion: Number(taskCompletion.toFixed(2)),
       sttConfidence: Number(baseStt.toFixed(2)),
-      rationale: 'Heuristic judge used because GEMINI_API_KEY is not configured.',
-      recommendation: 'Configure GEMINI_API_KEY for stricter LLM-as-judge scoring with evidence.',
+      rationale: 'Heuristic judge used because Vertex AI/Gemini is not configured.',
+      recommendation: 'Enable Vertex AI for stricter LLM-as-judge scoring with evidence.',
     };
   }
-
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: process.env.BOT_TO_BOT_JUDGE_MODEL ?? 'gemini-1.5-flash' });
-  const result = await model.generateContent(`
-You are Lightcurve's voice AI evaluator. Return only JSON.
-Scenario goal: ${stringValue(persona.goal) ?? ''}
-Success criteria: ${JSON.stringify(scenario.successCriteria)}
-Latency p95 ms: ${latencyP95}
-Transcript:
-${transcript.map((turn) => `${turn.speaker}: ${turn.text}`).join('\n')}
-
-Return:
-{"mos":4.0,"taskCompletion":0.8,"rationale":"one sentence","recommendation":"one sentence"}
-`);
-  const text = result.response.text().replace(/```json|```/g, '').trim();
-  const parsed = asRecord(JSON.parse(text));
-  return {
-    mos: clamp(Number(parsed.mos ?? 3.5), 1, 5),
-    taskCompletion: clamp(Number(parsed.taskCompletion ?? parsed.task_completion ?? 0.5), 0, 1),
-    sttConfidence: Number(baseStt.toFixed(2)),
-    rationale: stringValue(parsed.rationale) ?? 'LLM judge completed the sandbox evaluation.',
-    recommendation: stringValue(parsed.recommendation) ?? 'Review failed turns and tighten the agent prompt.',
-  };
 }
 
 export async function executeBotToBotRun(runId: string, experiment: ExperimentRow, run: RunRow, scenario: ScenarioRow) {
   const runnerUrl = resolveAgentRunnerUrl(experiment);
   const internalRunner = isInternalRunnerUrl(runnerUrl);
   const startedAt = new Date();
-  const maxTurns = Number(process.env.BOT_TO_BOT_MAX_TURNS ?? 4);
+  const maxTurns = Number(process.env.BOT_TO_BOT_MAX_TURNS ?? 6);
   const transcript: Array<{ speaker: 'caller' | 'agent'; text: string }> = [];
   const traceRows: Array<{
     turnIndex: number;

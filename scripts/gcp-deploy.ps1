@@ -204,6 +204,8 @@ $secretNames = @(
   "CUSTOM_WEBRTC_WSS_URL",
   "CUSTOM_AGENT_RUNNER_URL",
   "HUGGINGFACE_TOKEN",
+  "KMS_KEY_NAME",
+  "RUNNER_INGEST_TOKEN",
   "BOT_TO_BOT_CALLER_MODEL",
   "BOT_TO_BOT_JUDGE_MODEL",
   "BOT_TO_BOT_TTS_ENABLED",
@@ -232,6 +234,7 @@ $envVars = @(
   "NODE_ENV=production",
   "GOOGLE_CLOUD_PROJECT=$ProjectId",
   "GCP_REGION=$Region",
+  "VERTEX_AI_LOCATION=$Region",
   "GCS_BUCKET=$BucketName",
   "CLOUD_TASKS_QUEUE=$TasksQueue",
   "CLOUD_TASKS_LOCATION=$Region"
@@ -245,10 +248,10 @@ if ($envValues["MOS_SERVICE_URL"]) {
 }
 $elevenLabsCostMode = if ($envValues["ELEVENLABS_COST_MODE"]) { $envValues["ELEVENLABS_COST_MODE"] } else { "recording_replay" }
 $syntheticCallerProvider = if ($envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"]) { $envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"] } else { "cheap_tts" }
-$botToBotCallerModel = if ($envValues["BOT_TO_BOT_CALLER_MODEL"]) { $envValues["BOT_TO_BOT_CALLER_MODEL"] } else { "gemini-1.5-flash" }
-$botToBotJudgeModel = if ($envValues["BOT_TO_BOT_JUDGE_MODEL"]) { $envValues["BOT_TO_BOT_JUDGE_MODEL"] } else { "gemini-1.5-flash" }
-$botToBotTtsEnabled = if ($envValues["BOT_TO_BOT_TTS_ENABLED"]) { $envValues["BOT_TO_BOT_TTS_ENABLED"] } else { "0" }
-$botToBotMaxTurns = if ($envValues["BOT_TO_BOT_MAX_TURNS"]) { $envValues["BOT_TO_BOT_MAX_TURNS"] } else { "4" }
+$botToBotCallerModel = if ($envValues["BOT_TO_BOT_CALLER_MODEL"]) { $envValues["BOT_TO_BOT_CALLER_MODEL"] } else { "gemini-2.5-flash-lite" }
+$botToBotJudgeModel = if ($envValues["BOT_TO_BOT_JUDGE_MODEL"]) { $envValues["BOT_TO_BOT_JUDGE_MODEL"] } else { "gemini-2.5-flash" }
+$botToBotTtsEnabled = if ($envValues["BOT_TO_BOT_TTS_ENABLED"]) { $envValues["BOT_TO_BOT_TTS_ENABLED"] } else { "1" }
+$botToBotMaxTurns = if ($envValues["BOT_TO_BOT_MAX_TURNS"]) { $envValues["BOT_TO_BOT_MAX_TURNS"] } else { "6" }
 $botToBotTaskDeadlineSeconds = if ($envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"]) { $envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"] } else { "900" }
 $maxRealPhoneScenarios = if ($envValues["MAX_REAL_PHONE_SCENARIOS"]) { $envValues["MAX_REAL_PHONE_SCENARIOS"] } else { "10" }
 $vapiCallerModelProvider = if ($envValues["VAPI_CALLER_MODEL_PROVIDER"]) { $envValues["VAPI_CALLER_MODEL_PROVIDER"] } else { "openai" }

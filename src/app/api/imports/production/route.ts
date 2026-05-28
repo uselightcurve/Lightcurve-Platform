@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import {
-  demoImportedCalls,
   getProviderDefinition,
   getProviderStatuses,
   type NormalizedCall,
   type ProviderId,
 } from '@/lib/integrations';
+import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 
 async function importFromProvider(provider: ProviderId): Promise<NormalizedCall[]> {
   const definition = getProviderDefinition(provider);
@@ -13,7 +13,7 @@ async function importFromProvider(provider: ProviderId): Promise<NormalizedCall[
 
   const status = getProviderStatuses().find((item) => item.id === provider);
   if (!status?.configured) {
-    return demoImportedCalls.filter((call) => call.provider === provider);
+    return [];
   }
 
   // Provider APIs differ, so the first production-ready contract is normalized at this boundary.
@@ -23,7 +23,7 @@ async function importFromProvider(provider: ProviderId): Promise<NormalizedCall[
       headers: { Authorization: `Bearer ${process.env.VAPI_API_KEY}` },
     });
     if (!response.ok) return [];
-    return demoImportedCalls.filter((call) => call.provider === provider);
+    return [];
   }
 
   if (provider === 'retell') {
@@ -36,7 +36,7 @@ async function importFromProvider(provider: ProviderId): Promise<NormalizedCall[
       body: JSON.stringify({ limit: 25 }),
     });
     if (!response.ok) return [];
-    return demoImportedCalls.filter((call) => call.provider === provider);
+    return [];
   }
 
   if (provider === 'elevenlabs') {
@@ -45,24 +45,33 @@ async function importFromProvider(provider: ProviderId): Promise<NormalizedCall[
       { headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY ?? '' } }
     );
     if (!response.ok) return [];
-    return demoImportedCalls.filter((call) => call.provider === provider);
+    return [];
   }
 
-  return demoImportedCalls.filter((call) => call.provider === provider);
+  return [];
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
-  const provider = body.provider as ProviderId | 'all' | undefined;
-  const providers =
-    provider && provider !== 'all'
-      ? [provider]
-      : (['vapi', 'retell', 'elevenlabs', 'livekit', 'pipecat', 'custom_webrtc'] as ProviderId[]);
+  try {
+    const account = await requireAccount();
+    await assertUsageAvailable(account.userId, { imports: true, actions: 1 });
+    const body = await req.json().catch(() => ({}));
+    const provider = body.provider as ProviderId | 'all' | undefined;
+    const providers =
+      provider && provider !== 'all'
+        ? [provider]
+        : (['vapi', 'retell', 'elevenlabs', 'livekit', 'pipecat', 'custom_webrtc'] as ProviderId[]);
 
-  const imported = (await Promise.all(providers.map((item) => importFromProvider(item)))).flat();
+    const imported = (await Promise.all(providers.map((item) => importFromProvider(item)))).flat();
 
-  return NextResponse.json({
-    calls: imported.length ? imported : demoImportedCalls,
-    preview: imported.length === 0 || getProviderStatuses().some((item) => !item.configured),
-  });
+    return NextResponse.json({
+      calls: imported,
+      preview: false,
+    });
+  } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
+    if (error instanceof Response) return NextResponse.json({ error: await error.text() }, { status: error.status });
+    return NextResponse.json({ error: 'Production import failed' }, { status: 500 });
+  }
 }

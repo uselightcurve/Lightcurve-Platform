@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Lightcurve Dashboard",
@@ -15,18 +16,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-screen bg-[#f3f4f6] text-slate-800" suppressHydrationWarning>
-        <Script id="strip-extension-hydration-attrs" strategy="beforeInteractive">
-          {`document.querySelectorAll('[bis_skin_checked]').forEach(function (node) { node.removeAttribute('bis_skin_checked'); });`}
-        </Script>
-        <Sidebar />
-        <main className="min-h-screen pl-56">
-          <div className="mx-auto w-full max-w-[1280px] px-4 py-4">
-            {children}
-          </div>
-        </main>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+        <body className="min-h-screen bg-[#f3f4f6] text-slate-800" suppressHydrationWarning>
+          <Script id="strip-extension-hydration-attrs" strategy="beforeInteractive">
+            {`document.querySelectorAll('[bis_skin_checked]').forEach(function (node) { node.removeAttribute('bis_skin_checked'); });`}
+          </Script>
+          <AppShell>{children}</AppShell>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
