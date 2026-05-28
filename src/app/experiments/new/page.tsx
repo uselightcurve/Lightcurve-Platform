@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ProviderLogo } from '@/components/ProviderLogo';
 import { providerDefinitions } from '@/lib/integrations';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
+import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
 
@@ -250,6 +251,13 @@ export default function NewExperiment() {
 
     setLoading(true);
     setError('');
+    trackLightcurveEvent('Experiment Run Submitted', {
+      agent_type: agentType,
+      scenario_count: selectedIds.length,
+      live_provider: usesLiveProvider,
+      bot_to_bot_phone: vapiBotToBotPhone,
+      elevenlabs_mode: agentType === 'elevenlabs' ? elevenLabsMode : undefined,
+    });
 
     try {
       const agentConfig: Record<string, string> =
@@ -347,9 +355,21 @@ export default function NewExperiment() {
         }),
       );
 
+      trackLightcurveEvent('Experiment Run Created', {
+        experiment_id: data.experiment.id,
+        agent_type: agentType,
+        scenario_count: selectedIds.length,
+        run_count: (data.runs ?? []).length,
+      });
       router.push(`/experiments/${data.experiment.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Experiment could not be created');
+      const message = err instanceof Error ? err.message : 'Experiment could not be created';
+      trackLightcurveEvent('Experiment Run Failed', {
+        agent_type: agentType,
+        scenario_count: selectedIds.length,
+        error: message,
+      });
+      setError(message);
     } finally {
       setLoading(false);
     }

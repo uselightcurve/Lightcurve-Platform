@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { PlanId } from '@/lib/plans';
+import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 function ContactSalesModal({ onClose }: { onClose: () => void }) {
   const [sent, setSent] = useState(false);
@@ -16,6 +17,9 @@ function ContactSalesModal({ onClose }: { onClose: () => void }) {
         name: form.get('name'),
         message: form.get('message'),
       }),
+    });
+    trackLightcurveEvent('Contact Sales Submitted', {
+      message_length: String(form.get('message') ?? '').length,
     });
     setSent(true);
   }
@@ -62,7 +66,13 @@ export function BillingActions({ planId, active }: { planId: PlanId; active: boo
     return (
       <>
         {showSales ? <ContactSalesModal onClose={() => setShowSales(false)} /> : null}
-        <button className="mt-5 w-full btn-primary" onClick={() => setShowSales(true)}>
+        <button
+          className="mt-5 w-full btn-primary"
+          onClick={() => {
+            trackLightcurveEvent('Contact Sales Opened', { plan: 'scale' });
+            setShowSales(true);
+          }}
+        >
           Contact Sales
         </button>
       </>

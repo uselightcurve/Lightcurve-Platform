@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { REAL_SCENARIO_LIBRARY, type LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
+import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 const languageFlags: Record<string, string> = {
   'en-US': 'US',
@@ -179,6 +180,12 @@ export default function ScenariosPage() {
       setSpeakingId(null);
       return;
     }
+    trackLightcurveEvent('Scenario Listen Clicked', {
+      scenario_id: scenario.id,
+      language: scenario.language,
+      domain: scenario.domain,
+      emotion: scenario.persona.emotional_state,
+    });
     const utterance = new SpeechSynthesisUtterance(scenario.persona.opening_line || scenario.persona.goal);
     utterance.lang = scenario.language;
     utterance.rate = Math.min(1.2, Math.max(0.75, (scenario.persona.speed_wpm || 140) / 150));
@@ -205,6 +212,12 @@ export default function ScenariosPage() {
       const fork = (payload.scenario ?? payload) as StoredScenario;
       setScenarios((current) => [fork, ...current.filter((scenario) => scenario.id !== fork.id)]);
       setForking(null);
+      trackLightcurveEvent('Scenario Fork Saved', {
+        parent_scenario_id: forking.id,
+        scenario_id: fork.id,
+        domain: fork.domain,
+        language: fork.language,
+      });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to fork scenario.');
     }
@@ -257,6 +270,12 @@ export default function ScenariosPage() {
       setScenarios((current) => [savedScenario, ...current.filter((item) => item.id !== savedScenario.id)]);
       setCustomScenario(defaultCustomScenario);
       setShowCreate(false);
+      trackLightcurveEvent('Custom Scenario Created', {
+        scenario_id: savedScenario.id,
+        domain: savedScenario.domain,
+        language: savedScenario.language,
+        emotion: savedScenario.persona.emotional_state,
+      });
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to save scenario.');
     }

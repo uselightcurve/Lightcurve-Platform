@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { scenarios } from '@/db/schema';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
-import { trackServerEvent } from '@/lib/serverAnalytics';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -34,12 +33,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     
     const created = await db.insert(scenarios).values(newScenario as any).returning();
-    await trackServerEvent(account, 'Scenario Forked', {
-      parent_scenario_id: id,
-      scenario_id: created[0]?.id,
-      domain: created[0]?.domain,
-      language: created[0]?.language,
-    });
     return NextResponse.json({ scenario: created[0] });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);

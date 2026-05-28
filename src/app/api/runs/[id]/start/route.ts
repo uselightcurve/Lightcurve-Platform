@@ -6,7 +6,6 @@ import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandbox
 import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment, resolveAgentRunnerUrl } from '@/lib/botToBotRunner';
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
-import { trackServerEvent } from '@/lib/serverAnalytics';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -42,14 +41,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .where(eq(runs.id, id));
       await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
 
-      await trackServerEvent(account, 'Sandbox Run Started', {
-        run_id: id,
-        experiment_id: experiment.id,
-        provider: call.provider,
-        mode: 'provider',
-        external_status: call.status,
-      });
-
       return NextResponse.json({
         success: true,
         provider: call.provider,
@@ -70,14 +61,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           endedAt: new Date(),
         })
         .where(eq(runs.id, id));
-
-      await trackServerEvent(account, 'Sandbox Run Start Failed', {
-        run_id: id,
-        experiment_id: experiment.id,
-        provider: experiment.agentType,
-        mode: 'provider',
-        error: message,
-      });
 
       return NextResponse.json({ error: message }, { status: 502 });
     }
@@ -119,14 +102,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!queued) {
       executeBotToBotRun(id, experiment, run, scenario).catch(console.error);
     }
-
-    await trackServerEvent(account, 'Sandbox Run Started', {
-      run_id: id,
-      experiment_id: experiment.id,
-      provider: 'bot_to_bot',
-      mode: queued ? 'cloud_tasks' : 'inline_worker',
-      external_status: queued ? 'cloud_tasks_queued' : 'inline_worker_started',
-    });
 
     return NextResponse.json({
       success: true,

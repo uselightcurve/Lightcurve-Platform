@@ -4,7 +4,6 @@ import { db } from '@/db';
 import { scores, traces, runs as runsTable, usageEvents } from '@/db/schema';
 import { VOICE_MAP } from '@/lib/constants';
 import { generateWithLightcurveModel } from '@/lib/vertex';
-import { trackServerEvent } from '@/lib/serverAnalytics';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
@@ -412,18 +411,6 @@ export async function executeBotToBotRun(runId: string, experiment: ExperimentRo
       });
     }
 
-    await trackServerEvent(experiment.ownerUserId, 'Sandbox Run Completed', {
-      run_id: runId,
-      experiment_id: experiment.id,
-      provider: 'bot_to_bot',
-      status,
-      mos: judge.mos,
-      task_completion: judge.taskCompletion,
-      stt_confidence: judge.sttConfidence,
-      latency_p95_ms: latencyP95,
-      duration_ms: durationMs,
-      turn_count: traceRows.length,
-    });
   }
 
   return {

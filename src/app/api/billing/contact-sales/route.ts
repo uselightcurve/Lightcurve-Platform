@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
-import { trackServerEvent } from '@/lib/serverAnalytics';
 
 export async function POST(req: Request) {
   try {
@@ -11,11 +10,6 @@ export async function POST(req: Request) {
       email: account.email,
       name: body.name ?? account.name,
       message: body.message,
-    });
-    await trackServerEvent(account, 'Contact Sales Submitted', {
-      plan: 'scale',
-      message_length: typeof body.message === 'string' ? body.message.length : 0,
-      has_name: Boolean(body.name ?? account.name),
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

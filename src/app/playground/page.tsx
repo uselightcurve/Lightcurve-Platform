@@ -16,6 +16,7 @@ import {
 } from '@/lib/pronunciation';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
+import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
@@ -392,10 +393,22 @@ export default function PlaygroundPage() {
     setTargetValue(value);
     setCallState('idle');
     setVisibleTurns(0);
+    trackLightcurveEvent('Pronunciation Preset Selected', {
+      entity_type: entityType,
+      mode,
+      accent,
+      pace,
+    });
   }
 
   function listenToPronunciation() {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    trackLightcurveEvent('Pronunciation Listen Clicked', {
+      entity_type: entityType,
+      mode,
+      accent,
+      pace,
+    });
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(pronunciationSpec.spokenForms[0]);
     utterance.lang = speechLang(accent);
@@ -407,6 +420,10 @@ export default function PlaygroundPage() {
     if (callState === 'running') {
       setVisibleTurns(transcript.length);
       setCallState('complete');
+      trackLightcurveEvent('Playground Call Ended', {
+        scenario_id: activeScenario?.id,
+        transcript_turns: transcript.length,
+      });
       return;
     }
     if (!activeScenario) return;
@@ -425,6 +442,12 @@ export default function PlaygroundPage() {
     setRunError('');
     setVisibleTurns(0);
     setCallState('running');
+    trackLightcurveEvent('Playground Sandbox Started', {
+      scenario_id: baseScenario?.id ?? activeScenario.id,
+      environment_type: environmentType,
+      pronunciation_enabled: pronunciationEnabled,
+      entity_type: pronunciationEnabled ? entityType : undefined,
+    });
     try {
       const connection = await createPlaygroundConnection(agent.trim());
       const experimentResponse = await fetch('/api/experiments', {
@@ -454,14 +477,29 @@ export default function PlaygroundPage() {
       const startPayload = await startResponse.json().catch(() => null);
       if (!startResponse.ok) throw new Error(startPayload?.error ?? 'Unable to start sandbox runner.');
 
+      trackLightcurveEvent('Playground Sandbox Queued', {
+        experiment_id: experimentPayload.experiment.id,
+        run_id: run.id,
+        provider: startPayload?.provider,
+        status: startPayload?.status,
+      });
       router.push(`/experiments/${experimentPayload.experiment.id}/runs/${run.id}`);
     } catch (error) {
       setCallState('idle');
-      setRunError(error instanceof Error ? error.message : 'Unable to start sandbox call.');
+      const message = error instanceof Error ? error.message : 'Unable to start sandbox call.';
+      trackLightcurveEvent('Playground Sandbox Failed', {
+        scenario_id: baseScenario?.id ?? activeScenario.id,
+        error: message,
+      });
+      setRunError(message);
     }
   }
 
   function downloadTranscript() {
+    trackLightcurveEvent('Transcript Downloaded', {
+      scenario_id: activeScenario?.id,
+      transcript_turns: transcript.length,
+    });
     const text = transcript.map((turn) => `${turn.speaker}: ${turn.text}`).join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
