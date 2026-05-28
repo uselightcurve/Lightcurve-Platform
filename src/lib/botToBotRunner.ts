@@ -44,7 +44,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function isInternalRunnerUrl(runnerUrl: string | undefined) {
-  return !runnerUrl || runnerUrl.includes('caller-bridge-preview');
+  return process.env.LIGHTCURVE_ENABLE_INTERNAL_RUNNER === '1' && Boolean(runnerUrl?.includes('caller-bridge-preview'));
 }
 
 export function isBotToBotExperiment(experiment: ExperimentRow) {
@@ -116,7 +116,11 @@ async function callAgentRunner(
     } satisfies AgentTurn;
   }
 
-  const resolvedRunnerUrl = runnerUrl ?? '';
+  if (!runnerUrl) {
+    throw new Error('A real agent runner endpoint is required. Add a WebRTC/SIP/Pipecat/LiveKit endpoint or use a provider-backed call.');
+  }
+
+  const resolvedRunnerUrl = runnerUrl;
   if (!resolvedRunnerUrl.startsWith('http://') && !resolvedRunnerUrl.startsWith('https://')) {
     throw new Error('Bot-to-bot runner requires an HTTPS agent runner endpoint for this phase.');
   }

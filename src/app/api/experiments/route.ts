@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { experiments, runs, scenarios } from '@/db/schema';
+import { experiments, runs, scenarios, scores } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 import { assertUsageAvailable, recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
@@ -26,7 +26,37 @@ export async function GET() {
       .from(experiments)
       .where(eq(experiments.ownerUserId, account.userId))
       .orderBy(desc(experiments.createdAt));
-    return NextResponse.json({ experiments: data });
+
+    const enriched = [];
+    for (const experiment of data) {
+      const expRuns = await db.select().from(runs).where(eq(runs.experimentId, experiment.id));
+      const scoreRows: Array<typeof scores.$inferSelect> = [];
+      for (const run of expRuns) {
+        scoreRows.push(...await db.select().from(scores).where(eq(scores.runId, run.id)));
+      }
+      const mos = scoreRows.filter((score) => score.metricName === 'mos').map((score) => Number(score.value ?? 0));
+      const task = scoreRows
+        .filter((score) => score.metricName === 'task_completed' || score.metricName === 'capture_overall')
+        .map((score) => Number(score.value ?? 0));
+      const latency = scoreRows.filter((score) => score.metricName === 'latency_p95').map((score) => Number(score.value ?? 0));
+      const terminal = expRuns.filter((run) => run.status === 'complete' || run.status === 'failed');
+      const passed = expRuns.filter((run) => run.status === 'complete');
+      const avg = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+
+      enriched.push({
+        ...experiment,
+        summary: {
+          runs: expRuns.length,
+          avgMos: avg(mos),
+          avgTask: avg(task),
+          latencyP95: latency.length ? Math.max(...latency) : null,
+          passRate: terminal.length ? passed.length / terminal.length : null,
+          failedReason: expRuns.find((run) => run.failureSummary)?.failureSummary ?? null,
+        },
+      });
+    }
+
+    return NextResponse.json({ experiments: enriched });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;

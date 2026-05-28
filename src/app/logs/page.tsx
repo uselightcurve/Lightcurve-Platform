@@ -1,8 +1,8 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { StatusChip } from '@/components/PageActions';
-import { demoRunsAsStored, listRuns, type StoredRun } from '@/lib/workspaceStore';
 
 const filters = {
   Language: ['en-US', 'hi-IN', 'es-ES', 'en-GB'],
@@ -60,25 +60,36 @@ function FilterSelect({
   );
 }
 
+function displayStatus(status: string) {
+  if (status === 'complete' || status === 'completed') return 'pass';
+  if (status === 'failed') return 'fail';
+  return status;
+}
+
 export default function LogsPage() {
-  const [storedRuns, setStoredRuns] = useState<StoredRun[]>([]);
+  const [storedRuns, setStoredRuns] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filterState, setFilterState] = useState<Record<string, string[]>>({});
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const load = () => setStoredRuns(listRuns());
+    const load = async () => {
+      const response = await fetch('/api/runs', { cache: 'no-store' });
+      if (!response.ok) {
+        setError('Call logs are unavailable. Check database connectivity and try again.');
+        return;
+      }
+      const data = await response.json();
+      setStoredRuns(data.runs ?? []);
+      setError('');
+    };
 
     load();
-    window.addEventListener('lightcurve-workspace-updated', load);
-    return () => {
-      window.removeEventListener('lightcurve-workspace-updated', load);
-    };
   }, []);
 
   const rows = useMemo(() => {
-    const merged = [...storedRuns, ...demoRunsAsStored()];
-    return merged.filter((run) => {
+    return storedRuns.filter((run) => {
     const target = `${run.scenarioName} ${run.transcript}`.toLowerCase();
       const matchesQuery = !query || target.includes(query.toLowerCase());
       const matchesLanguage = !filterState.Language?.length || filterState.Language.includes(run.language);
@@ -119,12 +130,16 @@ export default function LogsPage() {
       <div className="page-header flex items-start justify-between">
         <div>
           <h1 className="page-title">Logs</h1>
-          <p className="page-subtitle">Search, filter, and replay every simulated call.</p>
+          <p className="page-subtitle">Search, filter, and inspect every sandbox call.</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="toolbar-button" onClick={exportCsv}>Export CSV</button>
         </div>
       </div>
+
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
       <div className="space-y-3">
         <div className="card rounded-xl px-4 py-3">
@@ -194,13 +209,19 @@ export default function LogsPage() {
                       <p className="mt-0.5 truncate text-xs text-slate-400">{run.domain} / {run.emotion}</p>
                     </td>
                     <td className="px-3 py-3 text-slate-600">{run.language}</td>
-                    <td className="px-3 py-3"><ScoreCell value={run.mos} max={4.5} /></td>
-                    <td className="px-3 py-3"><ScoreCell value={run.task} /></td>
-                    <td className="px-3 py-3"><StatusChip status={run.status} /></td>
+                    <td className="px-3 py-3">{typeof run.mos === 'number' ? <ScoreCell value={run.mos} max={4.5} /> : <span className="text-xs text-slate-400">Pending</span>}</td>
+                    <td className="px-3 py-3">{typeof run.task === 'number' ? <ScoreCell value={run.task} /> : <span className="text-xs text-slate-400">Pending</span>}</td>
+                    <td className="px-3 py-3"><StatusChip status={displayStatus(run.status)} /></td>
                     <td className="px-3 py-3 text-right">
-                      <button className="btn-secondary min-h-7 px-3 text-xs" onClick={(event) => event.stopPropagation()}>
-                        Play
-                      </button>
+                      {run.experimentId ? (
+                        <Link
+                          href={`/experiments/${run.experimentId}/runs/${run.id}`}
+                          className="btn-secondary min-h-7 px-3 text-xs"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Open
+                        </Link>
+                      ) : null}
                     </td>
                   </tr>
 
@@ -211,8 +232,8 @@ export default function LogsPage() {
                           <div className="grid grid-cols-5 gap-4">
                             <DetailItem label="Agent" value={run.agent} />
                             <DetailItem label="Duration" value={run.duration} />
-                            <DetailItem label="Latency p95" value={`${run.latencyP95}ms`} />
-                            <DetailItem label="STT" value={`${Math.round(run.sttConfidence * 100)}%`} />
+                            <DetailItem label="Latency p95" value={run.latencyP95 ? `${run.latencyP95}ms` : '-'} />
+                            <DetailItem label="STT" value={run.sttConfidence ? `${Math.round(run.sttConfidence * 100)}%` : '-'} />
                             <DetailItem label="Run ID" value={run.id} />
                           </div>
                           <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3">
@@ -232,6 +253,15 @@ export default function LogsPage() {
                   )}
                 </Fragment>
               ))}
+              {!rows.length ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-12 text-center">
+                    <p className="text-sm font-medium text-slate-900">No real call logs yet</p>
+                    <p className="mt-1 text-sm text-slate-500">Create an experiment and start a run to populate this table.</p>
+                    <Link href="/experiments/new" className="btn-primary mt-4 inline-flex">Create experiment</Link>
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
 

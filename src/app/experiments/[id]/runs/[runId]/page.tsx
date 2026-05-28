@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { buildPronunciationReport } from '@/lib/pronunciation';
-import { getRun, getScenarios } from '@/lib/workspaceStore';
 
 function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
@@ -34,33 +33,6 @@ export default function RunDetail() {
 
   useEffect(() => {
     const load = () => {
-      const localRun = getRun(runId);
-      if (localRun) {
-        const localScenario = getScenarios().find((item) => item.id === localRun.scenarioId);
-        setData({
-          run: {
-            ...localRun,
-            status: localRun.status === 'pass' ? 'complete' : localRun.status === 'fail' ? 'failed' : localRun.status,
-            turnCount: localRun.traces.length,
-          },
-          traces: localRun.traces.map((trace, index) => ({
-            ...trace,
-            turnIndex: index,
-            totalLatencyMs: trace.latencyMs,
-            sttConfidence: trace.sttConfidence,
-          })),
-          scores: localRun.scores.map((score) => ({
-            ...score,
-            id: `${localRun.id}-${score.metricName}`,
-            runId: localRun.id,
-            method: score.metricName === 'mos' ? 'simulated-mos' : 'sandbox-judge',
-          })),
-          scenario: localScenario,
-        });
-        setPolling(false);
-        return;
-      }
-
       fetch(`/api/runs/${runId}`)
         .then((r) => r.json())
         .then((d) => {
@@ -398,7 +370,7 @@ export default function RunDetail() {
             <div className="space-y-2 text-xs">
               {[
                 { label: 'Status', val: run.status },
-                { label: 'Provider', val: run.provider ?? 'synthetic' },
+                { label: 'Provider', val: run.provider ?? '-' },
                 { label: 'External status', val: run.externalStatus ?? '-' },
                 { label: 'Turns', val: run.turnCount ?? '-' },
                 { label: 'Duration', val: run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '-' },

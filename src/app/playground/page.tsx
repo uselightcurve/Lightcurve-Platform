@@ -15,13 +15,7 @@ import {
   type PronunciationPace,
 } from '@/lib/pronunciation';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
-import {
-  createPlaygroundExperiment,
-  getAgent,
-  getScenarios,
-  saveScenario,
-  type StoredScenario,
-} from '@/lib/workspaceStore';
+import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 
 const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
@@ -239,10 +233,9 @@ export default function PlaygroundPage() {
   const router = useRouter();
   const [callState, setCallState] = useState<'idle' | 'running' | 'complete'>('idle');
   const [scenarioId, setScenarioId] = useState(REAL_SCENARIO_LIBRARY[0]?.id ?? '');
-  const [agent, setAgent] = useState('sandbox-stub-agent');
+  const [agent, setAgent] = useState('');
   const [scenarios, setScenarios] = useState<StoredScenario[]>(dedupeScenarios(REAL_SCENARIO_LIBRARY as StoredScenario[]));
   const [visibleTurns, setVisibleTurns] = useState(0);
-  const [saved, setSaved] = useState(false);
   const [pronunciationEnabled, setPronunciationEnabled] = useState(true);
   const [entityType, setEntityType] = useState<PronunciationEntityType>('email');
   const [targetValue, setTargetValue] = useState(PRONUNCIATION_PRESETS.email[0]);
@@ -250,11 +243,30 @@ export default function PlaygroundPage() {
   const [pace, setPace] = useState<PronunciationPace>('normal');
   const [mode, setMode] = useState<PronunciationMode>('spell_out');
   const [environmentType, setEnvironmentType] = useState('CRM');
+  const [runError, setRunError] = useState('');
 
   useEffect(() => {
-    setScenarios(dedupeScenarios(getScenarios()));
-    const savedAgent = getAgent();
-    if (savedAgent?.locator) setAgent(savedAgent.locator);
+    let cancelled = false;
+
+    async function loadScenarios() {
+      try {
+        const response = await fetch('/api/scenarios', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to load scenarios.');
+        const loaded = (await response.json()) as StoredScenario[];
+        if (!cancelled) {
+          const deduped = dedupeScenarios(loaded);
+          setScenarios(deduped);
+          if (deduped[0] && !scenarioId) setScenarioId(deduped[0].id);
+        }
+      } catch (error) {
+        if (!cancelled) setRunError(error instanceof Error ? error.message : 'Unable to load scenarios.');
+      }
+    }
+
+    loadScenarios();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const baseScenario = useMemo(() => {
@@ -362,7 +374,6 @@ export default function PlaygroundPage() {
     setTargetValue(value);
     setCallState('idle');
     setVisibleTurns(0);
-    setSaved(false);
   }
 
   function listenToPronunciation() {
@@ -374,26 +385,52 @@ export default function PlaygroundPage() {
     window.speechSynthesis.speak(utterance);
   }
 
-  function startOrEndCall() {
-    setSaved(false);
+  async function startOrEndCall() {
     if (callState === 'running') {
       setVisibleTurns(transcript.length);
       setCallState('complete');
       return;
     }
+    if (!activeScenario) return;
+    if (!agent.trim()) {
+      setRunError('Enter a real agent phone number, SIP URI, WebRTC endpoint, or provider connection before starting a sandbox call.');
+      return;
+    }
+    setRunError('');
     setVisibleTurns(0);
     setCallState('running');
-  }
+    try {
+      const experimentResponse = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: `${activeScenario.name} playground check`,
+          agentType: 'custom_webrtc',
+          agentConfig: {
+            endpointType: agent.startsWith('sip:') ? 'sip' : agent.startsWith('http') || agent.startsWith('wss:') ? 'webrtc' : 'phone',
+            endpoint: agent,
+            pronunciation: activeScenario.pronunciation ?? null,
+            sandboxEnvironment: environmentType,
+          },
+          webrtcEndpoint: agent,
+          scenarioIds: [activeScenario.id],
+          gitSha: 'playground',
+        }),
+      });
+      const experimentPayload = await experimentResponse.json().catch(() => null);
+      if (!experimentResponse.ok) throw new Error(experimentPayload?.error ?? 'Unable to create sandbox run.');
+      const run = experimentPayload?.runs?.[0];
+      if (!run?.id) throw new Error('Sandbox run was not created.');
 
-  function saveToExperiments() {
-    if (!activeScenario) return;
-    if (activeScenario.pronunciation) saveScenario(activeScenario);
-    const result = createPlaygroundExperiment({
-      scenarioId: activeScenario.id,
-      agent,
-    });
-    setSaved(true);
-    router.push(`/experiments/${result.experiment.id}`);
+      const startResponse = await fetch(`/api/runs/${run.id}/start`, { method: 'POST' });
+      const startPayload = await startResponse.json().catch(() => null);
+      if (!startResponse.ok) throw new Error(startPayload?.error ?? 'Unable to start sandbox runner.');
+
+      router.push(`/experiments/${experimentPayload.experiment.id}/runs/${run.id}`);
+    } catch (error) {
+      setCallState('idle');
+      setRunError(error instanceof Error ? error.message : 'Unable to start sandbox call.');
+    }
   }
 
   function downloadTranscript() {
@@ -435,7 +472,6 @@ export default function PlaygroundPage() {
                   setScenarioId(event.target.value);
                   setCallState('idle');
                   setVisibleTurns(0);
-                  setSaved(false);
                 }}
               >
                 {scenarios.map((scenario) => (
@@ -447,9 +483,18 @@ export default function PlaygroundPage() {
             </label>
 
             <label className="block text-xs text-slate-500">
-              Agent
-              <input className="input-field mt-1" value={agent} onChange={(event) => setAgent(event.target.value)} />
+              Agent endpoint
+              <input
+                className="input-field mt-1"
+                value={agent}
+                onChange={(event) => setAgent(event.target.value)}
+                placeholder="sip:agent@example.com, wss://agent.example.com/media, or phone number"
+              />
             </label>
+
+            {runError && (
+              <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">{runError}</div>
+            )}
 
             <label className="block text-xs text-slate-500">
               Sandbox environment
@@ -702,8 +747,8 @@ export default function PlaygroundPage() {
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={downloadTranscript}>Download</button>
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={startOrEndCall}>Re-run</button>
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork Scenario</button>
-                <button className="btn-primary min-h-8 px-3 py-1.5 text-xs" onClick={saveToExperiments}>
-                  {saved ? 'Saved' : 'Save to Experiments'}
+                <button className="btn-primary min-h-8 px-3 py-1.5 text-xs" onClick={startOrEndCall}>
+                  Start new real run
                 </button>
               </div>
             </div>

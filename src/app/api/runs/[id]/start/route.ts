@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
-import { createRoom } from '@/lib/daily';
 import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandboxProviders';
 import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment } from '@/lib/botToBotRunner';
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
@@ -92,27 +91,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
   }
 
-  // Set to running
-  await db.update(runs).set({ status: 'running', startedAt: new Date() }).where(eq(runs.id, id));
-  await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
-
-  // 1. Create Daily Room
-  let dailyRoomUrl = '';
-  try {
-    const room = await createRoom(id);
-    dailyRoomUrl = room.url;
-    await db.update(runs).set({ dailyRoomUrl }).where(eq(runs.id, id));
-  } catch (e) {
-    console.error('Failed to create Daily room', e);
-  }
-
-  // Run the loop in background (not awaiting intentionally, or dispatch to worker)
-  // In a true serverless environment, this should be sent to a worker or Cloud Run instance
-  // For MVP, we simulate it here.
-  const { runSyntheticCallerLoop } = await import('@/lib/syntheticCaller');
-  runSyntheticCallerLoop(id, dailyRoomUrl, scenario).catch(console.error);
-
-  return NextResponse.json({ success: true, status: 'running' });
+  return NextResponse.json(
+    {
+      error:
+        'This experiment is not connected to a real provider call or bot-to-bot runner endpoint. Add an agent connection before starting the run.',
+    },
+    { status: 400 },
+  );
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;

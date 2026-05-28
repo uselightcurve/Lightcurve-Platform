@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ProviderLogo } from '@/components/ProviderLogo';
-import { providerDefinitions, type ProviderId } from '@/lib/integrations';
+import { providerDefinitions } from '@/lib/integrations';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
-import { createExperiment, getAgent, getScenarios, type StoredScenario } from '@/lib/workspaceStore';
+
+type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
 
 const AGENT_TYPES = providerDefinitions.map((provider) => ({
   id: provider.id,
@@ -127,19 +128,22 @@ export default function NewExperiment() {
   const [elevenLabsPhoneNumberId, setElevenLabsPhoneNumberId] = useState('');
   const [elevenLabsMode, setElevenLabsMode] = useState<'live_call' | 'recording_replay'>('recording_replay');
   const [expName, setExpName] = useState('pre-production voice preflight');
-  const [scenarios, setScenarios] = useState<StoredScenario[]>(REAL_SCENARIO_LIBRARY as StoredScenario[]);
+  const [scenarios, setScenarios] = useState<StoredScenario[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setScenarios(getScenarios());
-    const savedAgent = getAgent();
-    if (savedAgent) {
-      setAgentType(savedAgent.agentType);
-      setAgentLocator(savedAgent.locator);
-      setApiKey(savedAgent.apiKey ?? '');
-    }
+    const load = async () => {
+      const response = await fetch('/api/scenarios', { cache: 'no-store' });
+      if (!response.ok) {
+        setError('Scenario library is unavailable. Check the database connection and retry.');
+        return;
+      }
+      const data = await response.json();
+      setScenarios(data.scenarios ?? []);
+    };
+    load();
   }, []);
 
   useEffect(() => {
@@ -185,11 +189,6 @@ export default function NewExperiment() {
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
-  };
-
-  const useMockAgent = () => {
-    setAgentType('custom_webrtc');
-    setAgentLocator('wss://sandbox.lightcurve.local/caller-bridge-preview');
   };
 
   const handleRun = async () => {
@@ -264,45 +263,32 @@ export default function NewExperiment() {
                 ? { runnerUrl: agentLocator, apiKey }
                 : { agentId: agentLocator, apiKey };
 
-      if (usesLiveProvider || botToBotProvider) {
-        const response = await fetch('/api/experiments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: expName,
-            agentType,
-            agentConfig,
-            webrtcEndpoint: `${agentType}:${agentLocator}`,
-            scenarioIds: selectedIds,
-            gitSha: 'live-sandbox',
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error ?? 'Provider sandbox experiment could not be created');
-        }
-
-        await Promise.all(
-          (data.runs ?? []).map(async (run: { id: string }) => {
-            const startResponse = await fetch(`/api/runs/${run.id}/start`, { method: 'POST' });
-            if (!startResponse.ok) {
-              const startData = await startResponse.json().catch(() => ({}));
-              throw new Error(startData.error ?? `Run ${run.id} could not be started`);
-            }
-          }),
-        );
-
-        router.push(`/experiments/${data.experiment.id}`);
-        return;
+      const response = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: expName,
+          agentType,
+          agentConfig,
+          webrtcEndpoint: `${agentType}:${agentLocator}`,
+          scenarioIds: selectedIds,
+          gitSha: 'live-sandbox',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Sandbox experiment could not be created');
       }
 
-      const data = createExperiment({
-        name: expName,
-        agentType: agentType as ProviderId,
-        agentConfig,
-        scenarioIds: selectedIds,
-        gitSha: 'local-mvp',
-      });
+      await Promise.all(
+        (data.runs ?? []).map(async (run: { id: string }) => {
+          const startResponse = await fetch(`/api/runs/${run.id}/start`, { method: 'POST' });
+          if (!startResponse.ok) {
+            const startData = await startResponse.json().catch(() => ({}));
+            throw new Error(startData.error ?? `Run ${run.id} could not be started`);
+          }
+        }),
+      );
 
       router.push(`/experiments/${data.experiment.id}`);
     } catch (err) {
@@ -333,16 +319,11 @@ export default function NewExperiment() {
       {step === 1 && (
         <div className="grid grid-cols-[1fr_360px] gap-5">
           <section className="card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-base font-medium text-slate-950">Connect your voice agent</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Lightcurve tests your voice agent through live calls, replay imports, or the isolated bot-to-bot caller bridge.
-                </p>
-              </div>
-              <button type="button" onClick={useMockAgent} className="btn-secondary text-xs">
-                Use internal runner
-              </button>
+            <div>
+              <h2 className="text-base font-medium text-slate-950">Connect your voice agent</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Lightcurve tests your voice agent through live calls, replay imports, or the isolated bot-to-bot caller bridge.
+              </p>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2.5">
@@ -504,7 +485,7 @@ export default function NewExperiment() {
 
             {botToBotProvider && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
-                Bot-to-bot mode queues an isolated caller simulator against your agent runner URL. Use the internal runner for a quick smoke test, or point Pipecat/LiveKit/Custom to your own HTTPS runner.
+                Bot-to-bot mode queues an isolated caller simulator against your real agent runner URL. Point Pipecat, LiveKit, or Custom WebRTC to your HTTPS runner endpoint.
               </div>
             )}
 
@@ -555,7 +536,7 @@ export default function NewExperiment() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-medium text-slate-950">
-                  {liveProvider ? 'Choose caller scripts' : 'Choose simulated callers'}
+                  Choose sandbox callers
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {liveProvider

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { getExperiment, getScenarios } from '@/lib/workspaceStore';
 
 function formatScenarioName(value: unknown) {
   return String(value ?? 'Unknown scenario')
@@ -53,34 +52,6 @@ export default function ExperimentDetail() {
 
   useEffect(() => {
     const load = () => {
-      const local = getExperiment(id);
-      if (local) {
-        const localScenarios = getScenarios();
-        setData({
-          experiment: {
-            ...local.experiment,
-            agentType: local.experiment.agentType,
-            status: local.experiment.status === 'pass' ? 'completed' : local.experiment.status,
-          },
-          runs: local.runs.map((run) => ({
-            ...run,
-            status: run.status === 'pass' ? 'complete' : run.status === 'fail' ? 'failed' : run.status,
-            turnCount: run.traces.length,
-            scenarioId: run.scenarioId,
-          })),
-          scores: local.runs.flatMap((run) =>
-            run.scores.map((score) => ({
-              ...score,
-              id: `${run.id}-${score.metricName}`,
-              runId: run.id,
-            })),
-          ),
-          scenarios: localScenarios,
-        });
-        setPolling(false);
-        return;
-      }
-
       fetch(`/api/experiments/${id}`)
         .then((r) => r.json())
         .then((d) => {

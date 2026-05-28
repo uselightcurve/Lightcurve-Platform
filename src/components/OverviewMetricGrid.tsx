@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { listExperiments, listRuns } from '@/lib/workspaceStore';
+import { useMemo, useState } from 'react';
 
 type MetricPanel = {
   title: string;
@@ -232,46 +231,12 @@ function MetricCard({ panel }: { panel: MetricPanel }) {
 }
 
 export function OverviewMetricGrid({ panels }: { panels: MetricPanel[] }) {
-  const [livePanels, setLivePanels] = useState<MetricPanel[]>(panels);
-
-  useEffect(() => {
-    const load = () => {
-      const runs = listRuns();
-      const experiments = listExperiments();
-      if (!runs.length && !experiments.length) {
-        setLivePanels(panels);
-        return;
-      }
-
-      const avgMos = runs.length ? runs.reduce((sum, run) => sum + run.mos, 0) / runs.length : 0;
-      const avgTask = runs.length ? runs.reduce((sum, run) => sum + run.task, 0) / runs.length : 0;
-      const latencyP95 = runs.length ? Math.max(...runs.map((run) => run.latencyP95)) : 0;
-      const failures = runs.filter((run) => run.status === 'fail').length;
-
-      setLivePanels((current) =>
-        current.map((panel) => {
-          if (panel.title === 'Calls') return { ...panel, value: runs.length.toString(), series: runs.map((_, index) => index + 1).slice(-7) };
-          if (panel.title === 'Avg MOS') return { ...panel, value: avgMos.toFixed(1), series: runs.map((run) => run.mos).slice(-7) };
-          if (panel.title === 'Task completion') return { ...panel, value: `${Math.round(avgTask * 100)}%`, series: runs.map((run) => Math.round(run.task * 100)).slice(-7) };
-          if (panel.title === 'Latency p95') return { ...panel, value: `${(latencyP95 / 1000).toFixed(1)}s`, series: runs.map((run) => run.latencyP95 / 1000).slice(-7) };
-          if (panel.title === 'Failure topics') return { ...panel, value: failures.toString(), series: runs.map((run) => (run.status === 'fail' ? 78 : 28)).slice(-10) };
-          if (panel.title === 'Experiments') return { ...panel, value: experiments.length.toString(), series: experiments.map((_, index) => index + 1).slice(-7) };
-          return panel;
-        }),
-      );
-    };
-
-    load();
-    window.addEventListener('lightcurve-workspace-updated', load);
-    return () => window.removeEventListener('lightcurve-workspace-updated', load);
-  }, [panels]);
-
   const normalizedPanels = useMemo(() => {
-    return livePanels.map((panel) => ({
+    return panels.map((panel) => ({
       ...panel,
       series: panel.series.length ? panel.series : panels.find((item) => item.title === panel.title)?.series ?? [0],
     }));
-  }, [livePanels, panels]);
+  }, [panels]);
 
   return (
     <div className="grid grid-cols-3 gap-3">

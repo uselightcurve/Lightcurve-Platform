@@ -34,3 +34,28 @@ export async function GET() {
     return NextResponse.json({ error: 'Scenarios unavailable' }, { status: 503 });
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const account = await requireAccount();
+    const body = await req.json();
+    const persona = body.persona && typeof body.persona === 'object' ? body.persona : {};
+    const successCriteria = Array.isArray(body.successCriteria) ? body.successCriteria : [];
+    const created = await db.insert(scenarios).values({
+      ownerUserId: account.userId,
+      name: String(body.name ?? 'custom_scenario'),
+      language: String(body.language ?? 'en-US'),
+      domain: String(body.domain ?? 'general'),
+      persona,
+      successCriteria,
+      callerSeed: Number(body.callerSeed ?? Date.now() % 100000),
+      isPreset: false,
+    }).returning();
+    return NextResponse.json({ scenario: created[0] });
+  } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
+    console.error('Failed to create scenario', error);
+    return NextResponse.json({ error: 'Scenario could not be created' }, { status: 500 });
+  }
+}

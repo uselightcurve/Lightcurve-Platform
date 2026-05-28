@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getScenarios, saveScenario, type StoredScenario } from '@/lib/workspaceStore';
+import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 
 const languageFlags: Record<string, string> = {
   'en-US': 'US',
@@ -96,16 +96,34 @@ export default function ScenariosPage() {
   const [customScenario, setCustomScenario] = useState(defaultCustomScenario);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    const loaded = getScenarios();
-    setScenarios(loaded);
+    let cancelled = false;
 
-    const forkId = new URLSearchParams(window.location.search).get('fork');
-    if (forkId) {
-      const target = loaded.find((scenario) => scenario.id === forkId);
-      if (target) setForking(target);
+    async function loadScenarios() {
+      setLoadError('');
+      try {
+        const response = await fetch('/api/scenarios', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to load scenario library.');
+        const loaded = (await response.json()) as StoredScenario[];
+        if (cancelled) return;
+        setScenarios(loaded);
+
+        const forkId = new URLSearchParams(window.location.search).get('fork');
+        if (forkId) {
+          const target = loaded.find((scenario) => scenario.id === forkId);
+          if (target) setForking(target);
+        }
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Unable to load scenarios.');
+      }
     }
+
+    loadScenarios();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const languages = useMemo(() => Array.from(new Set(scenarios.map((scenario) => scenario.language))).sort(), [scenarios]);
@@ -157,30 +175,27 @@ export default function ScenariosPage() {
     window.speechSynthesis.speak(utterance);
   }
 
-  function saveFork() {
+  async function saveFork() {
     if (!forking) return;
-    const fork: StoredScenario = {
-      ...forking,
-      id: `custom-${forking.id}-${Date.now().toString(36)}`,
-      name: `${forking.name} custom`,
-      isPreset: false,
-      parentName: forking.name,
-      persona: {
-        ...forking.persona,
-        name: `${forking.persona.name} fork`,
-        noise_db: Math.min((forking.persona.noise_db ?? 0) + 2, 12),
-      },
-    };
-    saveScenario(fork);
-    setScenarios(getScenarios());
-    setForking(null);
+    setLoadError('');
+    try {
+      const response = await fetch(`/api/scenarios/${forking.id}/fork`, { method: 'POST' });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error ?? 'Unable to fork scenario.');
+      }
+      const fork = (await response.json()) as StoredScenario;
+      setScenarios((current) => [fork, ...current.filter((scenario) => scenario.id !== fork.id)]);
+      setForking(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to fork scenario.');
+    }
   }
 
-  function saveCustomScenario() {
+  async function saveCustomScenario() {
     if (!customScenario.name.trim() || !customScenario.goal.trim()) return;
     const openingLine = customScenario.openingLine.trim() || customScenario.goal.trim();
-    const scenario: StoredScenario = {
-      id: `custom-${Date.now().toString(36)}`,
+    const scenario = {
       name: customScenario.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
       language: customScenario.language,
       domain: customScenario.domain,
@@ -207,12 +222,25 @@ export default function ScenariosPage() {
         { type: 'no_hallucination', description: 'Agent does not invent unavailable facts.', weight: 0.15 },
       ],
       callerSeed: Date.now() % 100000,
-      isPreset: false,
     };
-    saveScenario(scenario);
-    setScenarios(getScenarios());
-    setCustomScenario(defaultCustomScenario);
-    setShowCreate(false);
+    setLoadError('');
+    try {
+      const response = await fetch('/api/scenarios', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(scenario),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error ?? 'Unable to save scenario.');
+      }
+      const savedScenario = (await response.json()) as StoredScenario;
+      setScenarios((current) => [savedScenario, ...current.filter((item) => item.id !== savedScenario.id)]);
+      setCustomScenario(defaultCustomScenario);
+      setShowCreate(false);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to save scenario.');
+    }
   }
 
   return (
@@ -221,6 +249,9 @@ export default function ScenariosPage() {
         <h1 className="page-title">Scenarios</h1>
         <p className="page-subtitle">Real-world caller library for sandboxing voice agents before production.</p>
       </div>
+      {loadError && (
+        <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-4 py-3 text-sm text-[#8f3d3b]">{loadError}</div>
+      )}
 
       <div className="card p-3">
         <div className="flex flex-wrap items-end justify-between gap-3">

@@ -7,7 +7,7 @@ import { AppShell } from "@/components/AppShell";
 export const metadata: Metadata = {
   title: "Lightcurve Dashboard",
   description:
-    "Run simulated phone-call sandboxes for voice AI agents, score MOS and task quality, and gate releases before production.",
+    "Run sandboxed phone-call tests for voice AI agents, score MOS and task quality, and gate releases before production.",
 };
 
 export default function RootLayout({
