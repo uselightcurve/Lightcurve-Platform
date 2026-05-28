@@ -27,19 +27,44 @@ async function fetchHealth(url: string, init?: RequestInit) {
 
 async function validateConnection(connection: typeof agentConnections.$inferSelect) {
   const credentials = await decryptCredentials(connection.encryptedCredentials);
-  const apiKey = stringValue(credentials.apiKey);
-  const assistantId = stringValue(credentials.assistantId) ?? stringValue(credentials.agentId);
+  const apiKey =
+    stringValue(credentials.apiKey) ??
+    (connection.provider === 'vapi'
+      ? stringValue(process.env.VAPI_API_KEY)
+      : connection.provider === 'retell'
+        ? stringValue(process.env.RETELL_API_KEY)
+        : connection.provider === 'elevenlabs'
+          ? stringValue(process.env.ELEVENLABS_API_KEY)
+          : undefined);
+  const assistantId =
+    stringValue(credentials.assistantId) ??
+    stringValue(credentials.agentId) ??
+    (connection.provider === 'vapi'
+      ? stringValue(process.env.VAPI_ASSISTANT_ID)
+      : connection.provider === 'retell'
+        ? stringValue(process.env.RETELL_AGENT_ID)
+        : connection.provider === 'elevenlabs'
+          ? stringValue(process.env.ELEVENLABS_AGENT_ID)
+          : undefined);
 
   if (connection.provider === 'custom_webrtc' || connection.provider === 'pipecat') {
     if (!connection.endpoint) return { ok: false, message: 'Endpoint is required.' };
+    if (connection.endpoint.startsWith('sip:') || connection.endpoint.startsWith('wss:')) {
+      return { ok: false, message: 'Native SIP/WebRTC media bridge is coming next. Use an HTTPS runner endpoint for today.' };
+    }
+    if (!connection.endpoint.startsWith('https://')) {
+      return { ok: false, message: 'Endpoint must be a real HTTPS runner URL.' };
+    }
     const result = await fetchHealth(connection.endpoint, { method: 'GET' });
     return { ok: result.ok, message: result.ok ? 'Endpoint responded.' : `Endpoint returned ${result.status}.` };
   }
 
   if (connection.provider === 'livekit') {
-    return connection.endpoint
-      ? { ok: true, message: 'LiveKit room/server endpoint is configured.' }
-      : { ok: false, message: 'LiveKit endpoint is required.' };
+    if (!connection.endpoint) return { ok: false, message: 'LiveKit HTTPS runner endpoint is required.' };
+    if (!connection.endpoint.startsWith('https://')) {
+      return { ok: false, message: 'Use a compatible HTTPS LiveKit runner endpoint for today. Native room bridge is coming next.' };
+    }
+    return { ok: true, message: 'LiveKit runner endpoint is configured.' };
   }
 
   if (connection.provider === 'vapi') {

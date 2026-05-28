@@ -16,6 +16,24 @@ function text(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function endpointProblem(provider: string, endpointType: string, endpoint: string) {
+  if (['livekit', 'pipecat', 'custom_webrtc'].includes(provider)) {
+    if (!endpoint) return 'HTTPS runner endpoint is required for bot-to-bot sandbox mode.';
+    if (endpoint.startsWith('sip:') || endpoint.startsWith('wss:')) {
+      return 'Native SIP/WebRTC media bridge is not enabled for this release. Use a compatible HTTPS runner endpoint today.';
+    }
+    if (!endpoint.startsWith('https://')) {
+      return 'Enter a valid HTTPS runner endpoint. Random text cannot be used as an agent endpoint.';
+    }
+  }
+
+  if (endpointType === 'phone' && endpoint && !/^\+?[0-9\s().-]{8,}$/.test(endpoint)) {
+    return 'Phone endpoints must be real dialable phone numbers.';
+  }
+
+  return '';
+}
+
 function publicConnection(connection: typeof agentConnections.$inferSelect) {
   return {
     id: connection.id,
@@ -59,6 +77,9 @@ export async function POST(req: Request) {
 
     if (!PROVIDERS.has(provider)) return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 });
     if (!ENDPOINT_TYPES.has(endpointType)) return NextResponse.json({ error: 'Unsupported endpoint type' }, { status: 400 });
+    const endpoint = text(body.endpoint);
+    const problem = endpointProblem(provider, endpointType, endpoint);
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
     const encryptedCredentials = await encryptCredentials(credentials);
     const [connection] = await db
@@ -68,7 +89,7 @@ export async function POST(req: Request) {
         provider,
         displayName: text(body.displayName) || provider,
         endpointType,
-        endpoint: text(body.endpoint) || null,
+        endpoint: endpoint || null,
         encryptedCredentials,
         credentialsPreview: credentialPreview(credentials),
         healthStatus: 'untested',

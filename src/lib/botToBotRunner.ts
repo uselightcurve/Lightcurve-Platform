@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import type { experiments, runs, scenarios } from '@/db/schema';
 import { db } from '@/db';
-import { scores, traces, runs as runsTable } from '@/db/schema';
+import { scores, traces, runs as runsTable, usageEvents } from '@/db/schema';
 import { VOICE_MAP } from '@/lib/constants';
 import { generateWithLightcurveModel } from '@/lib/vertex';
 
@@ -393,6 +393,24 @@ export async function executeBotToBotRun(runId: string, experiment: ExperimentRo
     })
     .where(eq(runsTable.id, runId))
     .returning();
+
+  if (experiment.ownerUserId) {
+    const existingUsage = await db
+      .select()
+      .from(usageEvents)
+      .where(eq(usageEvents.sourceRunId, runId))
+      .limit(1);
+    if (!existingUsage.length) {
+      await db.insert(usageEvents).values({
+        ownerUserId: experiment.ownerUserId,
+        eventType: 'run_completed',
+        minutes: durationMs / 60000,
+        actions: 0,
+        sourceRunId: runId,
+        sourceExperimentId: experiment.id,
+      });
+    }
+  }
 
   return {
     run: updatedRun[0],

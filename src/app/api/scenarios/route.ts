@@ -31,7 +31,11 @@ export async function GET() {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
     console.error('Failed to load scenarios', error);
-    return NextResponse.json({ error: 'Scenarios unavailable' }, { status: 503 });
+    return NextResponse.json({
+      scenarios: REAL_SCENARIO_LIBRARY,
+      degraded: true,
+      error: 'Workspace scenario sync is unavailable. Showing the global scenario library.',
+    });
   }
 }
 

@@ -62,6 +62,31 @@ function looksLikePhoneNumber(value: string) {
   return digits.length >= 8 && /^[+\d\s().-]+$/.test(trimmed);
 }
 
+function endpointTypeFor(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('sip:')) return 'sip';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('wss:')) return 'webrtc';
+  if (looksLikePhoneNumber(trimmed)) return 'phone';
+  return 'provider_api';
+}
+
+async function createAgentConnection(params: {
+  provider: string;
+  displayName: string;
+  endpointType: string;
+  endpoint: string;
+  credentials: Record<string, string>;
+}) {
+  const response = await fetch('/api/agent-connections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error ?? 'Agent connection could not be saved.');
+  return data.agentConnection as { id: string };
+}
+
 function Stepper({ step, setStep }: { step: number; setStep: (step: number) => void }) {
   return (
     <div className="flex items-center gap-0">
@@ -214,6 +239,10 @@ export default function NewExperiment() {
         return;
       }
     }
+    if (isBotToBotProvider(agentType) && !agentLocator.trim().startsWith('https://')) {
+      setError('For LiveKit, Pipecat, or Custom WebRTC today, enter a compatible HTTPS runner endpoint. Native SIP/WebRTC media bridge is coming next.');
+      return;
+    }
     if (needsHumanTester && !vapiCustomerNumber.trim()) {
       setError('Add a consented test phone number for the live sandbox call.');
       return;
@@ -260,8 +289,35 @@ export default function NewExperiment() {
             : agentType === 'livekit'
               ? { runnerUrl: agentLocator, apiKey }
               : agentType === 'pipecat'
-                ? { runnerUrl: agentLocator, apiKey }
-                : { agentId: agentLocator, apiKey };
+              ? { runnerUrl: agentLocator, apiKey }
+              : { agentId: agentLocator, apiKey };
+      const credentials: Record<string, string> =
+        agentType === 'vapi'
+          ? vapiBotToBotPhone
+            ? {
+                apiKey,
+                phoneNumberId: vapiPhoneNumberId,
+                callerAssistantId: vapiCallerAssistantId,
+              }
+            : {
+                apiKey,
+                assistantId: agentLocator,
+                phoneNumberId: vapiPhoneNumberId,
+                customerNumber: vapiCustomerNumber,
+              }
+          : agentType === 'retell'
+            ? { apiKey, agentId: agentLocator, fromNumber: retellFromNumber, customerNumber: vapiCustomerNumber }
+            : agentType === 'elevenlabs'
+              ? { apiKey, agentId: agentLocator, agentPhoneNumberId: elevenLabsPhoneNumberId, customerNumber: vapiCustomerNumber }
+              : { apiKey };
+
+      const connection = await createAgentConnection({
+        provider: agentType,
+        displayName: `${activeAgent.label} ${new Date().toLocaleDateString()}`,
+        endpointType: endpointTypeFor(agentLocator),
+        endpoint: vapiBotToBotPhone || isBotToBotProvider(agentType) ? agentLocator : '',
+        credentials,
+      });
 
       const response = await fetch('/api/experiments', {
         method: 'POST',
@@ -269,6 +325,7 @@ export default function NewExperiment() {
         body: JSON.stringify({
           name: expName,
           agentType,
+          agentConnectionId: connection.id,
           agentConfig,
           webrtcEndpoint: `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,

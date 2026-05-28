@@ -66,6 +66,23 @@ function speechRate(pace: PronunciationPace) {
   return 0.92;
 }
 
+async function createPlaygroundConnection(endpoint: string) {
+  const response = await fetch('/api/agent-connections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: 'custom_webrtc',
+      displayName: 'Playground HTTPS runner',
+      endpointType: 'webrtc',
+      endpoint,
+      credentials: {},
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error ?? 'Agent connection could not be saved.');
+  return data.agentConnection as { id: string };
+}
+
 function environmentForScenario(scenario: StoredScenario, environmentType: string) {
   const domain = scenario.domain ?? 'general';
   const name = scenario.persona.name;
@@ -394,26 +411,36 @@ export default function PlaygroundPage() {
     }
     if (!activeScenario) return;
     if (!agent.trim()) {
-      setRunError('Enter a real agent phone number, SIP URI, WebRTC endpoint, or provider connection before starting a sandbox call.');
+      setRunError('Enter a compatible HTTPS agent runner endpoint before starting a Playground sandbox call.');
+      return;
+    }
+    if (agent.trim().startsWith('sip:') || agent.trim().startsWith('wss:')) {
+      setRunError('Native SIP/WebRTC media bridge is coming next. For today, use a compatible HTTPS runner endpoint or run Vapi phone mode from Experiments.');
+      return;
+    }
+    if (!agent.trim().startsWith('https://')) {
+      setRunError('Playground requires a compatible HTTPS agent runner endpoint today. Random text or raw phone numbers cannot start a real sandbox call here.');
       return;
     }
     setRunError('');
     setVisibleTurns(0);
     setCallState('running');
     try {
+      const connection = await createPlaygroundConnection(agent.trim());
       const experimentResponse = await fetch('/api/experiments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           name: `${activeScenario.name} playground check`,
           agentType: 'custom_webrtc',
+          agentConnectionId: connection.id,
           agentConfig: {
-            endpointType: agent.startsWith('sip:') ? 'sip' : agent.startsWith('http') || agent.startsWith('wss:') ? 'webrtc' : 'phone',
-            endpoint: agent,
+            endpointType: 'webrtc',
+            endpoint: agent.trim(),
             pronunciation: activeScenario.pronunciation ?? null,
             sandboxEnvironment: environmentType,
           },
-          webrtcEndpoint: agent,
+          webrtcEndpoint: agent.trim(),
           scenarioIds: [baseScenario?.id ?? activeScenario.id],
           gitSha: 'playground',
         }),
@@ -489,7 +516,7 @@ export default function PlaygroundPage() {
                 className="input-field mt-1"
                 value={agent}
                 onChange={(event) => setAgent(event.target.value)}
-                placeholder="sip:agent@example.com, wss://agent.example.com/media, or phone number"
+                placeholder="https://your-runner.example.com/lightcurve"
               />
             </label>
 

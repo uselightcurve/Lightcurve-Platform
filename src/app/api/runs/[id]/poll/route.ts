@@ -4,6 +4,7 @@ import { experiments, runs, scenarios, scores, traces, usageEvents } from '@/db/
 import { and, eq } from 'drizzle-orm';
 import { isProviderBackedSandbox, pollProviderSandboxCall } from '@/lib/sandboxProviders';
 import { recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
+import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -14,7 +15,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!run) return NextResponse.json({ error: 'Run not found' }, { status: 404 });
 
   const experimentData = await db.select().from(experiments).where(and(eq(experiments.id, run.experimentId!), eq(experiments.ownerUserId, account.userId)));
-  const experiment = experimentData[0];
+  const experiment = experimentData[0] ? await hydrateExperimentAgentConfig(experimentData[0]) : undefined;
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
 
   if (!isProviderBackedSandbox(experiment) && !run.provider) {

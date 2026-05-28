@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
+import { REAL_SCENARIO_LIBRARY, type LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 
 const languageFlags: Record<string, string> = {
   'en-US': 'US',
@@ -90,7 +90,7 @@ export default function ScenariosPage() {
   const [emotion, setEmotion] = useState('all');
   const [query, setQuery] = useState('');
   const [libraryMode, setLibraryMode] = useState<'all' | 'library' | 'custom'>('all');
-  const [scenarios, setScenarios] = useState<StoredScenario[]>([]);
+  const [scenarios, setScenarios] = useState<StoredScenario[]>(REAL_SCENARIO_LIBRARY);
   const [forking, setForking] = useState<StoredScenario | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [customScenario, setCustomScenario] = useState(defaultCustomScenario);
@@ -117,7 +117,14 @@ export default function ScenariosPage() {
           if (target) setForking(target);
         }
       } catch (error) {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Unable to load scenarios.');
+        if (!cancelled) {
+          setScenarios(REAL_SCENARIO_LIBRARY);
+          setLoadError(
+            error instanceof Error
+              ? `${error.message} Showing the built-in scenario library while workspace sync retries.`
+              : 'Showing the built-in scenario library while workspace sync retries.',
+          );
+        }
       }
     }
 

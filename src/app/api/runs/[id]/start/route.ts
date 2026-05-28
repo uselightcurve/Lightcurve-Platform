@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandboxProviders';
-import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment } from '@/lib/botToBotRunner';
+import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment, resolveAgentRunnerUrl } from '@/lib/botToBotRunner';
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 
@@ -67,6 +67,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (isBotToBotExperiment(experiment)) {
+    const runnerUrl = resolveAgentRunnerUrl(experiment);
+    if (!runnerUrl) {
+      return NextResponse.json(
+        { error: 'Add a compatible HTTPS agent runner endpoint before starting a bot-to-bot sandbox.' },
+        { status: 400 },
+      );
+    }
+    if (runnerUrl.startsWith('sip:') || runnerUrl.startsWith('wss:')) {
+      return NextResponse.json(
+        { error: 'Native SIP/WebRTC media bridge is coming next. For today, use a compatible HTTPS runner endpoint.' },
+        { status: 400 },
+      );
+    }
+    if (!runnerUrl.startsWith('https://') && !runnerUrl.startsWith('http://')) {
+      return NextResponse.json(
+        { error: 'Agent endpoint must be a real HTTPS runner URL. Random text cannot start a sandbox call.' },
+        { status: 400 },
+      );
+    }
+
     await db
       .update(runs)
       .set({
