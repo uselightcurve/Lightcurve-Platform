@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserButton, useUser } from '@clerk/nextjs';
 import { BillingUsageCard } from '@/components/BillingUsageCard';
 
 const icons = {
@@ -61,14 +60,12 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { isSignedIn } = useUser();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 flex w-56 flex-col bg-white">
       <div className="px-3 py-3">
-        <Link href="/" className="flex h-9 items-center justify-between rounded-md px-3.5 text-slate-900">
+        <Link href="/" className="flex h-9 items-center rounded-md px-3.5 text-slate-900">
           <span className="text-[15px] font-bold">Lightcurve</span>
-          {isSignedIn ? <UserButton /> : null}
         </Link>
       </div>
       <nav className="flex-1 px-2 py-3">
