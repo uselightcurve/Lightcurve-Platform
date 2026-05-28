@@ -15,7 +15,8 @@ type RunRow = {
   latencyP95: number | null;
   sttConfidence: number | null;
   duration: string;
-  transcript: Array<{ speaker: string; text: string; latencyMs?: number }>;
+  transcript?: string | Array<{ speaker: string; text: string; latencyMs?: number }>;
+  traces?: Array<{ speaker: string; text: string; latencyMs?: number; totalLatencyMs?: number }>;
   failureSummary?: string | null;
 };
 
@@ -49,6 +50,23 @@ function CheckStatus({ status }: { status: 'pass' | 'fail' | 'pending' }) {
         : 'bg-slate-100 text-slate-500 ring-slate-200';
 
   return <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${className}`}>{status}</span>;
+}
+
+function traceTurns(run: RunRow) {
+  if (Array.isArray(run.traces)) {
+    return run.traces.map((trace) => ({
+      speaker: trace.speaker,
+      text: trace.text,
+      latencyMs: trace.latencyMs ?? trace.totalLatencyMs,
+    }));
+  }
+
+  if (Array.isArray(run.transcript)) return run.transcript;
+  if (typeof run.transcript === 'string' && run.transcript.trim()) {
+    return [{ speaker: 'transcript', text: run.transcript }];
+  }
+
+  return [];
 }
 
 export default function MonitorPage() {
@@ -86,7 +104,7 @@ export default function MonitorPage() {
   const failedRows = runs.filter((run) => statusFor(run.status) === 'fail');
   const transcriptRows = runs
     .flatMap((run) =>
-      run.transcript.slice(0, 4).map((turn, index) => ({
+      traceTurns(run).slice(0, 4).map((turn, index) => ({
         id: `${run.id}-${index}`,
         scenario: run.scenarioName,
         speaker: turn.speaker,
@@ -100,8 +118,8 @@ export default function MonitorPage() {
     { label: 'Runs captured', value: `${runs.length}`, status: runs.length ? 'pass' : 'pending' },
     {
       label: 'Transcripts',
-      value: `${runs.filter((run) => run.transcript.length).length} available`,
-      status: runs.some((run) => run.transcript.length) ? 'pass' : 'pending',
+      value: `${runs.filter((run) => traceTurns(run).length).length} available`,
+      status: runs.some((run) => traceTurns(run).length) ? 'pass' : 'pending',
     },
     {
       label: 'Scores',

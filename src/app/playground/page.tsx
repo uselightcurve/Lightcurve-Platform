@@ -502,8 +502,8 @@ export default function PlaygroundPage() {
                   setVisibleTurns(0);
                 }}
               >
-                {scenarios.map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
+                {scenarios.map((scenario, index) => (
+                  <option key={`${scenario.id}-${index}`} value={scenario.id}>
                     {scenario.name}
                   </option>
                 ))}

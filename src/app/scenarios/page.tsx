@@ -42,6 +42,10 @@ const defaultCustomScenario = {
 
 const PAGE_SIZE = 48;
 
+function dedupeScenarios(items: StoredScenario[]) {
+  return items.filter((scenario, index, array) => array.findIndex((candidate) => candidate.id === scenario.id) === index);
+}
+
 function formatName(name: string) {
   return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -109,11 +113,12 @@ export default function ScenariosPage() {
         const payload = await response.json();
         const loaded = (Array.isArray(payload) ? payload : payload.scenarios ?? []) as StoredScenario[];
         if (cancelled) return;
-        setScenarios(loaded);
+        const deduped = dedupeScenarios(loaded);
+        setScenarios(deduped);
 
         const forkId = new URLSearchParams(window.location.search).get('fork');
         if (forkId) {
-          const target = loaded.find((scenario) => scenario.id === forkId);
+          const target = deduped.find((scenario) => scenario.id === forkId);
           if (target) setForking(target);
         }
       } catch (error) {
@@ -320,13 +325,13 @@ export default function ScenariosPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 2xl:grid-cols-3">
-        {visibleScenarios.map((scenario) => {
+        {visibleScenarios.map((scenario, index) => {
           const isSelected = selected.includes(scenario.id);
           const emotionKey = scenario.persona.emotional_state;
 
           return (
             <article
-              key={scenario.id}
+              key={`${scenario.id}-${(page - 1) * PAGE_SIZE + index}`}
               className={`card flex min-h-[218px] flex-col p-4 ${isSelected ? 'ring-2 ring-[#cfd8ff]' : ''}`}
             >
               <div className="flex items-start justify-between gap-3">
