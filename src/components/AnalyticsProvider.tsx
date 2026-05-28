@@ -1,12 +1,24 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import * as amplitude from '@amplitude/unified';
 
 const apiKey = process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY ?? 'f04e53094bb6c601f0a2c75f9fa2102c';
-let amplitudeInitialized = false;
+let amplitudeReadyPromise: Promise<void> | null = null;
+
+function initializeAmplitude() {
+  if (!amplitudeReadyPromise) {
+    amplitudeReadyPromise = amplitude.initAll(apiKey, {
+      serverZone: 'US',
+      analytics: { autocapture: true },
+      sessionReplay: { sampleRate: 1 },
+    });
+  }
+
+  return amplitudeReadyPromise;
+}
 
 function safeProperties(value: Record<string, unknown>) {
   return Object.fromEntries(
@@ -17,22 +29,26 @@ function safeProperties(value: Record<string, unknown>) {
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
-  const initialized = useRef(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (initialized.current) return;
-    if (!amplitudeInitialized) {
-      void amplitude.initAll(apiKey, {
-        analytics: { autocapture: true },
-        sessionReplay: { sampleRate: 1 },
+    let cancelled = false;
+
+    initializeAmplitude()
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch((error) => {
+        console.warn('Amplitude failed to initialize', error);
       });
-      amplitudeInitialized = true;
-    }
-    initialized.current = true;
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!initialized.current || !isLoaded) return;
+    if (!ready || !isLoaded) return;
 
     if (isSignedIn && user) {
       amplitude.setUserId(user.id);
@@ -46,10 +62,10 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     } else {
       amplitude.reset();
     }
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, ready, user]);
 
   useEffect(() => {
-    if (!initialized.current) return;
+    if (!ready) return;
 
     const params = typeof window === 'undefined' ? '' : window.location.search;
     amplitude.track('Page Viewed', safeProperties({
@@ -57,7 +73,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       query_present: Boolean(params),
       page_group: pathname.split('/').filter(Boolean)[0] || 'overview',
     }));
-  }, [pathname]);
+  }, [pathname, ready]);
 
   return children;
 }
