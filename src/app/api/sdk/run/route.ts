@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createSdkDemoExperiment } from '@/lib/serverDemoStore';
 
 export async function POST(req: Request) {
   // Delegate to regular experiment creation endpoint
@@ -30,12 +29,11 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ experimentId: json.experiment.id });
-  } catch {
-    const fallback = createSdkDemoExperiment(body.scenarios ?? body.scenarioIds ?? []);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'SDK run could not be created.';
     return NextResponse.json({
-      experimentId: fallback.id,
-      preview: true,
-      message: 'Returned demo SDK result because live infrastructure is not configured.',
-    });
+      error: message,
+      message: 'SDK runs must be backed by the production database and a real agent connection. Lightcurve will not create demo SDK results in production.',
+    }, { status: 503 });
   }
 }

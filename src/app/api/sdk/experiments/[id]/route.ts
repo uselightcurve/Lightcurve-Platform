@@ -2,14 +2,9 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scores } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getSdkDemoExperiment } from '@/lib/serverDemoStore';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const fallback = getSdkDemoExperiment(id);
-  if (fallback) {
-    return NextResponse.json(fallback);
-  }
 
   try {
     const expData = await db.select().from(experiments).where(eq(experiments.id, id));

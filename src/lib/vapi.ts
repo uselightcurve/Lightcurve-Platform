@@ -75,6 +75,26 @@ function getAgentConfig(experiment: ExperimentRow): Record<string, string> {
   return asRecord(experiment.agentConfig) as Record<string, string>;
 }
 
+function useInternalProviderCredentials(experiment: ExperimentRow) {
+  const agentConfig = getAgentConfig(experiment);
+  return agentConfig.useInternalProvider === 'true' && process.env.LIGHTCURVE_ALLOW_INTERNAL_PROVIDER_RUNS === '1';
+}
+
+function internalValue(experiment: ExperimentRow, name: string) {
+  if (!useInternalProviderCredentials(experiment)) return undefined;
+  return stringValue(process.env[`LIGHTCURVE_INTERNAL_${name}`]);
+}
+
+function missingCustomerConfig(provider: string, entries: Record<string, string | undefined>) {
+  const missing = Object.entries(entries)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+  if (!missing.length) return;
+  throw new Error(
+    `${provider} customer configuration is missing: ${missing.join(', ')}. Connect your ${provider} account or enter the values for this run. Lightcurve does not use a platform-owned provider account for customer sandboxes.`,
+  );
+}
+
 function vapiScenarioVariables(runId: string, experiment: ExperimentRow, scenario: ScenarioRow) {
   const persona = asRecord(scenario.persona);
   const successCriteria = Array.isArray(scenario.successCriteria) ? scenario.successCriteria : [];
@@ -95,53 +115,43 @@ function vapiScenarioVariables(runId: string, experiment: ExperimentRow, scenari
 
 export function getVapiConfig(experiment: ExperimentRow): VapiConfig {
   const agentConfig = getAgentConfig(experiment);
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.VAPI_API_KEY);
-  const assistantId = stringValue(agentConfig.assistantId) ?? stringValue(process.env.VAPI_ASSISTANT_ID);
-  const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? stringValue(process.env.VAPI_PHONE_NUMBER_ID);
-  const customerNumber = stringValue(agentConfig.customerNumber) ?? stringValue(process.env.VAPI_TEST_CUSTOMER_NUMBER);
+  const apiKey = stringValue(agentConfig.apiKey) ?? internalValue(experiment, 'VAPI_API_KEY');
+  const assistantId = stringValue(agentConfig.assistantId) ?? internalValue(experiment, 'VAPI_ASSISTANT_ID');
+  const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? internalValue(experiment, 'VAPI_PHONE_NUMBER_ID');
+  const customerNumber = stringValue(agentConfig.customerNumber) ?? internalValue(experiment, 'VAPI_TEST_CUSTOMER_NUMBER');
   const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
 
-  const missing = [
-    !apiKey && 'VAPI_API_KEY',
-    !assistantId && 'VAPI_ASSISTANT_ID',
-    !phoneNumberId && 'VAPI_PHONE_NUMBER_ID',
-    !customerNumber && 'test customer phone number',
-  ].filter(Boolean);
-
-  if (missing.length) {
-    throw new Error(`Missing Vapi configuration: ${missing.join(', ')}`);
-  }
-
-  if (!apiKey || !assistantId || !phoneNumberId || !customerNumber) {
-    throw new Error('Missing Vapi configuration.');
-  }
+  missingCustomerConfig('Vapi', {
+    'API key': apiKey,
+    'assistant ID': assistantId,
+    'caller phone-number ID': phoneNumberId,
+    'consented tester phone number': customerNumber,
+  });
+  if (!apiKey || !assistantId || !phoneNumberId || !customerNumber) throw new Error('Missing Vapi customer configuration.');
 
   return { apiKey, assistantId, phoneNumberId, customerNumber, apiBase };
 }
 
 function getVapiBotToBotConfig(experiment: ExperimentRow) {
   const agentConfig = getAgentConfig(experiment);
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.VAPI_API_KEY);
-  const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? stringValue(process.env.VAPI_PHONE_NUMBER_ID);
-  const targetAgentNumber = stringValue(agentConfig.targetAgentNumber) ?? stringValue(process.env.VAPI_TARGET_AGENT_NUMBER);
+  const apiKey = stringValue(agentConfig.apiKey) ?? internalValue(experiment, 'VAPI_API_KEY');
+  const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? internalValue(experiment, 'VAPI_PHONE_NUMBER_ID');
+  const targetAgentNumber = stringValue(agentConfig.targetAgentNumber) ?? internalValue(experiment, 'VAPI_TARGET_AGENT_NUMBER');
   const callerAssistantId =
-    stringValue(agentConfig.callerAssistantId) ?? stringValue(process.env.LIGHTCURVE_VAPI_CALLER_ASSISTANT_ID);
-  const callerPhoneNumber = stringValue(agentConfig.callerPhoneNumber) ?? stringValue(process.env.VAPI_CALLER_PHONE_NUMBER);
+    stringValue(agentConfig.callerAssistantId) ?? internalValue(experiment, 'VAPI_CALLER_ASSISTANT_ID');
+  const callerPhoneNumber = stringValue(agentConfig.callerPhoneNumber) ?? internalValue(experiment, 'VAPI_CALLER_PHONE_NUMBER');
   const knownLightcurveCallerNumber = callerPhoneNumber ?? '+12164748341';
   const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
 
-  const missing = [
-    !apiKey && 'VAPI_API_KEY',
-    !phoneNumberId && 'VAPI_PHONE_NUMBER_ID',
-    !targetAgentNumber && 'target agent phone number or SIP URI',
-  ].filter(Boolean);
-
-  if (missing.length || !apiKey || !phoneNumberId || !targetAgentNumber) {
-    throw new Error(`Missing Vapi bot-to-bot configuration: ${missing.join(', ')}`);
-  }
+  missingCustomerConfig('Vapi bot-to-bot', {
+    'API key': apiKey,
+    'caller phone-number ID': phoneNumberId,
+    'target agent phone number or SIP URI': targetAgentNumber,
+  });
+  if (!apiKey || !phoneNumberId || !targetAgentNumber) throw new Error('Missing Vapi bot-to-bot customer configuration.');
 
   if (looksLikePhoneNumber(phoneNumberId)) {
-    throw new Error('VAPI_PHONE_NUMBER_ID must be the Vapi phone-number UUID, not the formatted +1 caller number.');
+    throw new Error('Vapi caller phone-number ID must be the UUID from Vapi Phone Numbers, not the formatted +1 caller number.');
   }
 
   if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(knownLightcurveCallerNumber)) {
@@ -152,8 +162,8 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
     throw new Error('Target agent number cannot be the same as the Vapi caller number. Enter the inbound number your agent answers.');
   }
 
-  if (callerAssistantId && callerAssistantId === stringValue(process.env.VAPI_ASSISTANT_ID)) {
-    throw new Error('LIGHTCURVE_VAPI_CALLER_ASSISTANT_ID must be a dedicated synthetic caller assistant, not the target/customer assistant. Leave it blank to use Lightcurve inline caller mode.');
+  if (callerAssistantId && callerAssistantId === stringValue(agentConfig.assistantId)) {
+    throw new Error('Synthetic caller assistant ID must be a dedicated caller assistant, not your customer-facing agent assistant. Leave it blank to use inline caller mode.');
   }
 
   return { apiKey, phoneNumberId, targetAgentNumber, callerAssistantId, callerPhoneNumber, apiBase };
@@ -304,10 +314,10 @@ export async function startVapiBotToBotPhoneCall(runId: string, experiment: Expe
 
 export async function getVapiCall(experiment: ExperimentRow, callId: string) {
   const agentConfig = getAgentConfig(experiment);
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.VAPI_API_KEY);
+  const apiKey = stringValue(agentConfig.apiKey) ?? internalValue(experiment, 'VAPI_API_KEY');
   const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
   if (!apiKey) {
-    throw new Error('Missing Vapi configuration: VAPI_API_KEY');
+    throw new Error('Missing Vapi customer API key for polling this call.');
   }
 
   const response = await fetch(`${apiBase.replace(/\/$/, '')}/call/${callId}`, {

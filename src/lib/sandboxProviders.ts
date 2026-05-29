@@ -73,7 +73,11 @@ function missingConfig(provider: string, entries: Record<string, string | undefi
   const missing = Object.entries(entries)
     .filter(([, value]) => !value)
     .map(([key]) => key);
-  if (missing.length) throw new Error(`Missing ${provider} configuration: ${missing.join(', ')}`);
+  if (missing.length) {
+    throw new Error(
+      `${provider} customer configuration is missing: ${missing.join(', ')}. Connect your ${provider} account or enter the values for this run. Lightcurve does not use a platform-owned provider account for customer sandboxes.`,
+    );
+  }
 }
 
 function normalizeSpeaker(role: unknown): 'caller' | 'agent' | null {
@@ -239,12 +243,12 @@ async function addMosScore(normalized: NormalizedVapiResult, raw: Record<string,
 
 async function startRetellCall(runId: string, experiment: ExperimentRow, scenario: ScenarioRow): Promise<SandboxStartResult> {
   const agentConfig = getAgentConfig(experiment);
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.RETELL_API_KEY);
-  const agentId = stringValue(agentConfig.agentId) ?? stringValue(process.env.RETELL_AGENT_ID);
-  const fromNumber = stringValue(agentConfig.fromNumber) ?? stringValue(process.env.RETELL_FROM_NUMBER);
-  const customerNumber = stringValue(agentConfig.customerNumber) ?? stringValue(process.env.RETELL_TEST_CUSTOMER_NUMBER);
+  const apiKey = stringValue(agentConfig.apiKey);
+  const agentId = stringValue(agentConfig.agentId);
+  const fromNumber = stringValue(agentConfig.fromNumber);
+  const customerNumber = stringValue(agentConfig.customerNumber);
   const apiBase = stringValue(process.env.RETELL_API_BASE) ?? 'https://api.retellai.com';
-  missingConfig('Retell', { RETELL_API_KEY: apiKey, RETELL_AGENT_ID: agentId, RETELL_FROM_NUMBER: fromNumber, test_customer_phone_number: customerNumber });
+  missingConfig('Retell', { 'API key': apiKey, 'agent ID': agentId, 'from number': fromNumber, 'consented tester phone number': customerNumber });
 
   const response = await fetch(`${apiBase.replace(/\/$/, '')}/v2/create-phone-call`, {
     method: 'POST',
@@ -278,9 +282,9 @@ async function startRetellCall(runId: string, experiment: ExperimentRow, scenari
 
 async function getRetellCall(experiment: ExperimentRow, callId: string) {
   const agentConfig = getAgentConfig(experiment);
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.RETELL_API_KEY);
+  const apiKey = stringValue(agentConfig.apiKey);
   const apiBase = stringValue(process.env.RETELL_API_BASE) ?? 'https://api.retellai.com';
-  missingConfig('Retell', { RETELL_API_KEY: apiKey });
+  missingConfig('Retell', { 'API key': apiKey });
 
   const response = await fetch(`${apiBase.replace(/\/$/, '')}/v2/get-call/${callId}`, {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
@@ -295,7 +299,7 @@ async function getRetellCall(experiment: ExperimentRow, callId: string) {
 
 async function startElevenLabsCall(runId: string, experiment: ExperimentRow, scenario: ScenarioRow): Promise<SandboxStartResult> {
   const agentConfig = getAgentConfig(experiment);
-  const costMode = stringValue(agentConfig.costMode) ?? stringValue(process.env.ELEVENLABS_COST_MODE);
+  const costMode = stringValue(agentConfig.costMode);
   if (costMode === 'recording_replay') {
     return {
       provider: 'elevenlabs',
@@ -306,17 +310,16 @@ async function startElevenLabsCall(runId: string, experiment: ExperimentRow, sce
     };
   }
 
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.ELEVENLABS_API_KEY);
-  const agentId = stringValue(agentConfig.agentId) ?? stringValue(process.env.ELEVENLABS_AGENT_ID);
-  const agentPhoneNumberId =
-    stringValue(agentConfig.agentPhoneNumberId) ?? stringValue(process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID);
-  const customerNumber = stringValue(agentConfig.customerNumber) ?? stringValue(process.env.ELEVENLABS_TEST_CUSTOMER_NUMBER);
+  const apiKey = stringValue(agentConfig.apiKey);
+  const agentId = stringValue(agentConfig.agentId);
+  const agentPhoneNumberId = stringValue(agentConfig.agentPhoneNumberId);
+  const customerNumber = stringValue(agentConfig.customerNumber);
   const apiBase = stringValue(process.env.ELEVENLABS_API_BASE) ?? 'https://api.elevenlabs.io';
   missingConfig('ElevenLabs', {
-    ELEVENLABS_API_KEY: apiKey,
-    ELEVENLABS_AGENT_ID: agentId,
-    ELEVENLABS_AGENT_PHONE_NUMBER_ID: agentPhoneNumberId,
-    test_customer_phone_number: customerNumber,
+    'API key': apiKey,
+    'agent ID': agentId,
+    'agent phone-number ID': agentPhoneNumberId,
+    'consented tester phone number': customerNumber,
   });
 
   const response = await fetch(`${apiBase.replace(/\/$/, '')}/v1/convai/twilio/outbound-call`, {
@@ -349,9 +352,9 @@ async function startElevenLabsCall(runId: string, experiment: ExperimentRow, sce
 
 async function getElevenLabsConversation(experiment: ExperimentRow, conversationId: string) {
   const agentConfig = getAgentConfig(experiment);
-  const apiKey = stringValue(agentConfig.apiKey) ?? stringValue(process.env.ELEVENLABS_API_KEY);
+  const apiKey = stringValue(agentConfig.apiKey);
   const apiBase = stringValue(process.env.ELEVENLABS_API_BASE) ?? 'https://api.elevenlabs.io';
-  missingConfig('ElevenLabs', { ELEVENLABS_API_KEY: apiKey });
+  missingConfig('ElevenLabs', { 'API key': apiKey });
 
   const response = await fetch(`${apiBase.replace(/\/$/, '')}/v1/convai/conversations/${conversationId}`, {
     headers: { 'xi-api-key': apiKey!, Accept: 'application/json' },
@@ -366,8 +369,8 @@ async function getElevenLabsConversation(experiment: ExperimentRow, conversation
 
 async function startCustomRunner(runId: string, experiment: ExperimentRow, scenario: ScenarioRow): Promise<SandboxStartResult> {
   const agentConfig = getAgentConfig(experiment);
-  const runnerUrl = stringValue(agentConfig.runnerUrl) ?? stringValue(process.env.CUSTOM_AGENT_RUNNER_URL);
-  missingConfig('Custom runner', { CUSTOM_AGENT_RUNNER_URL: runnerUrl });
+  const runnerUrl = stringValue(agentConfig.runnerUrl) ?? stringValue(agentConfig.endpoint) ?? stringValue(agentConfig.agentUrl);
+  missingConfig('Custom runner', { 'HTTPS agent runner endpoint': runnerUrl });
 
   const response = await fetch(runnerUrl!, {
     method: 'POST',

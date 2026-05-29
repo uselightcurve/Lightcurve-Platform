@@ -54,9 +54,7 @@ export function isBotToBotExperiment(experiment: ExperimentRow) {
     Boolean(
       stringValue(config.runnerUrl) ??
         stringValue(config.endpoint) ??
-        stringValue(config.agentUrl) ??
-        stringValue(process.env.CUSTOM_AGENT_RUNNER_URL) ??
-        stringValue(process.env.PIPECAT_AGENT_URL),
+        stringValue(config.agentUrl),
     )
   );
 }
@@ -66,9 +64,7 @@ export function resolveAgentRunnerUrl(experiment: ExperimentRow) {
   return (
     stringValue(config.runnerUrl) ??
     stringValue(config.endpoint) ??
-    stringValue(config.agentUrl) ??
-    stringValue(process.env.CUSTOM_AGENT_RUNNER_URL) ??
-    stringValue(process.env.PIPECAT_AGENT_URL)
+    stringValue(config.agentUrl)
   );
 }
 

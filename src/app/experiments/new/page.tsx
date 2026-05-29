@@ -476,7 +476,7 @@ export default function NewExperiment() {
                   className="input-field"
                   value={apiKey}
                   onChange={(event) => setApiKey(event.target.value)}
-                  placeholder="Optional. Prefer server env."
+                  placeholder="Required unless saved in an agent connection"
                 />
               </div>
             </div>
@@ -546,7 +546,7 @@ export default function NewExperiment() {
                         className="input-field"
                         value={retellFromNumber}
                         onChange={(event) => setRetellFromNumber(event.target.value)}
-                        placeholder="Optional if set in server env"
+                        placeholder="+14155550123"
                       />
                     </div>
                   )}
@@ -557,7 +557,7 @@ export default function NewExperiment() {
                         className="input-field"
                         value={elevenLabsPhoneNumberId}
                         onChange={(event) => setElevenLabsPhoneNumberId(event.target.value)}
-                        placeholder="Optional if set in server env"
+                        placeholder="ElevenLabs phone number ID"
                       />
                     </div>
                   )}
