@@ -3,7 +3,9 @@ import { KeyManagementServiceClient } from '@google-cloud/kms';
 const kmsClient = new KeyManagementServiceClient();
 
 function kmsKeyName() {
-  return process.env.KMS_KEY_NAME || process.env.LIGHTCURVE_KMS_KEY_NAME;
+  const keyName = process.env.KMS_KEY_NAME || process.env.LIGHTCURVE_KMS_KEY_NAME;
+  const trimmed = keyName?.trim();
+  return trimmed || undefined;
 }
 
 export function credentialPreview(credentials: Record<string, unknown>) {
