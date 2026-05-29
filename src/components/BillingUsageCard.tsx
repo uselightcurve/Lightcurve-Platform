@@ -68,19 +68,18 @@ export function BillingUsageCard() {
   }, []);
 
   if (!summary) {
-    return <div className="h-[132px] rounded-lg border border-slate-200 bg-slate-50" />;
+    return <div className="h-[104px] rounded-md border border-slate-200 bg-white" />;
   }
 
   return (
-    <Link href="/settings/billing" className="block rounded-lg border border-slate-200 bg-slate-50 p-3 transition-colors hover:border-slate-300 hover:bg-white">
+    <Link href="/settings/billing" className="block rounded-md border border-slate-200 bg-white p-2.5 transition-colors hover:border-slate-300">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-slate-900">{summary.plan.name} plan</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">{summary.plan.audience}</p>
+          <p className="text-[13px] font-medium text-slate-900">{summary.plan.name} plan</p>
         </div>
       </div>
 
-      <div className="mt-3 space-y-2.5">
+      <div className="mt-2.5 space-y-2">
         <UsageRow
           label="Minutes"
           used={summary.minutesUsed}

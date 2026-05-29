@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SignOutButton } from '@clerk/nextjs';
 import { BillingUsageCard } from '@/components/BillingUsageCard';
 
 const icons = {
@@ -90,16 +89,7 @@ export function Sidebar() {
           })}
         </div>
       </nav>
-      <div className="border-t border-slate-200 p-2">
-        <SignOutButton>
-          <button className="mb-2 flex h-10 w-full items-center gap-3 rounded-md px-3.5 text-left text-[15px] font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900">
-            <svg className="h-[17px] w-[17px] text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M15.5 8.5V6a2 2 0 00-2-2h-6a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-2.5" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 12h7m0 0-2.5-2.5M19 12l-2.5 2.5" />
-            </svg>
-            <span>Sign out</span>
-          </button>
-        </SignOutButton>
+      <div className="p-2">
         <BillingUsageCard />
       </div>
     </aside>

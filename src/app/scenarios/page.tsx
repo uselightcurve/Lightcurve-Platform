@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { REAL_SCENARIO_LIBRARY, type LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
+import {
+  REAL_SCENARIO_LIBRARY,
+  mergeWithRealScenarioLibrary,
+  type LibraryScenario as StoredScenario,
+} from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 const languageFlags: Record<string, string> = {
@@ -114,7 +118,7 @@ export default function ScenariosPage() {
         const payload = await response.json();
         const loaded = (Array.isArray(payload) ? payload : payload.scenarios ?? []) as StoredScenario[];
         if (cancelled) return;
-        const deduped = dedupeScenarios(loaded);
+        const deduped = dedupeScenarios(mergeWithRealScenarioLibrary(loaded));
         setScenarios(deduped);
 
         const forkId = new URLSearchParams(window.location.search).get('fork');

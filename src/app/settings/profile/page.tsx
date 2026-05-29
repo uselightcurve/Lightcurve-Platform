@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { UserProfile } from '@clerk/nextjs';
 import { requireAccount } from '@/lib/account';
+import { ProfileSignOutButton } from '@/components/ProfileSignOutButton';
 
 export default async function ProfileSettingsPage() {
   const account = await requireAccount();
@@ -24,8 +25,13 @@ export default async function ProfileSettingsPage() {
 
         <section className="space-y-4">
           <div className="card p-5">
-            <p className="text-sm font-medium text-slate-900">{account.name || account.email}</p>
-            <p className="mt-1 text-sm text-slate-500">{account.email}</p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-900">{account.name || account.email}</p>
+                <p className="mt-1 text-sm text-slate-500">{account.email}</p>
+              </div>
+              <ProfileSignOutButton />
+            </div>
           </div>
           <div className="card overflow-hidden p-4">
             <UserProfile routing="hash" />
