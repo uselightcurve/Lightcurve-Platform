@@ -175,11 +175,10 @@ export const demoImportedCalls: NormalizedCall[] = [
 
 export function getProviderStatuses(): ProviderStatus[] {
   return providerDefinitions.map((provider) => {
-    const missingEnv = provider.env.filter((name) => !process.env[name]);
     return {
       ...provider,
-      configured: missingEnv.length === 0,
-      missingEnv,
+      configured: false,
+      missingEnv: [],
     };
   });
 }
