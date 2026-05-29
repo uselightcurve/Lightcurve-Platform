@@ -14,7 +14,7 @@ import {
   type PronunciationMode,
   type PronunciationPace,
 } from '@/lib/pronunciation';
-import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
+import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
@@ -273,7 +273,7 @@ export default function PlaygroundPage() {
         const payload = await response.json();
         const loaded = (Array.isArray(payload) ? payload : payload.scenarios ?? []) as StoredScenario[];
         if (!cancelled) {
-          const deduped = dedupeScenarios(loaded);
+          const deduped = dedupeScenarios(mergeWithRealScenarioLibrary(loaded) as StoredScenario[]);
           setScenarios(deduped);
           if (deduped[0] && !scenarioId) setScenarioId(deduped[0].id);
         }

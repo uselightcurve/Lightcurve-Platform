@@ -51,17 +51,24 @@ function personaName(domain: string, index: number) {
   return names[index % names.length];
 }
 
-function deterministicUuid(value: string) {
-  let hash = 2166136261;
-  let hex = '';
+function fnvHex(value: string, seed: number) {
+  let hash = 2166136261 ^ seed;
   for (let index = 0; index < value.length; index++) {
     hash ^= value.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
-    hex += (hash >>> 0).toString(16).padStart(8, '0');
-    if (hex.length >= 32) break;
   }
-  hex = (hex + '0'.repeat(32)).slice(0, 32);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function deterministicUuid(value: string) {
+  const hex = [
+    fnvHex(`${value}:0`, 0x811c9dc5),
+    fnvHex(`${value}:1`, 0x27d4eb2d),
+    fnvHex(`${value}:2`, 0x85ebca6b),
+    fnvHex(`${value}:3`, 0xc2b2ae35),
+  ].join('');
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 export const REAL_SCENARIO_LIBRARY: LibraryScenario[] = (importedSeeds as DatasetScenarioSeed[]).map((seed, index) => {

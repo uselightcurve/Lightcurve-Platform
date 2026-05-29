@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ProviderLogo } from '@/components/ProviderLogo';
 import { providerDefinitions } from '@/lib/integrations';
-import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
+import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
@@ -167,7 +167,7 @@ export default function NewExperiment() {
         return;
       }
       const data = await response.json();
-      setScenarios(data.scenarios ?? []);
+      setScenarios(mergeWithRealScenarioLibrary(data.scenarios ?? []) as StoredScenario[]);
     };
     load();
   }, []);
