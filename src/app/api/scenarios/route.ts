@@ -1,41 +1,35 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { scenarios } from '@/db/schema';
-import { desc, isNull, or, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 
 export async function GET() {
   try {
     const account = await requireAccount();
-    let data = await db
+    const data = await db
       .select()
       .from(scenarios)
-      .where(or(isNull(scenarios.ownerUserId), eq(scenarios.ownerUserId, account.userId)))
+      .where(eq(scenarios.ownerUserId, account.userId))
       .orderBy(desc(scenarios.createdAt));
 
-    if (data.length === 0) {
-      await db.insert(scenarios).values(REAL_SCENARIO_LIBRARY.map((scenario) => ({
-        ...scenario,
-        ownerUserId: null,
-      }))).onConflictDoNothing();
-      data = await db
-        .select()
-        .from(scenarios)
-        .where(or(isNull(scenarios.ownerUserId), eq(scenarios.ownerUserId, account.userId)))
-        .orderBy(desc(scenarios.createdAt));
-    }
-
-    return NextResponse.json({ scenarios: mergeWithRealScenarioLibrary(data as any) });
+    return NextResponse.json(
+      { scenarios: mergeWithRealScenarioLibrary(data as any) },
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+    );
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
     console.error('Failed to load scenarios', error);
-    return NextResponse.json({
-      scenarios: REAL_SCENARIO_LIBRARY,
-      degraded: true,
-      error: 'Workspace scenario sync is unavailable. Showing the global scenario library.',
-    });
+    return NextResponse.json(
+      {
+        scenarios: REAL_SCENARIO_LIBRARY,
+        degraded: true,
+        error: 'Workspace scenario sync is unavailable. Showing the global scenario library.',
+      },
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+    );
   }
 }
 

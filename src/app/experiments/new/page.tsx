@@ -207,8 +207,8 @@ export default function NewExperiment() {
   const botToBotProvider = isBotToBotProvider(agentType);
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
   const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
-  const locatorLabel = vapiBotToBotPhone ? 'Target agent inbound number or SIP URI' : activeAgent.locatorLabel;
-  const locatorPlaceholder = vapiBotToBotPhone ? '+14155550123 or sip:agent@example.com' : activeAgent.placeholder;
+  const locatorLabel = vapiBotToBotPhone ? 'Your agent phone number or SIP URI' : activeAgent.locatorLabel;
+  const locatorPlaceholder = vapiBotToBotPhone ? 'Put your agent phone number, e.g. +14155550123' : activeAgent.placeholder;
   const callerMode = replayMode ? 'Replay import' : vapiBotToBotPhone ? 'Bot-to-bot phone' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
   const realPhoneMode = liveProvider && !replayMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
@@ -421,6 +421,37 @@ export default function NewExperiment() {
               ))}
             </div>
 
+            {agentType === 'vapi' && (
+              <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Call mode</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {vapiBotToBotPhone
+                        ? 'Lightcurve acts as the caller and dials your agent.'
+                        : 'A consented tester receives the call while Lightcurve scores it.'}
+                    </p>
+                  </div>
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setVapiMode('bot_to_bot_phone')}
+                      className={`rounded-md px-3 py-1.5 ${vapiBotToBotPhone ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
+                    >
+                      Bot-to-bot phone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVapiMode('human_pilot')}
+                      className={`rounded-md px-3 py-1.5 ${vapiMode === 'human_pilot' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
+                    >
+                      Human pilot
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mt-5 grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-slate-600">
@@ -434,7 +465,7 @@ export default function NewExperiment() {
                 />
                 {vapiBotToBotPhone && (
                   <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                    This is the number your customer-facing voice agent answers. Do not put the Vapi caller number here.
+                    Put the phone number your voice agent answers. This is not your Vapi caller number.
                   </p>
                 )}
               </div>
@@ -452,31 +483,13 @@ export default function NewExperiment() {
 
             {liveProvider && (
               <div className="mt-4 space-y-3">
-                {agentType === 'vapi' && (
-                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => setVapiMode('bot_to_bot_phone')}
-                      className={`rounded-md px-3 py-1.5 ${vapiBotToBotPhone ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
-                    >
-                      Bot-to-bot phone
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVapiMode('human_pilot')}
-                      className={`rounded-md px-3 py-1.5 ${vapiMode === 'human_pilot' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
-                    >
-                      Human pilot
-                    </button>
-                  </div>
+                {agentType !== 'vapi' && (
+                  <p className="rounded-md border border-[#e6cf93] bg-[#fffaf0] px-3 py-2 text-xs leading-relaxed text-[#765b1f]">
+                    {replayMode
+                      ? 'Low-cost replay imports an existing recording or transcript, then scores it against the selected scenario.'
+                      : `${activeAgent.label} live mode dials a consented tester and scores the call result.`}
+                  </p>
                 )}
-                <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] p-3 text-sm leading-relaxed text-[#765b1f]">
-                  {replayMode
-                    ? 'ElevenLabs replay mode avoids live call spend: import an existing recording or transcript, then Lightcurve scores it against the selected scenario.'
-                    : vapiBotToBotPhone
-                      ? 'Vapi bot-to-bot phone mode uses Lightcurve as the synthetic caller. It dials your agent phone number, acts out the selected scenario, then imports the transcript and scores.'
-                      : `${activeAgent.label} live mode dials a consented human tester. The selected caller card is the script the tester acts out while Lightcurve captures the result.`}
-                </div>
                 {agentType === 'elevenlabs' && (
                   <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-sm">
                     <button
@@ -499,7 +512,7 @@ export default function NewExperiment() {
                   {agentType === 'vapi' && (
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                        {vapiBotToBotPhone ? 'Vapi caller phone number ID' : 'Vapi phone number ID'}
+                        {vapiBotToBotPhone ? 'Lightcurve caller phone number ID' : 'Vapi phone number ID'}
                       </label>
                       <input
                         className="input-field"
@@ -514,7 +527,7 @@ export default function NewExperiment() {
                   )}
                   {vapiBotToBotPhone && (
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Caller assistant ID</label>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Synthetic caller assistant ID</label>
                       <input
                         className="input-field"
                         value={vapiCallerAssistantId}
