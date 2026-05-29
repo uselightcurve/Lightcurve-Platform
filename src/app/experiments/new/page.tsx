@@ -532,8 +532,11 @@ export default function NewExperiment() {
                         className="input-field"
                         value={vapiCallerAssistantId}
                         onChange={(event) => setVapiCallerAssistantId(event.target.value)}
-                        placeholder="Optional. Prefer VAPI_CALLER_ASSISTANT_ID."
+                        placeholder="Optional. Leave blank for Lightcurve caller."
                       />
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Only use a dedicated caller assistant here. Do not enter your customer-facing agent assistant ID.
+                      </p>
                     </div>
                   )}
                   {agentType === 'retell' && (
