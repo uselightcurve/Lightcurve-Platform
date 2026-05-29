@@ -19,6 +19,10 @@ async function resolveExperiment(experimentId?: string | null) {
     return found[0];
   }
 
+  if (process.env.LIGHTCURVE_ALLOW_GLOBAL_RELEASE_GATE !== '1') {
+    return null;
+  }
+
   const latest = await db.select().from(experiments).orderBy(desc(experiments.createdAt)).limit(1);
   return latest[0];
 }
@@ -27,7 +31,15 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const minMos = parseThreshold(url.searchParams.get('minMos'), Number(process.env.LIGHTCURVE_GATE_MIN_MOS ?? 3.8));
   const minTask = parseThreshold(url.searchParams.get('minTask'), Number(process.env.LIGHTCURVE_GATE_MIN_TASK ?? 0.8));
-  const experiment = await resolveExperiment(url.searchParams.get('experimentId'));
+  const experimentId = url.searchParams.get('experimentId');
+  if (!experimentId && process.env.LIGHTCURVE_ALLOW_GLOBAL_RELEASE_GATE !== '1') {
+    return NextResponse.json(
+      { pass: false, status: 'pending', error: 'experimentId is required for release gate checks' },
+      { status: 400 },
+    );
+  }
+
+  const experiment = await resolveExperiment(experimentId);
 
   if (!experiment) {
     return NextResponse.json({ pass: false, status: 'pending', error: 'No experiment found' }, { status: 404 });
