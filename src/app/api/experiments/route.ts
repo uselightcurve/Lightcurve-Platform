@@ -5,6 +5,7 @@ import { desc, eq } from 'drizzle-orm';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
 import { assertUsageAvailable, recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
 import { getOwnedAgentConnection, sanitizeAgentConfig } from '@/lib/agentConnections';
+import { releaseWorkflowForExperiment } from '@/lib/releaseWorkflow';
 
 const LIVE_PHONE_PROVIDERS = new Set(['vapi', 'retell', 'elevenlabs']);
 const DEFAULT_MAX_REAL_PHONE_SCENARIOS = 10;
@@ -42,6 +43,7 @@ export async function GET() {
       const terminal = expRuns.filter((run) => run.status === 'complete' || run.status === 'failed');
       const passed = expRuns.filter((run) => run.status === 'complete');
       const avg = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+      const workflow = releaseWorkflowForExperiment(experiment, expRuns, scoreRows);
 
       enriched.push({
         ...experiment,
@@ -52,6 +54,15 @@ export async function GET() {
           latencyP95: latency.length ? Math.max(...latency) : null,
           passRate: terminal.length ? passed.length / terminal.length : null,
           failedReason: expRuns.find((run) => run.failureSummary)?.failureSummary ?? null,
+        },
+        workflow: {
+          sourceLane: workflow.sourceLane,
+          sourceLaneLabel: workflow.sourceLaneLabel,
+          releaseStage: workflow.releaseStage,
+          releaseLabel: workflow.releaseLabel,
+          canPromoteFailures: workflow.canPromoteFailures,
+          riskyCount: workflow.riskyScenarioIds.length,
+          promotedFromId: workflow.promotedFromId,
         },
       });
     }
@@ -78,10 +89,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Agent connection not found' }, { status: 404 });
     }
 
-    const agentConfig = sanitizeAgentConfig(body.agentConfig);
+    const baseAgentConfig = sanitizeAgentConfig(body.agentConfig);
     const livePhoneMode =
       LIVE_PHONE_PROVIDERS.has(String(agentConnection?.provider ?? body.agentType)) &&
-      !(body.agentType === 'elevenlabs' && agentConfig.costMode === 'recording_replay');
+      !(body.agentType === 'elevenlabs' && baseAgentConfig.costMode === 'recording_replay');
+    const agentConfig = {
+      ...baseAgentConfig,
+      ...(typeof body.promotedFromExperimentId === 'string' && body.promotedFromExperimentId
+        ? {
+            promotion: {
+              sourceExperimentId: body.promotedFromExperimentId,
+              sourceLane: 'low_cost_testing',
+              verificationLane: livePhoneMode ? 'phone_realism' : 'provider_backed',
+            },
+          }
+        : {}),
+    };
     const phoneScenarioLimit = maxRealPhoneScenarios();
 
     if (livePhoneMode && scenarioIds.length > phoneScenarioLimit) {

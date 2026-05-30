@@ -22,6 +22,15 @@ type ExperimentRow = {
     passRate: number | null;
     failedReason: string | null;
   };
+  workflow?: {
+    sourceLane: keyof typeof COST_LANES;
+    sourceLaneLabel: string;
+    releaseStage: string;
+    releaseLabel: string;
+    canPromoteFailures: boolean;
+    riskyCount: number;
+    promotedFromId: string | null;
+  };
 };
 
 const yamlSnippet = `name: Lightcurve voice eval
@@ -34,6 +43,9 @@ jobs:
       - run: npx lightcurve eval --suite release-gate --min-mos 3.8 --min-task 0.80`;
 
 function statusFor(experiment: ExperimentRow) {
+  if (experiment.workflow?.releaseStage === 'needs_real_verification') return 'running';
+  if (experiment.workflow?.releaseStage === 'final_pass' || experiment.workflow?.releaseStage === 'low_cost_screen') return 'pass';
+  if (experiment.workflow?.releaseStage === 'final_block') return 'fail';
   if (experiment.status === 'completed' || experiment.status === 'complete') return 'pass';
   if (experiment.status === 'failed' || experiment.summary?.failedReason) return 'fail';
   if (experiment.status === 'running') return 'running';
@@ -199,12 +211,15 @@ export default function ExperimentsPage() {
                     <td className="px-3 py-4">
                       <Link href={`/experiments/${experiment.id}`} className="text-slate-950 hover:text-[#2f5ae0]">{experiment.name}</Link>
                       <p className="mt-1 text-xs text-slate-500">Git {experiment.gitSha ?? '-'}</p>
+                      {experiment.workflow?.releaseLabel ? (
+                        <p className="mt-1 text-xs text-slate-500">{experiment.workflow.releaseLabel}</p>
+                      ) : null}
                       {experiment.summary?.failedReason ? <p className="mt-1 text-xs text-[#8f3d3b]">{experiment.summary.failedReason}</p> : null}
                     </td>
                     <td className="px-3 py-4 text-slate-600">
                       <p className="text-sm text-slate-800">{providerLabel(experiment.agentType)}</p>
                       <span className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-                        {COST_LANES[costLaneForProvider(experiment.agentType, experiment.agentConfig, experiment.webrtcEndpoint)].label}
+                        {experiment.workflow?.sourceLaneLabel ?? COST_LANES[costLaneForProvider(experiment.agentType, experiment.agentConfig, experiment.webrtcEndpoint)].label}
                       </span>
                     </td>
                     <td className="px-3 py-4 text-slate-600">{experiment.summary?.runs ?? 0}</td>

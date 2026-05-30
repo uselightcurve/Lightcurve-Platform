@@ -169,6 +169,7 @@ export default function NewExperiment() {
   const [elevenLabsPhoneNumberId, setElevenLabsPhoneNumberId] = useState('');
   const [elevenLabsMode, setElevenLabsMode] = useState<'live_call' | 'recording_replay'>('recording_replay');
   const [expName, setExpName] = useState('pre-production voice preflight');
+  const [promotedFromExperimentId, setPromotedFromExperimentId] = useState('');
   const [scenarios, setScenarios] = useState<StoredScenario[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -192,8 +193,13 @@ export default function NewExperiment() {
     const provider = params.get('provider');
     const scenarioId = params.get('scenario');
     const scenarioIds = params.get('scenarios')?.split(',').filter(Boolean) ?? [];
+    const promotedFrom = params.get('promotedFrom');
     if (provider && AGENT_TYPES.some((agent) => agent.id === provider)) {
       setAgentType(provider);
+    }
+    if (promotedFrom) {
+      setPromotedFromExperimentId(promotedFrom);
+      setExpName('promoted real-call verification');
     }
     if (scenarioId && scenarios.some((scenario) => scenario.id === scenarioId)) {
       setSelectedIds((current) => (current.includes(scenarioId) ? current : [scenarioId]));
@@ -203,7 +209,7 @@ export default function NewExperiment() {
       const validIds = scenarioIds.filter((id) => scenarios.some((scenario) => scenario.id === id));
       if (validIds.length) {
         setSelectedIds(validIds);
-        setStep(2);
+        setStep(promotedFrom ? 1 : 2);
       }
     }
   }, [scenarios]);
@@ -390,6 +396,7 @@ export default function NewExperiment() {
           agentConfig,
           webrtcEndpoint: stubMode ? 'agent-replica://low-cost-testing' : `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,
+          promotedFromExperimentId,
           gitSha: stubMode ? 'low-cost-agent-replica' : 'live-sandbox',
         }),
       });
@@ -442,6 +449,11 @@ export default function NewExperiment() {
             Connect an agent, choose real-world caller scenarios, then run a sandbox check for MOS, task completion,
             hallucination risk, and latency.
           </p>
+          {promotedFromExperimentId && (
+            <div className="mt-3 inline-flex rounded-lg border border-[#cfd8ff] bg-white px-3 py-2 text-xs text-slate-600">
+              Promoted from low-cost testing. Verify only the failed or risky scenarios against a real provider path.
+            </div>
+          )}
         </div>
         <Stepper step={step} setStep={setStep} />
       </div>

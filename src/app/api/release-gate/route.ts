@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scenarios, scores } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import { releaseWorkflowForExperiment } from '@/lib/releaseWorkflow';
 
 function parseThreshold(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -49,9 +50,11 @@ export async function GET(req: Request) {
   const failures = [];
   const mosValues = [];
   const taskValues = [];
+  const allScores = [];
 
   for (const run of expRuns) {
     const runScores = await db.select().from(scores).where(eq(scores.runId, run.id));
+    allScores.push(...runScores);
     const scenarioData = run.scenarioId
       ? await db.select().from(scenarios).where(eq(scenarios.id, run.scenarioId))
       : [];
@@ -82,13 +85,30 @@ export async function GET(req: Request) {
 
   const avgMos = average(mosValues);
   const avgTaskCompletion = average(taskValues);
-  const pass = expRuns.length > 0 && failures.length === 0;
+  const workflow = releaseWorkflowForExperiment(experiment, expRuns, allScores, { minMos, minTask });
+  const pass = workflow.releaseStage === 'final_pass' || workflow.releaseStage === 'low_cost_screen';
+  const status =
+    workflow.releaseStage === 'pending'
+      ? 'pending'
+      : workflow.releaseStage === 'needs_real_verification'
+        ? 'needs_real_verification'
+        : pass
+          ? 'pass'
+          : 'fail';
 
   return NextResponse.json({
     pass,
-    status: pass ? 'pass' : failures.some((failure) => failure.reasons.some((reason: string) => reason.includes('pending'))) ? 'pending' : 'fail',
+    status,
     experimentId: experiment.id,
     experimentName: experiment.name,
+    release: {
+      stage: workflow.releaseStage,
+      label: workflow.releaseLabel,
+      message: workflow.releaseMessage,
+      sourceLane: workflow.sourceLane,
+      riskyScenarioCount: workflow.riskyScenarioIds.length,
+      promotedFromId: workflow.promotedFromId,
+    },
     thresholds: {
       minMos,
       minTask,

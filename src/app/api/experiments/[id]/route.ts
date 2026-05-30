@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { experiments, runs, scenarios, scores } from '@/db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { releaseWorkflowForExperiment } from '@/lib/releaseWorkflow';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,7 +24,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       allScores.push(...rScores);
     }
 
-    return NextResponse.json({ experiment: expData[0], runs: expRuns, scores: allScores, scenarios: expScenarios });
+    const workflow = releaseWorkflowForExperiment(expData[0], expRuns, allScores);
+
+    return NextResponse.json({ experiment: expData[0], runs: expRuns, scores: allScores, scenarios: expScenarios, workflow });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;

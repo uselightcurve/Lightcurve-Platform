@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { COST_LANES, costLaneForProvider } from '@/lib/costLanes';
+import { COST_LANES, costLaneForProvider, type CostLaneId } from '@/lib/costLanes';
 
 function formatScenarioName(value: unknown) {
   return String(value ?? 'Unknown scenario')
@@ -105,11 +105,12 @@ export default function ExperimentDetail() {
   const runs: any[] = data.runs ?? [];
   const scores: any[] = data.scores ?? [];
   const scenarios: any[] = data.scenarios ?? [];
+  const workflow = data.workflow ?? {};
   const scenariosById = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
   const failedRuns = runs.filter((run) => run.status === 'failed');
   const firstFailure = failedRuns.find((run) => run.failureSummary)?.failureSummary;
-  const sourceLane = costLaneForProvider(exp.agentType, exp.agentConfig, exp.webrtcEndpoint);
-  const sourceLaneLabel = COST_LANES[sourceLane].label;
+  const sourceLane = (workflow.sourceLane ?? costLaneForProvider(exp.agentType, exp.agentConfig, exp.webrtcEndpoint)) as CostLaneId;
+  const sourceLaneLabel = workflow.sourceLaneLabel ?? COST_LANES[sourceLane].label;
 
   const scoreForRun = (runId: string, metricName: string) =>
     scores.find((score) => score.runId === runId && score.metricName === metricName)?.value ?? null;
@@ -122,8 +123,10 @@ export default function ExperimentDetail() {
     new Set(riskyRuns.map((run) => run.scenarioId).filter((value): value is string => Boolean(value))),
   );
   const promotionScenarioIds = promotion?.scenarioIds?.length ? promotion.scenarioIds : localPromotionScenarioIds;
-  const canPromoteFailures = sourceLane === 'low_cost_testing' && promotionScenarioIds.length > 0;
-  const promotionHref = `/experiments/new?provider=vapi&scenarios=${promotionScenarioIds.join(',')}`;
+  const canPromoteFailures = Boolean(workflow.canPromoteFailures ?? (sourceLane === 'low_cost_testing' && promotionScenarioIds.length > 0));
+  const promotionHref =
+    promotion?.createUrl ??
+    `/experiments/new?provider=vapi&scenarios=${promotionScenarioIds.join(',')}&promotedFrom=${exp.id}&lane=phone_realism`;
 
   async function loadPromotion() {
     setPromotionLoading(true);
@@ -176,20 +179,61 @@ export default function ExperimentDetail() {
             Agent: <span className="capitalize">{exp.agentType === 'stub_agent' ? 'Agent Replica' : exp.agentType}</span> - {runs.length} run{runs.length !== 1 ? 's' : ''} - {sourceLaneLabel}
           </p>
         </div>
-        <StatusPill status={exp.status} />
+        <StatusPill
+          status={
+            workflow.releaseStage === 'needs_real_verification'
+              ? 'running'
+              : workflow.releaseStage === 'final_block'
+                ? 'failed'
+                : workflow.releaseStage === 'final_pass' || workflow.releaseStage === 'low_cost_screen'
+                  ? 'complete'
+                  : exp.status
+          }
+        />
       </div>
 
-      {failedRuns.length > 0 && (
-        <div className="mb-4 rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] px-4 py-3">
+      {(failedRuns.length > 0 || workflow.releaseMessage) && (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 ${
+            workflow.releaseStage === 'needs_real_verification'
+              ? 'border-[#cfd8ff] bg-white'
+              : workflow.releaseStage === 'final_pass' || workflow.releaseStage === 'low_cost_screen'
+                ? 'border-[#cfe7d8] bg-[#f5fbf7]'
+                : 'border-[#e3c3c1] bg-[#fbf3f2]'
+          }`}
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-[#8f3d3b]">Release gate failed</p>
-              <p className="mt-1 text-sm leading-relaxed text-[#8f3d3b]">
-                {firstFailure ?? 'One or more scenarios missed the MOS or task-completion threshold.'}
+              <p
+                className={`text-sm font-medium ${
+                  workflow.releaseStage === 'needs_real_verification'
+                    ? 'text-[#2448bb]'
+                    : workflow.releaseStage === 'final_pass' || workflow.releaseStage === 'low_cost_screen'
+                      ? 'text-[#28734f]'
+                      : 'text-[#8f3d3b]'
+                }`}
+              >
+                {workflow.releaseLabel ?? 'Release gate failed'}
               </p>
+              <p
+                className={`mt-1 text-sm leading-relaxed ${
+                  workflow.releaseStage === 'needs_real_verification'
+                    ? 'text-slate-600'
+                    : workflow.releaseStage === 'final_pass' || workflow.releaseStage === 'low_cost_screen'
+                      ? 'text-[#28734f]'
+                      : 'text-[#8f3d3b]'
+                }`}
+              >
+                {workflow.releaseMessage ?? firstFailure ?? 'One or more scenarios missed the MOS or task-completion threshold.'}
+              </p>
+              {firstFailure && workflow.releaseStage !== 'needs_real_verification' ? (
+                <p className="mt-1 text-xs leading-relaxed text-[#8f3d3b]">{firstFailure}</p>
+              ) : null}
             </div>
             <span className="shrink-0 rounded-full border border-[#e3c3c1] bg-white px-2 py-0.5 text-xs font-medium text-[#8f3d3b]">
-              {failedRuns.length} failed
+              {workflow.releaseStage === 'needs_real_verification'
+                ? `${promotionScenarioIds.length} risky`
+                : `${failedRuns.length} failed`}
             </span>
           </div>
         </div>
@@ -199,9 +243,9 @@ export default function ExperimentDetail() {
         <div className="mb-4 rounded-lg border border-[#cfd8ff] bg-white px-4 py-3">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-slate-950">Promote only the risky cases</p>
+              <p className="text-sm font-medium text-slate-950">Promote failures to real-call verification</p>
               <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                Keep broad coverage in low-cost testing, then send just the failed scenarios to a provider-backed or phone-realism check.
+                Keep broad coverage in low-cost testing, then send only the failed scenarios to a provider-backed or phone-realism check.
               </p>
               {promotion ? (
                 <p className="mt-2 text-xs text-slate-500">
@@ -221,10 +265,10 @@ export default function ExperimentDetail() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button type="button" className="btn-secondary min-h-9 px-3 py-1.5 text-xs" onClick={loadPromotion} disabled={promotionLoading}>
-                {promotionLoading ? 'Preparing...' : 'Prepare failures'}
+                {promotionLoading ? 'Preparing...' : 'Prepare verification'}
               </button>
               <Link href={promotionHref} className="btn-primary min-h-9 px-3 py-1.5 text-xs">
-                Open Vapi check
+                Open real-call check
               </Link>
             </div>
           </div>
