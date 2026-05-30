@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { scores, traces, runs as runsTable, usageEvents } from '@/db/schema';
 import { VOICE_MAP } from '@/lib/constants';
 import { generateWithLightcurveModel } from '@/lib/vertex';
+import { getRunnerAuthToken, validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
@@ -116,16 +117,18 @@ async function callAgentRunner(
     throw new Error('A real agent runner endpoint is required. Add a WebRTC/SIP/Pipecat/LiveKit endpoint or use a provider-backed call.');
   }
 
-  const resolvedRunnerUrl = runnerUrl;
-  if (!resolvedRunnerUrl.startsWith('http://') && !resolvedRunnerUrl.startsWith('https://')) {
+  const endpointProblem = validateNativeRunnerEndpoint(experiment.agentType, runnerUrl);
+  if (endpointProblem) throw new Error(endpointProblem);
+  if (!runnerUrl.startsWith('https://') && !(process.env.NODE_ENV !== 'production' && runnerUrl.startsWith('http://'))) {
     throw new Error('Bot-to-bot runner requires an HTTPS agent runner endpoint for this phase.');
   }
+  const runnerToken = getRunnerAuthToken(config);
 
-  const response = await fetch(resolvedRunnerUrl, {
+  const response = await fetch(runnerUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(stringValue(config.apiKey) ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+      ...(runnerToken ? { Authorization: `Bearer ${runnerToken}` } : {}),
     },
     body: JSON.stringify({
       experimentId: experiment.id,

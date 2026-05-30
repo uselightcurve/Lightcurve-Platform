@@ -5,6 +5,13 @@ import { agentConnections } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { getOwnedAgentConnection } from '@/lib/agentConnections';
 import { decryptCredentials } from '@/lib/secretVault';
+import type { ProviderId } from '@/lib/integrations';
+import {
+  fetchNativeRunnerHealth,
+  getRunnerAuthToken,
+  NATIVE_RUNNER_PROVIDERS,
+  validateNativeRunnerEndpoint,
+} from '@/lib/nativeRunner';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -33,24 +40,11 @@ async function validateConnection(connection: typeof agentConnections.$inferSele
     stringValue(credentials.assistantId) ??
     stringValue(credentials.agentId);
 
-  if (connection.provider === 'custom_webrtc' || connection.provider === 'pipecat') {
-    if (!connection.endpoint) return { ok: false, message: 'Endpoint is required.' };
-    if (connection.endpoint.startsWith('sip:') || connection.endpoint.startsWith('wss:')) {
-      return { ok: false, message: 'Native SIP/WebRTC media bridge is coming next. Use an HTTPS runner endpoint for today.' };
-    }
-    if (!connection.endpoint.startsWith('https://')) {
-      return { ok: false, message: 'Endpoint must be a real HTTPS runner URL.' };
-    }
-    const result = await fetchHealth(connection.endpoint, { method: 'GET' });
-    return { ok: result.ok, message: result.ok ? 'Endpoint responded.' : `Endpoint returned ${result.status}.` };
-  }
-
-  if (connection.provider === 'livekit') {
-    if (!connection.endpoint) return { ok: false, message: 'LiveKit HTTPS runner endpoint is required.' };
-    if (!connection.endpoint.startsWith('https://')) {
-      return { ok: false, message: 'Use a compatible HTTPS LiveKit runner endpoint for today. Native room bridge is coming next.' };
-    }
-    return { ok: true, message: 'LiveKit runner endpoint is configured.' };
+  if (NATIVE_RUNNER_PROVIDERS.has(connection.provider as ProviderId)) {
+    const problem = validateNativeRunnerEndpoint(connection.provider, connection.endpoint);
+    if (problem) return { ok: false, message: problem };
+    const result = await fetchNativeRunnerHealth(connection.endpoint!, getRunnerAuthToken(credentials));
+    return { ok: result.ok, message: result.message };
   }
 
   if (connection.provider === 'vapi') {

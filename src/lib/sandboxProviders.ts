@@ -7,6 +7,12 @@ import {
   startVapiSandboxCall,
   type NormalizedVapiResult,
 } from '@/lib/vapi';
+import {
+  getRunnerAuthToken,
+  runnerResultCallbackUrl,
+  sanitizeRunnerConfig,
+  validateNativeRunnerEndpoint,
+} from '@/lib/nativeRunner';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
@@ -371,20 +377,32 @@ async function startCustomRunner(runId: string, experiment: ExperimentRow, scena
   const agentConfig = getAgentConfig(experiment);
   const runnerUrl = stringValue(agentConfig.runnerUrl) ?? stringValue(agentConfig.endpoint) ?? stringValue(agentConfig.agentUrl);
   missingConfig('Custom runner', { 'HTTPS agent runner endpoint': runnerUrl });
+  const endpointProblem = validateNativeRunnerEndpoint(experiment.agentType, runnerUrl);
+  if (endpointProblem) throw new Error(endpointProblem);
+
+  const runnerToken = getRunnerAuthToken(agentConfig);
+  const callbackUrl = runnerResultCallbackUrl(runId);
 
   const response = await fetch(runnerUrl!, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(stringValue(agentConfig.authToken) ? { Authorization: `Bearer ${agentConfig.authToken}` } : {}),
+      ...(runnerToken ? { Authorization: `Bearer ${runnerToken}` } : {}),
     },
     body: JSON.stringify({
       runId,
       experimentId: experiment.id,
       provider: experiment.agentType,
       scenario,
-      agentConfig,
-      callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/runs/${runId}/import-recording`,
+      agentConfig: sanitizeRunnerConfig(agentConfig),
+      callbackUrl,
+      resultCallbackUrl: callbackUrl,
+      importRecordingUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/runs/${runId}/import-recording`,
+      contract: {
+        version: '2026-05-30',
+        resultMethod: 'POST',
+        resultShape: 'normalized-runner-result',
+      },
     }),
   });
   const raw = await response.json().catch(() => ({}));

@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { agentConnections } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { credentialPreview, encryptCredentials } from '@/lib/secretVault';
+import { validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
 
 const PROVIDERS = new Set(['vapi', 'retell', 'elevenlabs', 'livekit', 'pipecat', 'custom_webrtc']);
 const ENDPOINT_TYPES = new Set(['webrtc', 'sip', 'provider_api', 'phone', 'replay_import']);
@@ -17,15 +18,8 @@ function text(value: unknown) {
 }
 
 function endpointProblem(provider: string, endpointType: string, endpoint: string) {
-  if (['livekit', 'pipecat', 'custom_webrtc'].includes(provider)) {
-    if (!endpoint) return 'HTTPS runner endpoint is required for bot-to-bot sandbox mode.';
-    if (endpoint.startsWith('sip:') || endpoint.startsWith('wss:')) {
-      return 'Native SIP/WebRTC media bridge is not enabled for this release. Use a compatible HTTPS runner endpoint today.';
-    }
-    if (!endpoint.startsWith('https://')) {
-      return 'Enter a valid HTTPS runner endpoint. Random text cannot be used as an agent endpoint.';
-    }
-  }
+  const nativeRunnerProblem = validateNativeRunnerEndpoint(provider, endpoint);
+  if (nativeRunnerProblem) return nativeRunnerProblem;
 
   if (endpointType === 'phone' && endpoint && !/^\+?[0-9\s().-]{8,}$/.test(endpoint)) {
     return 'Phone endpoints must be real dialable phone numbers.';
