@@ -18,7 +18,7 @@ env:
   IMAGE_NAME: lightcurve-web
   MIGRATION_IMAGE_NAME: lightcurve-migrate
   MIGRATION_JOB: lightcurve-db-push
-  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'https://lightcurve-rvdvu6z2zq-uc.a.run.app' }}
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'https://app.uselightcurve.com' }}
   GCS_BUCKET: ${{ vars.GCS_BUCKET || 'lightcurve-platform-artifacts' }}
   CLOUD_TASKS_QUEUE: ${{ vars.CLOUD_TASKS_QUEUE || 'lightcurve-evals' }}
   CLOUD_SQL_CONNECTION_NAME: ${{ vars.CLOUD_SQL_CONNECTION_NAME || 'lightcurve-platform:us-central1:lightcurve-prod-database' }}

@@ -23,6 +23,18 @@ const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Tickets', 'Payments', 'Knowledge Base'];
 type PlaygroundConnectionMode = 'lightcurve_room' | 'https_runner';
+type ActiveSandboxRun = {
+  experimentId: string;
+  runId: string;
+  provider?: string;
+  status?: string;
+  liveKit?: {
+    roomName: string;
+    liveKitUrl: string;
+    agentToken: string;
+    instructions: string;
+  };
+};
 
 function dedupeScenarios(items: StoredScenario[]) {
   return items.filter((scenario, index, array) => {
@@ -264,6 +276,8 @@ export default function PlaygroundPage() {
   const [mode, setMode] = useState<PronunciationMode>('spell_out');
   const [environmentType, setEnvironmentType] = useState('CRM');
   const [runError, setRunError] = useState('');
+  const [agentModalOpen, setAgentModalOpen] = useState(false);
+  const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveSandboxRun | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -495,7 +509,14 @@ export default function PlaygroundPage() {
         provider: startPayload?.provider,
         status: startPayload?.status,
       });
-      router.push(`/experiments/${experimentPayload.experiment.id}/runs/${run.id}`);
+      setActiveSandboxRun({
+        experimentId: experimentPayload.experiment.id,
+        runId: run.id,
+        provider: startPayload?.provider,
+        status: startPayload?.status,
+        liveKit: startPayload?.liveKit,
+      });
+      if (startPayload?.liveKit) setAgentModalOpen(true);
     } catch (error) {
       setCallState('idle');
       const message = error instanceof Error ? error.message : 'Unable to start sandbox call.';
@@ -561,50 +582,26 @@ export default function PlaygroundPage() {
             </label>
 
             <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <p className="text-sm font-medium text-slate-950">Agent under test</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Playground is for one focused customer-agent check. Bulk runs stay in Experiments.
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-950">Agent under test</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {connectionMode === 'lightcurve_room'
+                      ? 'Hosted sandbox room. No endpoint needed before you start.'
+                      : 'Advanced HTTPS runner connected for this Playground call.'}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
-                  onClick={() => {
-                    setConnectionMode('lightcurve_room');
-                    setRunError('');
-                  }}
+                  className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                  onClick={() => setAgentModalOpen(true)}
                 >
-                  Lightcurve room
-                </button>
-                <button
-                  type="button"
-                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'https_runner' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
-                  onClick={() => {
-                    setConnectionMode('https_runner');
-                    setRunError('');
-                  }}
-                >
-                  HTTPS runner
+                  Connect
                 </button>
               </div>
-              {connectionMode === 'lightcurve_room' ? (
-                <div className="mt-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-slate-600">
-                  No endpoint needed here. Start the call, then connect your agent to the short-lived LiveKit room shown on the run detail page.
-                </div>
-              ) : (
-                <label className="mt-3 block text-xs text-slate-500">
-                  Advanced runner URL
-                  <input
-                    className="input-field mt-1"
-                    value={agent}
-                    onChange={(event) => setAgent(event.target.value)}
-                    placeholder="https://your-runner.example.com/lightcurve"
-                  />
-                  <span className="mt-1 block leading-5 text-slate-500">
-                    Use this only if your team already exposes a Lightcurve-compatible HTTPS runner.
-                  </span>
-                </label>
-              )}
+              <div className="mt-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-slate-600">
+                Playground tests one customer agent at a time. Experiments are for large scenario suites.
+              </div>
             </div>
 
             {runError && (
@@ -870,6 +867,100 @@ export default function PlaygroundPage() {
           )}
         </section>
       </div>
+
+      {agentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-medium text-slate-950">Connect agent for this Playground call</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Keep this simple: use the hosted sandbox for a quick one-off test, or switch to a runner URL only if your team already has one.
+                </p>
+              </div>
+              <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  onClick={() => {
+                    setConnectionMode('lightcurve_room');
+                    setRunError('');
+                  }}
+                >
+                  Hosted sandbox
+                </button>
+                <button
+                  type="button"
+                  className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'https_runner' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  onClick={() => {
+                    setConnectionMode('https_runner');
+                    setRunError('');
+                  }}
+                >
+                  HTTPS runner
+                </button>
+              </div>
+
+              {connectionMode === 'lightcurve_room' ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <p className="text-sm font-medium text-slate-950">Recommended for Playground</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Lightcurve creates a short-lived sandbox room after you press Start Call. Your agent joins that room as the agent under test; Lightcurve joins as the synthetic caller and scores the conversation.
+                  </p>
+                  {activeSandboxRun?.liveKit ? (
+                    <div className="mt-4 space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Room</p>
+                        <p className="mt-1 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">LiveKit URL</p>
+                        <p className="mt-1 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Agent token</p>
+                        <p className="mt-1 max-h-24 overflow-auto break-all rounded-md border border-slate-200 bg-white p-2 font-mono text-[11px] text-slate-700">
+                          {activeSandboxRun.liveKit.agentToken}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                        onClick={() => router.push(`/experiments/${activeSandboxRun.experimentId}/runs/${activeSandboxRun.runId}`)}
+                      >
+                        Open full run detail
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                      Press Start Call to generate the room details. Nothing is billed to a provider account in this idle preview.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className="block text-xs text-slate-500">
+                  Compatible HTTPS runner URL
+                  <input
+                    className="input-field mt-1"
+                    value={agent}
+                    onChange={(event) => setAgent(event.target.value)}
+                    placeholder="https://your-runner.example.com/lightcurve"
+                  />
+                  <span className="mt-2 block leading-5 text-slate-500">
+                    Advanced path. This endpoint must implement Lightcurve's runner contract. Use hosted sandbox if you just want to test a voice agent quickly.
+                  </span>
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
