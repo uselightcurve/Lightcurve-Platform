@@ -137,20 +137,19 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
   const apiKey = stringValue(agentConfig.apiKey) ?? internalValue(experiment, 'VAPI_API_KEY');
   const phoneNumberId = stringValue(agentConfig.phoneNumberId) ?? internalValue(experiment, 'VAPI_PHONE_NUMBER_ID');
   const targetAgentNumber = stringValue(agentConfig.targetAgentNumber) ?? internalValue(experiment, 'VAPI_TARGET_AGENT_NUMBER');
-  const callerAssistantId =
-    stringValue(agentConfig.callerAssistantId) ?? internalValue(experiment, 'VAPI_CALLER_ASSISTANT_ID');
+  const callerAssistantId = stringValue(agentConfig.callerAssistantId);
   const callerPhoneNumber = stringValue(agentConfig.callerPhoneNumber) ?? internalValue(experiment, 'VAPI_CALLER_PHONE_NUMBER');
   const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
 
   missingCustomerConfig('Vapi bot-to-bot', {
     'API key': apiKey,
-    'caller phone-number ID': phoneNumberId,
+    'outbound caller phone-number UUID': phoneNumberId,
     'target agent phone number or SIP URI': targetAgentNumber,
   });
   if (!apiKey || !phoneNumberId || !targetAgentNumber) throw new Error('Missing Vapi bot-to-bot customer configuration.');
 
   if (looksLikePhoneNumber(phoneNumberId)) {
-    throw new Error('Vapi caller phone-number ID must be the UUID from Vapi Phone Numbers, not the formatted +1 caller number.');
+    throw new Error('Vapi outbound caller phone-number UUID must be the UUID from Vapi Phone Numbers, not the formatted +1 caller number.');
   }
 
   if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(callerPhoneNumber)) {
@@ -158,7 +157,7 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
   }
 
   if (callerAssistantId && callerAssistantId === stringValue(agentConfig.assistantId)) {
-    throw new Error('Synthetic caller assistant ID must be a dedicated caller assistant, not your customer-facing agent assistant. Leave it blank to use inline caller mode.');
+    throw new Error('Synthetic caller assistant ID must be a dedicated caller assistant, not your customer-facing agent assistant. Leave it blank so Lightcurve can generate the caller from the selected scenario.');
   }
 
   return { apiKey, phoneNumberId, targetAgentNumber, callerAssistantId, callerPhoneNumber, apiBase };
