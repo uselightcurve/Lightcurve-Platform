@@ -71,6 +71,69 @@ function looksLikePhoneNumber(value: string) {
   return digits.length >= 8 && /^[+\d\s().-]+$/.test(value.trim());
 }
 
+function looksLikeUuid(value: string | undefined) {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+}
+
+function compactJson(value: unknown) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function readableErrorValue(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map(readableErrorValue).filter(Boolean);
+    return parts.length ? parts.join('; ') : undefined;
+  }
+
+  const record = asRecord(value);
+  const direct =
+    readableErrorValue(record.message) ??
+    readableErrorValue(record.error) ??
+    readableErrorValue(record.detail) ??
+    readableErrorValue(record.details) ??
+    readableErrorValue(record.errors) ??
+    readableErrorValue(record.issues);
+  if (direct) return direct;
+
+  const entries = Object.entries(record)
+    .map(([key, item]) => {
+      const message = readableErrorValue(item);
+      return message ? `${key}: ${message}` : undefined;
+    })
+    .filter(Boolean);
+  if (entries.length) return entries.join('; ');
+
+  const message = compactJson(value);
+  return message && message !== '{}' ? message : undefined;
+}
+
+function readableVapiError(raw: unknown, fallback: string) {
+  const record = asRecord(raw);
+  const candidates = [
+    record.message,
+    record.error,
+    record.errors,
+    record.details,
+    record.detail,
+  ].filter((value) => value !== undefined && value !== null);
+
+  for (const candidate of candidates) {
+    const message = readableErrorValue(candidate);
+    if (message) return message;
+  }
+
+  const rawMessage = readableErrorValue(raw);
+  if (rawMessage) return `${fallback}: ${rawMessage}`;
+  return fallback;
+}
+
 function getAgentConfig(experiment: ExperimentRow): Record<string, string> {
   return asRecord(experiment.agentConfig) as Record<string, string>;
 }
@@ -148,12 +211,24 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
   });
   if (!apiKey || !phoneNumberId || !targetAgentNumber) throw new Error('Missing Vapi bot-to-bot customer configuration.');
 
+  if (!looksLikeUuid(phoneNumberId)) {
+    throw new Error('Vapi outbound caller phone-number UUID must look like a UUID from Vapi Phone Numbers. Do not paste the formatted +1 number here.');
+  }
+
   if (looksLikePhoneNumber(phoneNumberId)) {
     throw new Error('Vapi outbound caller phone-number UUID must be the UUID from Vapi Phone Numbers, not the formatted +1 caller number.');
   }
 
+  if (!targetAgentNumber.toLowerCase().startsWith('sip:') && !looksLikePhoneNumber(targetAgentNumber)) {
+    throw new Error('Target agent must be the inbound phone number your voice agent answers in E.164 format, like +14155550123, or a SIP URI.');
+  }
+
   if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(callerPhoneNumber)) {
     throw new Error('Your agent phone number cannot be the outbound caller number. Enter the inbound number your agent answers, and use a different Vapi Phone Number UUID for the caller.');
+  }
+
+  if (callerAssistantId && !looksLikeUuid(callerAssistantId)) {
+    throw new Error('Synthetic caller assistant ID must be a Vapi assistant UUID. Leave it blank unless you created a dedicated caller assistant in Vapi.');
   }
 
   if (callerAssistantId && callerAssistantId === stringValue(agentConfig.assistantId)) {
@@ -237,7 +312,8 @@ export async function startVapiSandboxCall(runId: string, experiment: Experiment
 
   const raw = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = stringValue(asRecord(raw).message) ?? stringValue(asRecord(raw).error) ?? response.statusText;
+    const message = readableVapiError(raw, response.statusText);
+    console.error('Vapi sandbox call start failed', { status: response.status, message });
     throw new Error(`Vapi call start failed: ${message}`);
   }
 
@@ -290,8 +366,11 @@ export async function startVapiBotToBotPhoneCall(runId: string, experiment: Expe
 
   const raw = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = stringValue(asRecord(raw).message) ?? stringValue(asRecord(raw).error) ?? response.statusText;
-    throw new Error(`Vapi bot-to-bot call start failed: ${message}`);
+    const message = readableVapiError(raw, response.statusText);
+    console.error('Vapi bot-to-bot call start failed', { status: response.status, message });
+    throw new Error(
+      `Vapi bot-to-bot call start failed: ${message}. Check that the outbound caller phone-number UUID belongs to this Vapi API key, outbound calling is enabled, and the target agent number is the number your agent answers.`,
+    );
   }
 
   const id = stringValue(asRecord(raw).id) ?? stringValue(asRecord(raw).callId);
@@ -323,7 +402,8 @@ export async function getVapiCall(experiment: ExperimentRow, callId: string) {
 
   const raw = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = stringValue(asRecord(raw).message) ?? stringValue(asRecord(raw).error) ?? response.statusText;
+    const message = readableVapiError(raw, response.statusText);
+    console.error('Vapi call fetch failed', { status: response.status, message });
     throw new Error(`Vapi call fetch failed: ${message}`);
   }
 
