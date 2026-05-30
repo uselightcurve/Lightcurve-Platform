@@ -651,7 +651,7 @@ export default function NewExperiment() {
                   {agentType === 'vapi' && (
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                        {vapiBotToBotPhone ? 'Lightcurve caller phone number ID' : 'Vapi phone number ID'}
+                        {vapiBotToBotPhone ? 'Your Vapi caller phone number ID' : 'Vapi phone number ID'}
                       </label>
                       <input
                         className="input-field"
@@ -671,7 +671,7 @@ export default function NewExperiment() {
                         className="input-field"
                         value={vapiCallerAssistantId}
                         onChange={(event) => setVapiCallerAssistantId(event.target.value)}
-                        placeholder="Optional. Leave blank for Lightcurve caller."
+                        placeholder="Optional. Leave blank for generated synthetic caller."
                       />
                       <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                         Only use a dedicated caller assistant here. Do not enter your customer-facing agent assistant ID.

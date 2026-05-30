@@ -155,7 +155,7 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
   }
 
   if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(knownLightcurveCallerNumber)) {
-    throw new Error('Your agent phone number cannot be the Lightcurve caller number. Enter the inbound number your agent answers, not the Vapi/Lightcurve caller line.');
+    throw new Error('Your agent phone number cannot be the caller number. Enter the inbound number your agent answers, not the outbound caller line.');
   }
 
   if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(callerPhoneNumber)) {
