@@ -4,6 +4,7 @@ import { experiments, runs, scenarios } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { isProviderBackedSandbox, startProviderSandboxCall } from '@/lib/sandboxProviders';
 import { enqueueBotToBotRun, executeBotToBotRun, isBotToBotExperiment, resolveAgentRunnerUrl } from '@/lib/botToBotRunner';
+import { executeStubAgentRun, isStubAgentExperiment } from '@/lib/stubAgentRunner';
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 
@@ -24,6 +25,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const experimentData = await db.select().from(experiments).where(and(eq(experiments.id, run.experimentId!), eq(experiments.ownerUserId, account.userId)));
   const experiment = experimentData[0] ? await hydrateExperimentAgentConfig(experimentData[0]) : undefined;
   if (!experiment) return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
+
+  if (isStubAgentExperiment(experiment)) {
+    const result = await executeStubAgentRun(id, experiment, run, scenario);
+    return NextResponse.json({
+      success: true,
+      provider: 'stub_agent',
+      status: result.run?.status ?? 'complete',
+      externalStatus: result.run?.externalStatus ?? 'stub_completed',
+    });
+  }
 
   if (isProviderBackedSandbox(experiment)) {
     try {

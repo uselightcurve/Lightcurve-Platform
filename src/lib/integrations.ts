@@ -1,4 +1,4 @@
-export type ProviderId = 'vapi' | 'retell' | 'elevenlabs' | 'livekit' | 'pipecat' | 'custom_webrtc';
+export type ProviderId = 'stub_agent' | 'vapi' | 'retell' | 'elevenlabs' | 'livekit' | 'pipecat' | 'custom_webrtc';
 
 export type ProviderCapability =
   | 'sandbox-run'
@@ -49,6 +49,15 @@ export type NormalizedCall = {
 
 export const providerDefinitions: ProviderDefinition[] = [
   {
+    id: 'stub_agent',
+    name: 'Stub Agent',
+    tagline: 'Low-cost prompt and policy sandbox before spending provider minutes.',
+    env: [],
+    locatorLabel: 'Agent instructions',
+    locatorPlaceholder: 'Paste system prompt, policy, or expected call flow',
+    capabilities: ['sandbox-run', 'prompt-recommendation'],
+  },
+  {
     id: 'vapi',
     name: 'Vapi',
     tagline: 'Bot-to-bot phone tests, hosted assistant calls, and production imports.',
@@ -80,7 +89,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     name: 'LiveKit',
     tagline: 'Realtime rooms, recordings, and runner bridges.',
     env: ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'],
-    locatorLabel: 'Runner endpoint',
+    locatorLabel: 'Agent runner endpoint',
     locatorPlaceholder: 'https://agent.example.com/lightcurve/run',
     capabilities: ['sandbox-run', 'bot-to-bot-bridge', 'production-import', 'recording-import'],
   },
@@ -89,7 +98,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     name: 'Pipecat',
     tagline: 'Custom Python voice pipelines behind your own endpoint.',
     env: ['PIPECAT_AGENT_URL', 'PIPECAT_AUTH_TOKEN'],
-    locatorLabel: 'Runner endpoint',
+    locatorLabel: 'Agent runner endpoint',
     locatorPlaceholder: 'https://agent.example.com/pipecat',
     capabilities: ['sandbox-run', 'bot-to-bot-bridge', 'production-import', 'recording-import'],
   },
@@ -98,7 +107,7 @@ export const providerDefinitions: ProviderDefinition[] = [
     name: 'Custom WebRTC',
     tagline: 'Bring any HTTPS/WebRTC bridge without changing infra.',
     env: ['CUSTOM_WEBRTC_WSS_URL'],
-    locatorLabel: 'Runner endpoint',
+    locatorLabel: 'Agent runner endpoint',
     locatorPlaceholder: 'https://agent.example.com/lightcurve/run',
     capabilities: ['sandbox-run', 'bot-to-bot-bridge', 'recording-import'],
   },

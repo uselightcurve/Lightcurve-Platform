@@ -20,6 +20,7 @@ const AGENT_TYPES = providerDefinitions.map((provider) => ({
 
 const LIVE_PROVIDER_IDS = ['vapi', 'retell', 'elevenlabs'];
 const BOT_TO_BOT_PROVIDER_IDS = ['livekit', 'pipecat', 'custom_webrtc'];
+const STUB_PROVIDER_ID = 'stub_agent';
 const MAX_REAL_PHONE_SCENARIOS = 10;
 
 function isLiveProvider(provider: string) {
@@ -143,9 +144,16 @@ function MiniMetric({ label, value }: { label: string; value: string | number })
 export default function NewExperiment() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [agentType, setAgentType] = useState('custom_webrtc');
+  const [agentType, setAgentType] = useState(STUB_PROVIDER_ID);
   const [apiKey, setApiKey] = useState('');
   const [agentLocator, setAgentLocator] = useState('');
+  const [stubInstructions, setStubInstructions] = useState(
+    'Be concise, verify critical details, follow policy, and confirm the next step before ending the call.',
+  );
+  const [stubKnowledge, setStubKnowledge] = useState(
+    'Use the scenario facts only. If account, policy, or availability is unclear, ask one clarifying question.',
+  );
+  const [stubTools, setStubTools] = useState('CRM lookup may find duplicates; ticket policy may require escalation; calendar slots may be limited.');
   const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
   const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
   const [vapiMode, setVapiMode] = useState<'bot_to_bot_phone' | 'human_pilot'>('bot_to_bot_phone');
@@ -203,22 +211,42 @@ export default function NewExperiment() {
   }, [scenarios]);
 
   const activeAgent = AGENT_TYPES.find((agent) => agent.id === agentType) ?? AGENT_TYPES[0];
+  const stubMode = agentType === STUB_PROVIDER_ID;
   const liveProvider = isLiveProvider(agentType);
   const botToBotProvider = isBotToBotProvider(agentType);
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
   const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
-  const locatorLabel = vapiBotToBotPhone ? 'Your agent phone number or SIP URI' : activeAgent.locatorLabel;
-  const locatorPlaceholder = vapiBotToBotPhone ? 'Put your agent phone number, e.g. +14155550123' : activeAgent.placeholder;
-  const callerMode = replayMode ? 'Replay import' : vapiBotToBotPhone ? 'Bot-to-bot phone' : liveProvider ? 'Human pilot' : 'Bot-to-bot';
+  const locatorLabel = stubMode
+    ? 'Agent instructions'
+    : vapiBotToBotPhone
+      ? 'Your agent phone number or SIP URI'
+      : activeAgent.locatorLabel;
+  const locatorPlaceholder = stubMode
+    ? 'Paste the policy, prompt, or expected call flow you want to preflight'
+    : vapiBotToBotPhone
+      ? 'Put your agent phone number, e.g. +14155550123'
+      : activeAgent.placeholder;
+  const callerMode = stubMode
+    ? 'Stub agent'
+    : replayMode
+      ? 'Replay import'
+      : vapiBotToBotPhone
+        ? 'Bot-to-bot phone'
+        : liveProvider
+          ? 'Human pilot'
+          : 'Bot-to-bot';
   const realPhoneMode = liveProvider && !replayMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
+  const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : agentLocator.trim().length > 0;
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
   const handleRun = async () => {
-    if (!expName.trim() || !agentLocator.trim() || selectedIds.length === 0) return;
+    if (!expName.trim() || selectedIds.length === 0) return;
+    if (stubMode && !stubInstructions.trim()) return;
+    if (!stubMode && !agentLocator.trim()) return;
     const usesLiveProvider = isLiveProvider(agentType);
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
     const needsHumanTester = usesLiveProvider && !elevenLabsReplay && !vapiBotToBotPhone;
@@ -226,7 +254,7 @@ export default function NewExperiment() {
       setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Select a smaller pilot suite, then batch the rest.`);
       return;
     }
-    if (vapiBotToBotPhone) {
+    if (!stubMode && vapiBotToBotPhone) {
       if (looksLikeUuid(agentLocator)) {
         setError('For Vapi bot-to-bot, enter the target agent phone number or SIP URI here, not a Vapi phone-number ID.');
         return;
@@ -240,7 +268,7 @@ export default function NewExperiment() {
         return;
       }
     }
-    if (isBotToBotProvider(agentType) && !agentLocator.trim().startsWith('https://')) {
+    if (!stubMode && isBotToBotProvider(agentType) && !agentLocator.trim().startsWith('https://')) {
       setError('For LiveKit, Pipecat, or Custom WebRTC today, enter a compatible HTTPS runner endpoint. Native SIP/WebRTC media bridge is coming next.');
       return;
     }
@@ -261,7 +289,15 @@ export default function NewExperiment() {
 
     try {
       const agentConfig: Record<string, string> =
-        agentType === 'custom_webrtc'
+        stubMode
+          ? {
+              mode: 'stub_agent',
+              instructions: stubInstructions,
+              knowledge: stubKnowledge,
+              toolMocks: stubTools,
+              costMode: 'cheap_first',
+            }
+          : agentType === 'custom_webrtc'
             ? { runnerUrl: agentLocator, apiKey }
             : agentType === 'vapi'
             ? vapiBotToBotPhone
@@ -300,7 +336,9 @@ export default function NewExperiment() {
               ? { runnerUrl: agentLocator, apiKey }
               : { agentId: agentLocator, apiKey };
       const credentials: Record<string, string> =
-        agentType === 'vapi'
+        stubMode
+          ? {}
+          : agentType === 'vapi'
           ? vapiBotToBotPhone
             ? {
                 apiKey,
@@ -319,13 +357,15 @@ export default function NewExperiment() {
               ? { apiKey, agentId: agentLocator, agentPhoneNumberId: elevenLabsPhoneNumberId, customerNumber: vapiCustomerNumber }
               : { apiKey };
 
-      const connection = await createAgentConnection({
-        provider: agentType,
-        displayName: `${activeAgent.label} ${new Date().toLocaleDateString()}`,
-        endpointType: endpointTypeFor(agentLocator),
-        endpoint: vapiBotToBotPhone || isBotToBotProvider(agentType) ? agentLocator : '',
-        credentials,
-      });
+      const connection = stubMode
+        ? null
+        : await createAgentConnection({
+            provider: agentType,
+            displayName: `${activeAgent.label} ${new Date().toLocaleDateString()}`,
+            endpointType: endpointTypeFor(agentLocator),
+            endpoint: vapiBotToBotPhone || isBotToBotProvider(agentType) ? agentLocator : '',
+            credentials,
+          });
 
       const response = await fetch('/api/experiments', {
         method: 'POST',
@@ -333,11 +373,11 @@ export default function NewExperiment() {
         body: JSON.stringify({
           name: expName,
           agentType,
-          agentConnectionId: connection.id,
+          agentConnectionId: connection?.id ?? null,
           agentConfig,
-          webrtcEndpoint: `${agentType}:${agentLocator}`,
+          webrtcEndpoint: stubMode ? 'stub-agent://cheap-first' : `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,
-          gitSha: 'live-sandbox',
+          gitSha: stubMode ? 'cheap-stub-sandbox' : 'live-sandbox',
         }),
       });
       const data = await response.json();
@@ -452,34 +492,76 @@ export default function NewExperiment() {
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                  {locatorLabel}
-                </label>
-                <input
-                  className="input-field"
-                  value={agentLocator}
-                  onChange={(event) => setAgentLocator(event.target.value)}
-                  placeholder={locatorPlaceholder}
-                />
-                {vapiBotToBotPhone && (
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                    Put the phone number your voice agent answers. This is not your Vapi caller number.
-                  </p>
-                )}
+            {stubMode ? (
+              <div className="mt-5 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">{locatorLabel}</label>
+                  <textarea
+                    className="input-field min-h-24 resize-y"
+                    value={stubInstructions}
+                    onChange={(event) => setStubInstructions(event.target.value)}
+                    placeholder={locatorPlaceholder}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Knowledge and policy notes</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubKnowledge}
+                      onChange={(event) => setStubKnowledge(event.target.value)}
+                      placeholder="Refund policy, booking rules, escalation constraints..."
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Sandbox tool conditions</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubTools}
+                      onChange={(event) => setStubTools(event.target.value)}
+                      placeholder="CRM duplicate, payment failure, no slots, ticket already open..."
+                    />
+                  </div>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-500">
+                  This path spends Lightcurve tested minutes only. It does not call your Vapi, Retell, ElevenLabs, or model-provider account.
+                </p>
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
-                <input
-                  type="password"
-                  className="input-field"
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                  placeholder="Required unless saved in an agent connection"
-                />
+            ) : (
+              <div className="mt-5 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                    {locatorLabel}
+                  </label>
+                  <input
+                    className="input-field"
+                    value={agentLocator}
+                    onChange={(event) => setAgentLocator(event.target.value)}
+                    placeholder={locatorPlaceholder}
+                  />
+                  {vapiBotToBotPhone && (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                      Put the phone number your voice agent answers. This is not your Vapi caller number.
+                    </p>
+                  )}
+                  {botToBotProvider && (
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                      This is the HTTPS endpoint your team exposes for Lightcurve to send synthetic caller turns and receive agent replies. It is not a public app URL.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
+                  <input
+                    type="password"
+                    className="input-field"
+                    value={apiKey}
+                    onChange={(event) => setApiKey(event.target.value)}
+                    placeholder="Required unless saved in an agent connection"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {liveProvider && (
               <div className="mt-4 space-y-3">
@@ -584,14 +666,14 @@ export default function NewExperiment() {
 
             <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="grid grid-cols-3 gap-3">
-                <MiniMetric label="Input" value="Phone audio" />
+                <MiniMetric label="Input" value={stubMode ? 'Scenario text' : 'Phone audio'} />
                 <MiniMetric label="Caller" value={callerMode} />
-                <MiniMetric label="Output" value="MOS + CI" />
+                <MiniMetric label="Output" value={stubMode ? 'Strict score' : 'MOS + CI'} />
               </div>
             </div>
 
             <div className="mt-6 flex justify-end">
-              <button type="button" className="btn-primary" onClick={() => setStep(2)} disabled={!agentLocator.trim()}>
+              <button type="button" className="btn-primary" onClick={() => setStep(2)} disabled={!canProceedFromAgentStep}>
                 Pick callers
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
@@ -776,11 +858,13 @@ export default function NewExperiment() {
                 type="button"
                 className="btn-primary"
                 onClick={handleRun}
-                disabled={!expName.trim() || !agentLocator.trim() || selectedIds.length === 0 || selectedTooManyPhoneScenarios || loading}
+                disabled={!expName.trim() || !canProceedFromAgentStep || selectedIds.length === 0 || selectedTooManyPhoneScenarios || loading}
               >
                 {loading
                   ? 'Creating sandbox...'
-                  : replayMode
+                  : stubMode
+                    ? 'Run cheap stub suite'
+                    : replayMode
                     ? 'Create replay sandbox'
                     : vapiBotToBotPhone
                       ? 'Run bot-to-bot phone test'

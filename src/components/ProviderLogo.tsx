@@ -24,6 +24,16 @@ export function ProviderLogo({ provider, className = iconClass }: ProviderLogoPr
     );
   }
 
+  if (provider === 'stub_agent') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="5" fill="#eef2ff" />
+        <path d="M8 8h8M8 12h5M8 16h7" stroke="#2f5ae0" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M16.5 11.5l1.2 1.2 2.3-2.7" stroke="#2f5ae0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
   if (provider === 'livekit') {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
