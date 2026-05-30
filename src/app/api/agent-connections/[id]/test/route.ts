@@ -55,7 +55,7 @@ async function validateConnection(connection: typeof agentConnections.$inferSele
 
   if (connection.provider === 'vapi') {
     if (!apiKey) return { ok: false, message: 'Vapi API key is required.' };
-    if (!assistantId) return { ok: true, message: 'Vapi API key stored; add assistant ID before running calls.' };
+    if (!assistantId) return { ok: false, message: 'Vapi assistant ID is required before this connection can run calls.' };
     const result = await fetchHealth(`https://api.vapi.ai/assistant/${assistantId}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
@@ -64,7 +64,7 @@ async function validateConnection(connection: typeof agentConnections.$inferSele
 
   if (connection.provider === 'retell') {
     if (!apiKey) return { ok: false, message: 'Retell API key is required.' };
-    if (!assistantId) return { ok: true, message: 'Retell API key stored; add agent ID before running calls.' };
+    if (!assistantId) return { ok: false, message: 'Retell agent ID is required before this connection can run calls.' };
     const result = await fetchHealth(`https://api.retellai.com/get-agent/${assistantId}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
