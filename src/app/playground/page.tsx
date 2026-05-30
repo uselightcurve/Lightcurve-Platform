@@ -516,7 +516,6 @@ export default function PlaygroundPage() {
         status: startPayload?.status,
         liveKit: startPayload?.liveKit,
       });
-      if (startPayload?.liveKit) setAgentModalOpen(true);
     } catch (error) {
       setCallState('idle');
       const message = error instanceof Error ? error.message : 'Unable to start sandbox call.';
@@ -540,6 +539,18 @@ export default function PlaygroundPage() {
     link.download = `${activeScenario?.name ?? 'sandbox-call'}-transcript.txt`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function copyToClipboard(value: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      trackLightcurveEvent('Playground Value Copied', {
+        value_type: value.startsWith('ey') ? 'agent_token' : value.startsWith('wss://') ? 'livekit_url' : 'room_name',
+      });
+    } catch {
+      setRunError('Copy failed in this browser. Select the value and copy it manually.');
+    }
   }
 
   if (!activeScenario) {
@@ -774,6 +785,83 @@ export default function PlaygroundPage() {
 
                 <div className="grid grid-cols-[1fr_320px] gap-4">
                   <div className="space-y-3">
+                    {activeSandboxRun?.liveKit && (
+                      <div className="rounded-lg border border-[#cfd8ff] bg-white p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Agent connection</p>
+                            <h3 className="mt-1 text-sm font-medium text-slate-950">Hosted sandbox room ready</h3>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              Connect your customer agent as the agent participant. Lightcurve stays in this Playground as the caller, observer, and scorer.
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-[#cfd8ff] bg-[#f6f8ff] px-2 py-0.5 text-xs text-[#2448bb]">
+                            {activeSandboxRun.status ?? 'ready'}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Room</p>
+                              <button
+                                type="button"
+                                className="text-xs text-[#2448bb]"
+                                onClick={() => copyToClipboard(activeSandboxRun.liveKit?.roomName ?? '')}
+                              >
+                                Copy
+                              </button>
+                            </div>
+                            <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">LiveKit URL</p>
+                              <button
+                                type="button"
+                                className="text-xs text-[#2448bb]"
+                                onClick={() => copyToClipboard(activeSandboxRun.liveKit?.liveKitUrl ?? '')}
+                              >
+                                Copy
+                              </button>
+                            </div>
+                            <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Agent token</p>
+                            <button
+                              type="button"
+                              className="text-xs text-[#2448bb]"
+                              onClick={() => copyToClipboard(activeSandboxRun.liveKit?.agentToken ?? '')}
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <p className="mt-2 max-h-20 overflow-auto break-all rounded-md bg-white p-2 font-mono text-[11px] text-slate-700">
+                            {activeSandboxRun.liveKit.agentToken}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <p className="text-slate-400">Provider</p>
+                            <p className="mt-1 text-slate-800">{activeSandboxRun.provider ?? 'livekit'}</p>
+                          </div>
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <p className="text-slate-400">Run ID</p>
+                            <p className="mt-1 truncate font-mono text-slate-800">{activeSandboxRun.runId}</p>
+                          </div>
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <p className="text-slate-400">Next</p>
+                            <p className="mt-1 text-slate-800">Join agent, then watch transcript</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {transcript.slice(0, callState === 'complete' ? transcript.length : visibleTurns).map((turn, index) => (
                       <div key={`${turn.speaker}-${index}-${turn.text}`} className="rounded-lg border border-slate-200 bg-white p-3">
                         <div className="flex items-center justify-between">
@@ -786,6 +874,31 @@ export default function PlaygroundPage() {
                   </div>
 
                   <div className="space-y-4">
+                    {activeSandboxRun?.liveKit && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Developer controls</p>
+                        <div className="mt-3 grid gap-2">
+                          <button
+                            type="button"
+                            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                            onClick={() => setAgentModalOpen(true)}
+                          >
+                            Edit connection
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                            onClick={() => router.push(`/experiments/${activeSandboxRun.experimentId}/runs/${activeSandboxRun.runId}`)}
+                          >
+                            Open audit detail
+                          </button>
+                        </div>
+                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                          The audit page is secondary. This panel is the live one-call workspace.
+                        </p>
+                      </div>
+                    )}
+
                     <SandboxEnvironmentPanel
                       scenario={activeScenario}
                       environmentType={environmentType}
@@ -913,6 +1026,12 @@ export default function PlaygroundPage() {
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     Lightcurve creates a short-lived sandbox room after you press Start Call. Your agent joins that room as the agent under test; Lightcurve joins as the synthetic caller and scores the conversation.
                   </p>
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                    <p className="font-medium text-slate-800">Using Vapi?</p>
+                    <p className="mt-1">
+                      For one phone-call realism check, use Experiments &gt; Create Experiment &gt; Vapi. Enter your Vapi API key, your agent assistant ID, the phone number your agent answers, and the Vapi phone-number UUID used as the caller line.
+                    </p>
+                  </div>
                   {activeSandboxRun?.liveKit ? (
                     <div className="mt-4 space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
                       <div>
@@ -929,12 +1048,8 @@ export default function PlaygroundPage() {
                           {activeSandboxRun.liveKit.agentToken}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
-                        onClick={() => router.push(`/experiments/${activeSandboxRun.experimentId}/runs/${activeSandboxRun.runId}`)}
-                      >
-                        Open full run detail
+                      <button type="button" className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
+                        Return to live call
                       </button>
                     </div>
                   ) : (
