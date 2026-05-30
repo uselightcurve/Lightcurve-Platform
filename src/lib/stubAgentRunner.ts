@@ -80,13 +80,17 @@ async function generateStubReply(experiment: ExperimentRow, scenario: ScenarioRo
   const instructions = stringValue(config.instructions, 'Be concise, follow policy, verify details, and confirm the next step.');
   const knowledge = stringValue(config.knowledge, 'Use only the provided scenario facts. If unsure, ask a clarifying question.');
   const toolMocks = stringValue(config.toolMocks, 'CRM, calendar, payments, ticketing, and knowledge-base tools may be unavailable or conflicting.');
+  const confirmationRules = stringValue(config.confirmationRules, 'Confirm critical values such as email, phone number, appointment time, amount, and next action.');
+  const escalationPolicy = stringValue(config.escalationPolicy, 'Escalate when policy is unclear, the caller disputes account facts, or a tool result conflicts with the caller.');
   const prompt = [
-    'You are a cheap pre-production stub for a customer voice AI agent.',
-    'Respond as the target agent would, using the supplied instructions. Do not mention that you are a stub.',
+    'You are a low-cost hosted agent replica for a customer voice AI agent.',
+    'Respond as the target agent would, using the supplied instructions. Do not mention that you are a replica or test harness.',
     'Keep the reply voice-call friendly: one or two sentences.',
     '',
     `Agent instructions: ${instructions}`,
     `Knowledge/policy notes: ${knowledge}`,
+    `Confirmation rules: ${confirmationRules}`,
+    `Escalation policy: ${escalationPolicy}`,
     `Sandbox tool conditions: ${toolMocks}`,
     `Scenario: ${scenario.name}`,
     `Domain: ${scenario.domain ?? 'general'}`,
@@ -116,7 +120,7 @@ async function judgeStubRun(
   const config = asRecord(experiment.agentConfig);
   const prompt = [
     'You are Lightcurve, judging a pre-production voice-agent sandbox run.',
-    'Score strictly. This is a low-cost text/audio proxy before expensive provider calls.',
+    'Score strictly. This is a low-cost testing text/audio proxy before provider-backed realism checks.',
     'Return compact JSON only with keys: mos, taskCompletion, captureAccuracy, rationale, recommendation.',
     'mos is 1.0-5.0. taskCompletion and captureAccuracy are 0.0-1.0.',
     '',
@@ -125,6 +129,8 @@ async function judgeStubRun(
     `Success criteria: ${JSON.stringify(criteriaOf(scenario)).slice(0, 3000)}`,
     `Agent instructions: ${stringValue(config.instructions, '')}`,
     `Knowledge/policy notes: ${stringValue(config.knowledge, '')}`,
+    `Confirmation rules: ${stringValue(config.confirmationRules, '')}`,
+    `Escalation policy: ${stringValue(config.escalationPolicy, '')}`,
     `Tool mock conditions: ${stringValue(config.toolMocks, '')}`,
     `Latency p95 ms: ${latencyP95}`,
     `Transcript: ${JSON.stringify(transcript).slice(0, 7000)}`,
@@ -228,14 +234,14 @@ export async function executeStubAgentRun(
   const endedAt = new Date();
   const simulatedMinutes = Number(Math.max(0.35, transcript.length * 0.16).toFixed(3));
   const durationMs = Math.max(1, Math.round(simulatedMinutes * 60_000));
-  const failureSummary = passed ? null : `Stub gate failed: MOS ${judged.mos.toFixed(1)}, task ${Math.round(judged.taskCompletion * 100)}%. ${judged.recommendation}`;
+  const failureSummary = passed ? null : `Agent replica gate failed: MOS ${judged.mos.toFixed(1)}, task ${Math.round(judged.taskCompletion * 100)}%. ${judged.recommendation}`;
 
   await db.insert(scores).values([
     {
       runId,
       metricName: 'mos',
       value: Number(judged.mos.toFixed(2)),
-      method: 'lightcurve-stub-audio-proxy',
+      method: 'lightcurve-agent-replica-audio-proxy',
       rationale: judged.rationale,
     },
     {
@@ -256,8 +262,8 @@ export async function executeStubAgentRun(
       runId,
       metricName: 'latency_p95',
       value: latencyP95,
-      method: 'stub-agent-simulated-latency',
-      rationale: 'Proxy latency for cheap-first sandboxing before provider-backed realtime runs.',
+      method: 'agent-replica-simulated-latency',
+      rationale: 'Proxy latency for low-cost testing before provider-backed realtime runs.',
     },
   ]);
 

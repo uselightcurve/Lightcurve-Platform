@@ -50,10 +50,10 @@ export type NormalizedCall = {
 export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'stub_agent',
-    name: 'Stub Agent',
-    tagline: 'Low-cost prompt and policy sandbox before spending provider minutes.',
+    name: 'Agent Replica',
+    tagline: 'Low-cost testing with prompt, policy, and tool behavior before spending provider minutes.',
     env: [],
-    locatorLabel: 'Agent instructions',
+    locatorLabel: 'Prompt and policy',
     locatorPlaceholder: 'Paste system prompt, policy, or expected call flow',
     capabilities: ['sandbox-run', 'prompt-recommendation'],
   },

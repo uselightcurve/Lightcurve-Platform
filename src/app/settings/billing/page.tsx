@@ -69,22 +69,22 @@ const billingFaqs = [
   {
     question: 'Will 10,000 sandbox tests run up my Vapi, Retell, or ElevenLabs bill?',
     answer:
-      'Not by default. Lightcurve is designed to run broad suites through cheap stub and isolated sandbox modes first. Your provider bill is only involved when you choose a real-agent/provider smoke test that reaches your connected production agent.',
+      'Not by default. Lightcurve is designed to run broad suites through low-cost testing and isolated sandbox modes first. Your provider bill is only involved when you choose a provider-backed or phone-realism check that reaches your connected production agent.',
   },
   {
-    question: 'What is the cheapest way to test before production?',
+    question: 'What is the lowest-cost way to test before production?',
     answer:
-      'Run the stub suite first. Lightcurve uses your agent instructions, policy text, tool mocks, and scenario library to find risky failures cheaply, then promotes only the highest-risk cases to real-agent verification.',
+      'Run the agent-replica suite first. Lightcurve uses your agent instructions, policy text, tool mocks, and scenario library to find risky failures with low-cost testing, then promotes only the highest-risk cases to real-agent verification.',
   },
   {
     question: 'When can my own agent provider still charge me?',
     answer:
-      'If a test calls your real agent endpoint, your agent may still consume its own model, voice, or provider credits. Lightcurve keeps that controlled by separating cheap sandbox coverage from smaller real-provider smoke suites.',
+      'If a test calls your real agent endpoint, your agent may still consume its own model, voice, or provider credits. Lightcurve keeps that controlled by separating low-cost testing coverage from smaller real-provider smoke suites.',
   },
   {
-    question: 'Does cheaper testing mean weaker testing?',
+    question: 'Does low-cost testing mean weaker testing?',
     answer:
-      'No. The judge stays strict across both cheap and real-agent modes: exact email and phone capture, confirmation, tool behavior, task completion, latency, pacing drift, and failure evidence are still scored.',
+      'No. The judge stays strict across low-cost testing and real-agent modes: exact email and phone capture, confirmation, tool behavior, task completion, latency, pacing drift, and failure evidence are still scored.',
   },
 ];
 
@@ -163,7 +163,7 @@ export default async function BillingSettingsPage() {
                       Lightcurve is built to make testing a daily habit, not another expensive provider bill.
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">Cheap first</span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">Low-cost first</span>
                 </div>
                 <div className="mt-4 divide-y divide-slate-100">
                   {billingFaqs.map((item) => (

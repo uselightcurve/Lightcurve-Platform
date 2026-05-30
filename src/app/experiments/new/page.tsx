@@ -7,6 +7,7 @@ import { ProviderLogo } from '@/components/ProviderLogo';
 import { providerDefinitions } from '@/lib/integrations';
 import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
+import { COST_LANES, costLaneForProvider } from '@/lib/costLanes';
 
 type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
 
@@ -154,6 +155,12 @@ export default function NewExperiment() {
     'Use the scenario facts only. If account, policy, or availability is unclear, ask one clarifying question.',
   );
   const [stubTools, setStubTools] = useState('CRM lookup may find duplicates; ticket policy may require escalation; calendar slots may be limited.');
+  const [stubConfirmationRules, setStubConfirmationRules] = useState(
+    'Read back emails, phone numbers, appointment times, amounts, and final next steps before ending the call.',
+  );
+  const [stubEscalationPolicy, setStubEscalationPolicy] = useState(
+    'Escalate when a customer disputes account data, policy conflicts, or the requested action is blocked.',
+  );
   const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
   const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
   const [vapiMode, setVapiMode] = useState<'bot_to_bot_phone' | 'human_pilot'>('bot_to_bot_phone');
@@ -182,8 +189,12 @@ export default function NewExperiment() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const provider = params.get('provider');
     const scenarioId = params.get('scenario');
     const scenarioIds = params.get('scenarios')?.split(',').filter(Boolean) ?? [];
+    if (provider && AGENT_TYPES.some((agent) => agent.id === provider)) {
+      setAgentType(provider);
+    }
     if (scenarioId && scenarios.some((scenario) => scenario.id === scenarioId)) {
       setSelectedIds((current) => (current.includes(scenarioId) ? current : [scenarioId]));
       setStep(2);
@@ -227,7 +238,7 @@ export default function NewExperiment() {
       ? 'Put your agent phone number, e.g. +14155550123'
       : activeAgent.placeholder;
   const callerMode = stubMode
-    ? 'Stub agent'
+    ? 'Agent replica'
     : replayMode
       ? 'Replay import'
       : vapiBotToBotPhone
@@ -291,11 +302,13 @@ export default function NewExperiment() {
       const agentConfig: Record<string, string> =
         stubMode
           ? {
-              mode: 'stub_agent',
+              mode: 'agent_replica',
               instructions: stubInstructions,
               knowledge: stubKnowledge,
               toolMocks: stubTools,
-              costMode: 'cheap_first',
+              confirmationRules: stubConfirmationRules,
+              escalationPolicy: stubEscalationPolicy,
+              costMode: 'low_cost_testing',
             }
           : agentType === 'custom_webrtc'
             ? { runnerUrl: agentLocator, apiKey }
@@ -375,9 +388,9 @@ export default function NewExperiment() {
           agentType,
           agentConnectionId: connection?.id ?? null,
           agentConfig,
-          webrtcEndpoint: stubMode ? 'stub-agent://cheap-first' : `${agentType}:${agentLocator}`,
+          webrtcEndpoint: stubMode ? 'agent-replica://low-cost-testing' : `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,
-          gitSha: stubMode ? 'cheap-stub-sandbox' : 'live-sandbox',
+          gitSha: stubMode ? 'low-cost-agent-replica' : 'live-sandbox',
         }),
       });
       const data = await response.json();
@@ -461,6 +474,22 @@ export default function NewExperiment() {
               ))}
             </div>
 
+            <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+              {Object.values(COST_LANES).map((lane) => (
+                <div
+                  key={lane.id}
+                  className={`rounded-md border px-3 py-2 ${
+                    costLaneForProvider(agentType) === lane.id
+                      ? 'border-[#cfd8ff] bg-white text-[#2448bb]'
+                      : 'border-transparent text-slate-500'
+                  }`}
+                >
+                  <p className="text-xs font-medium">{lane.label}</p>
+                  <p className="mt-1 text-[11px] leading-4">{lane.description}</p>
+                </div>
+              ))}
+            </div>
+
             {agentType === 'vapi' && (
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -494,6 +523,14 @@ export default function NewExperiment() {
 
             {stubMode ? (
               <div className="mt-5 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-lg border border-[#cfd8ff] bg-white p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Testing lane</p>
+                  <p className="mt-1 text-sm font-medium text-slate-950">Low-cost hosted agent replica</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    Mirror the customer agent with prompt, policy, and tool behavior first. Run broad coverage here,
+                    then promote only risky failures to provider-backed or phone-realism checks.
+                  </p>
+                </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-slate-600">{locatorLabel}</label>
                   <textarea
@@ -520,6 +557,26 @@ export default function NewExperiment() {
                       value={stubTools}
                       onChange={(event) => setStubTools(event.target.value)}
                       placeholder="CRM duplicate, payment failure, no slots, ticket already open..."
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Confirmation rules</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubConfirmationRules}
+                      onChange={(event) => setStubConfirmationRules(event.target.value)}
+                      placeholder="Read back emails, phone numbers, amounts, dates, next steps..."
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Escalation policy</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubEscalationPolicy}
+                      onChange={(event) => setStubEscalationPolicy(event.target.value)}
+                      placeholder="When to escalate, when to refuse, when to ask for clarification..."
                     />
                   </div>
                 </div>
@@ -863,7 +920,7 @@ export default function NewExperiment() {
                 {loading
                   ? 'Creating sandbox...'
                   : stubMode
-                    ? 'Run cheap stub suite'
+                    ? 'Run low-cost test suite'
                     : replayMode
                     ? 'Create replay sandbox'
                     : vapiBotToBotPhone

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { COST_LANES, costLaneForProvider } from '@/lib/costLanes';
 
 function formatScenarioName(value: unknown) {
   return String(value ?? 'Unknown scenario')
@@ -49,6 +50,8 @@ export default function ExperimentDetail() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<any>(null);
   const [polling, setPolling] = useState(true);
+  const [promotion, setPromotion] = useState<any>(null);
+  const [promotionLoading, setPromotionLoading] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -104,6 +107,19 @@ export default function ExperimentDetail() {
   const scenariosById = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
   const failedRuns = runs.filter((run) => run.status === 'failed');
   const firstFailure = failedRuns.find((run) => run.failureSummary)?.failureSummary;
+  const sourceLane = costLaneForProvider(exp.agentType, exp.agentConfig, exp.webrtcEndpoint);
+  const sourceLaneLabel = COST_LANES[sourceLane].label;
+  const canPromoteFailures = sourceLane === 'low_cost_testing' && failedRuns.length > 0;
+
+  async function loadPromotion() {
+    setPromotionLoading(true);
+    try {
+      const response = await fetch(`/api/experiments/${id}/promotion`, { cache: 'no-store' });
+      if (response.ok) setPromotion(await response.json());
+    } finally {
+      setPromotionLoading(false);
+    }
+  }
 
   const avgMos = (() => {
     const vals = scores.filter((score) => score.metricName === 'mos').map((score) => score.value);
@@ -136,7 +152,7 @@ export default function ExperimentDetail() {
         <div>
           <h1 className="page-title">{exp.name}</h1>
           <p className="page-subtitle">
-            Agent: <span className="capitalize">{exp.agentType}</span> - {runs.length} run{runs.length !== 1 ? 's' : ''}
+            Agent: <span className="capitalize">{exp.agentType === 'stub_agent' ? 'Agent Replica' : exp.agentType}</span> - {runs.length} run{runs.length !== 1 ? 's' : ''} - {sourceLaneLabel}
           </p>
         </div>
         <StatusPill status={exp.status} />
@@ -154,6 +170,37 @@ export default function ExperimentDetail() {
             <span className="shrink-0 rounded-full border border-[#e3c3c1] bg-white px-2 py-0.5 text-xs font-medium text-[#8f3d3b]">
               {failedRuns.length} failed
             </span>
+          </div>
+        </div>
+      )}
+
+      {canPromoteFailures && (
+        <div className="mb-4 rounded-lg border border-[#cfd8ff] bg-white px-4 py-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-950">Promote only the risky cases</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                Keep broad coverage in low-cost testing, then send just the failed scenarios to a provider-backed or phone-realism check.
+              </p>
+              {promotion ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {promotion.candidateCount} scenario{promotion.candidateCount === 1 ? '' : 's'} prepared for Vapi verification.
+                </p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button type="button" className="btn-secondary min-h-9 px-3 py-1.5 text-xs" onClick={loadPromotion} disabled={promotionLoading}>
+                {promotionLoading ? 'Preparing...' : 'Prepare failures'}
+              </button>
+              {promotion?.scenarioIds?.length ? (
+                <Link
+                  href={`/experiments/new?provider=vapi&scenarios=${promotion.scenarioIds.join(',')}`}
+                  className="btn-primary min-h-9 px-3 py-1.5 text-xs"
+                >
+                  Open Vapi check
+                </Link>
+              ) : null}
+            </div>
           </div>
         </div>
       )}

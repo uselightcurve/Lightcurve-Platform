@@ -3,11 +3,13 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ScoreBar, StatusChip } from '@/components/PageActions';
+import { COST_LANES, costLaneForProvider } from '@/lib/costLanes';
 
 type ExperimentRow = {
   id: string;
   name: string;
   agentType: string;
+  agentConfig?: unknown;
   webrtcEndpoint: string;
   status: string | null;
   gitSha: string | null;
@@ -45,6 +47,12 @@ function formatDate(value: string | null) {
 
 function scoreOrPending(value: number | null | undefined, max = 1) {
   return typeof value === 'number' ? <ScoreBar value={value} max={max} /> : <span className="text-xs text-slate-400">Pending</span>;
+}
+
+function providerLabel(value: string) {
+  if (value === 'stub_agent') return 'Agent Replica';
+  if (value === 'custom_webrtc') return 'Custom WebRTC';
+  return value.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default function ExperimentsPage() {
@@ -193,7 +201,12 @@ export default function ExperimentsPage() {
                       <p className="mt-1 text-xs text-slate-500">Git {experiment.gitSha ?? '-'}</p>
                       {experiment.summary?.failedReason ? <p className="mt-1 text-xs text-[#8f3d3b]">{experiment.summary.failedReason}</p> : null}
                     </td>
-                    <td className="px-3 py-4 text-slate-600">{experiment.webrtcEndpoint || experiment.agentType}</td>
+                    <td className="px-3 py-4 text-slate-600">
+                      <p className="text-sm text-slate-800">{providerLabel(experiment.agentType)}</p>
+                      <span className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
+                        {COST_LANES[costLaneForProvider(experiment.agentType, experiment.agentConfig, experiment.webrtcEndpoint)].label}
+                      </span>
+                    </td>
                     <td className="px-3 py-4 text-slate-600">{experiment.summary?.runs ?? 0}</td>
                     <td className="px-3 py-4">{scoreOrPending(experiment.summary?.avgMos, 4.5)}</td>
                     <td className="px-3 py-4">{scoreOrPending(experiment.summary?.avgTask)}</td>
