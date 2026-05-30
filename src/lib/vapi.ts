@@ -140,7 +140,6 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
   const callerAssistantId =
     stringValue(agentConfig.callerAssistantId) ?? internalValue(experiment, 'VAPI_CALLER_ASSISTANT_ID');
   const callerPhoneNumber = stringValue(agentConfig.callerPhoneNumber) ?? internalValue(experiment, 'VAPI_CALLER_PHONE_NUMBER');
-  const knownLightcurveCallerNumber = callerPhoneNumber ?? '+12164748341';
   const apiBase = stringValue(process.env.VAPI_API_BASE) ?? 'https://api.vapi.ai';
 
   missingCustomerConfig('Vapi bot-to-bot', {
@@ -154,12 +153,8 @@ function getVapiBotToBotConfig(experiment: ExperimentRow) {
     throw new Error('Vapi caller phone-number ID must be the UUID from Vapi Phone Numbers, not the formatted +1 caller number.');
   }
 
-  if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(knownLightcurveCallerNumber)) {
-    throw new Error('Your agent phone number cannot be the caller number. Enter the inbound number your agent answers, not the outbound caller line.');
-  }
-
   if (normalizePhone(targetAgentNumber) && normalizePhone(targetAgentNumber) === normalizePhone(callerPhoneNumber)) {
-    throw new Error('Target agent number cannot be the same as the Vapi caller number. Enter the inbound number your agent answers.');
+    throw new Error('Your agent phone number cannot be the outbound caller number. Enter the inbound number your agent answers, and use a different Vapi Phone Number UUID for the caller.');
   }
 
   if (callerAssistantId && callerAssistantId === stringValue(agentConfig.assistantId)) {

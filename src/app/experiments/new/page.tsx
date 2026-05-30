@@ -281,7 +281,7 @@ export default function NewExperiment() {
         return;
       }
       if (vapiPhoneNumberId.trim() && !looksLikeUuid(vapiPhoneNumberId)) {
-        setError('Vapi caller phone number ID must be the UUID from Vapi, not the +1 phone number.');
+        setError('Paste the Vapi Phone Number UUID for the outbound caller. Do not paste the +1 phone number here.');
         return;
       }
     }
@@ -610,7 +610,7 @@ export default function NewExperiment() {
                   />
                   {vapiBotToBotPhone && (
                     <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                      Put the phone number your voice agent answers. This is not your Vapi caller number.
+                      Put the phone number your voice agent answers. This must be different from the Vapi outbound caller number.
                     </p>
                   )}
                   {botToBotProvider && (
@@ -663,7 +663,7 @@ export default function NewExperiment() {
                   {agentType === 'vapi' && (
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                        {vapiBotToBotPhone ? 'Your Vapi caller phone number ID' : 'Vapi phone number ID'}
+                        {vapiBotToBotPhone ? 'Vapi outbound caller phone number UUID' : 'Vapi phone number UUID'}
                       </label>
                       <input
                         className="input-field"
@@ -672,7 +672,7 @@ export default function NewExperiment() {
                         placeholder="b1c3cda9-6573-4ba2-b571-79e9509c453a"
                       />
                       <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                        Use the UUID from Vapi Phone Numbers, not the formatted +1 number.
+                        Add the UUID from Vapi Phone Numbers, not the formatted +1 phone number. This caller UUID should belong to a different number than your agent answers.
                       </p>
                     </div>
                   )}
