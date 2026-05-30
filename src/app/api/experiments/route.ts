@@ -80,7 +80,10 @@ export async function POST(req: Request) {
   try {
     const account = await requireAccount();
     const body = await req.json();
-    const scenarioIds = Array.isArray(body.scenarioIds) ? body.scenarioIds : [];
+    const scenarioIds: string[] = Array.isArray(body.scenarioIds)
+      ? body.scenarioIds.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+      : [];
+    const scenarioOverrides: unknown[] = Array.isArray(body.scenarioOverrides) ? body.scenarioOverrides : [];
     const agentConnectionId = typeof body.agentConnectionId === 'string' ? body.agentConnectionId : null;
     const agentConnection = agentConnectionId
       ? await getOwnedAgentConnection(agentConnectionId, account.userId)
@@ -117,7 +120,46 @@ export async function POST(req: Request) {
     }
     await assertUsageAvailable(account.userId, { actions: Math.max(1, scenarioIds.length) });
 
-    const realScenarios = REAL_SCENARIO_LIBRARY.filter((scenario) => scenarioIds.includes(scenario.id));
+    type ScenarioInsert = typeof scenarios.$inferInsert;
+    const scenarioIdMap = new Map<string, string>();
+    const overrideRows = scenarioOverrides.reduce<Array<{ sourceId: string; row: ScenarioInsert }>>((rows, scenario: unknown) => {
+        const value = asRecord(scenario);
+        const persona = asRecord(value.persona);
+        const sourceId = typeof value.id === 'string' ? value.id : '';
+        if (!sourceId || typeof value.name !== 'string') return rows;
+        rows.push({
+          sourceId,
+          row: {
+            ownerUserId: account.userId,
+            name: value.name,
+            language: typeof value.language === 'string' ? value.language : 'en-US',
+            persona: {
+              name: typeof persona.name === 'string' ? persona.name : 'Caller',
+              goal: typeof persona.goal === 'string' ? persona.goal : value.name,
+              emotional_state: typeof persona.emotional_state === 'string' ? persona.emotional_state : 'neutral',
+              noise_db: Number.isFinite(Number(persona.noise_db)) ? Number(persona.noise_db) : 0,
+              interrupts: Boolean(persona.interrupts),
+              opening_line: typeof persona.opening_line === 'string' ? persona.opening_line : value.name,
+            },
+            successCriteria: Array.isArray(value.successCriteria) ? value.successCriteria : [],
+            callerSeed: Number.isFinite(Number(value.callerSeed)) ? Number(value.callerSeed) : 42,
+            domain: typeof value.domain === 'string' ? value.domain : 'general',
+            isPreset: false,
+          },
+        });
+        return rows;
+      }, []);
+
+    if (overrideRows.length) {
+      const inserted = await db.insert(scenarios).values(overrideRows.map((item) => item.row)).returning();
+      inserted.forEach((row, index) => {
+        const sourceId = overrideRows[index]?.sourceId;
+        if (sourceId) scenarioIdMap.set(sourceId, row.id);
+      });
+    }
+
+    const storedScenarioIds = scenarioIds.map((id) => scenarioIdMap.get(id) ?? id);
+    const realScenarios = REAL_SCENARIO_LIBRARY.filter((scenario) => storedScenarioIds.includes(scenario.id));
     if (realScenarios.length) {
       await db.insert(scenarios).values(realScenarios.map((scenario) => ({
         ...scenario,
@@ -131,13 +173,13 @@ export async function POST(req: Request) {
       agentConnectionId,
       agentConfig,
       webrtcEndpoint: agentConnection?.endpoint ?? body.webrtcEndpoint ?? '',
-      scenarioIds,
+      scenarioIds: storedScenarioIds,
       gitSha: body.gitSha,
     }).returning();
 
     const expId = exp[0].id;
     const createdRuns = [];
-    for (const sid of scenarioIds) {
+    for (const sid of storedScenarioIds) {
       const r = await db.insert(runs).values({
         ownerUserId: account.userId,
         experimentId: expId,

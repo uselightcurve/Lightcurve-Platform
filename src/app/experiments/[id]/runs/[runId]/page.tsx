@@ -95,16 +95,19 @@ export default function RunDetail() {
   const experiment = data.experiment;
   const scenario = data.scenario;
   const persona = scenario?.persona ?? {};
+  const experimentConfig: any =
+    experiment?.agentConfig && typeof experiment.agentConfig === 'object'
+      ? experiment.agentConfig
+      : {};
+  const pronunciationSource = scenario?.pronunciation ?? experimentConfig.pronunciation ?? null;
   const traces: any[] = data.traces ?? [];
   const scores: any[] = data.scores ?? [];
-  const pronunciationReport = scenario?.pronunciation
-    ? buildPronunciationReport(scenario.pronunciation, traces)
+  const pronunciationReport = pronunciationSource
+    ? buildPronunciationReport(pronunciationSource, traces)
     : null;
   const isVapiBotToBot =
     run.provider === 'vapi' &&
-    experiment?.agentConfig &&
-    typeof experiment.agentConfig === 'object' &&
-    experiment.agentConfig.callMode === 'bot_to_bot_phone';
+    experimentConfig.callMode === 'bot_to_bot_phone';
 
   const mosScore = scores.find((s) => s.metricName === 'mos');
   const pronunciationMetricNames = new Set([

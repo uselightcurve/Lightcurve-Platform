@@ -22,6 +22,7 @@ const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Tickets', 'Payments', 'Knowledge Base'];
+type PlaygroundConnectionMode = 'lightcurve_room' | 'https_runner';
 
 function dedupeScenarios(items: StoredScenario[]) {
   return items.filter((scenario, index, array) => {
@@ -252,6 +253,7 @@ export default function PlaygroundPage() {
   const [callState, setCallState] = useState<'idle' | 'running' | 'complete'>('idle');
   const [scenarioId, setScenarioId] = useState(REAL_SCENARIO_LIBRARY[0]?.id ?? '');
   const [agent, setAgent] = useState('');
+  const [connectionMode, setConnectionMode] = useState<PlaygroundConnectionMode>('lightcurve_room');
   const [scenarios, setScenarios] = useState<StoredScenario[]>(dedupeScenarios(REAL_SCENARIO_LIBRARY as StoredScenario[]));
   const [visibleTurns, setVisibleTurns] = useState(0);
   const [pronunciationEnabled, setPronunciationEnabled] = useState(true);
@@ -427,17 +429,20 @@ export default function PlaygroundPage() {
       return;
     }
     if (!activeScenario) return;
-    if (!agent.trim()) {
-      setRunError('Enter a compatible HTTPS agent runner endpoint before starting a Playground sandbox call.');
+    const usesHttpsRunner = connectionMode === 'https_runner';
+    if (usesHttpsRunner && !agent.trim()) {
+      setRunError('Enter your compatible HTTPS runner URL, or switch back to the Lightcurve room for a no-endpoint Playground test.');
       return;
     }
-    if (agent.trim().startsWith('sip:') || agent.trim().startsWith('wss:')) {
-      setRunError('Native SIP/WebRTC media bridge is coming next. For today, use a compatible HTTPS runner endpoint or run Vapi phone mode from Experiments.');
-      return;
-    }
-    if (!agent.trim().startsWith('https://')) {
-      setRunError('Playground requires a compatible HTTPS agent runner endpoint today. Random text or raw phone numbers cannot start a real sandbox call here.');
-      return;
+    if (usesHttpsRunner) {
+      if (agent.trim().startsWith('sip:') || agent.trim().startsWith('wss:')) {
+        setRunError('Native SIP/WebRTC bridge endpoints belong in Experiments. Playground accepts a Lightcurve room or a compatible HTTPS runner URL.');
+        return;
+      }
+      if (!agent.trim().startsWith('https://')) {
+        setRunError('Use a compatible HTTPS runner URL here. Random text, raw phone numbers, and provider phone IDs cannot start a Playground call.');
+        return;
+      }
     }
     setRunError('');
     setVisibleTurns(0);
@@ -447,24 +452,31 @@ export default function PlaygroundPage() {
       environment_type: environmentType,
       pronunciation_enabled: pronunciationEnabled,
       entity_type: pronunciationEnabled ? entityType : undefined,
+      connection_mode: connectionMode,
     });
     try {
-      const connection = await createPlaygroundConnection(agent.trim());
+      const connection = usesHttpsRunner ? await createPlaygroundConnection(agent.trim()) : null;
+      const scenarioForRun = activeScenario.pronunciation ? activeScenario : baseScenario ?? activeScenario;
+      const scenarioOverrides = activeScenario.pronunciation ? [activeScenario] : [];
       const experimentResponse = await fetch('/api/experiments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           name: `${activeScenario.name} playground check`,
-          agentType: 'custom_webrtc',
-          agentConnectionId: connection.id,
+          agentType: usesHttpsRunner ? 'custom_webrtc' : 'livekit',
+          agentConnectionId: connection?.id ?? null,
           agentConfig: {
-            endpointType: 'webrtc',
-            endpoint: agent.trim(),
+            endpointType: usesHttpsRunner ? 'webrtc' : 'livekit_room',
+            endpoint: usesHttpsRunner ? agent.trim() : 'livekit://lightcurve-hosted-room',
+            mode: usesHttpsRunner ? 'https_runner' : 'lightcurve_hosted_room',
+            costMode: 'low_cost_testing',
+            bridge: usesHttpsRunner ? 'custom_https_runner' : 'livekit',
             pronunciation: activeScenario.pronunciation ?? null,
             sandboxEnvironment: environmentType,
           },
-          webrtcEndpoint: agent.trim(),
-          scenarioIds: [baseScenario?.id ?? activeScenario.id],
+          webrtcEndpoint: usesHttpsRunner ? agent.trim() : 'livekit://lightcurve-hosted-room',
+          scenarioIds: [scenarioForRun.id],
+          scenarioOverrides,
           gitSha: 'playground',
         }),
       });
@@ -548,15 +560,52 @@ export default function PlaygroundPage() {
               </select>
             </label>
 
-            <label className="block text-xs text-slate-500">
-              Agent endpoint
-              <input
-                className="input-field mt-1"
-                value={agent}
-                onChange={(event) => setAgent(event.target.value)}
-                placeholder="https://your-runner.example.com/lightcurve"
-              />
-            </label>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-sm font-medium text-slate-950">Agent under test</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Playground is for one focused customer-agent check. Bulk runs stay in Experiments.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  onClick={() => {
+                    setConnectionMode('lightcurve_room');
+                    setRunError('');
+                  }}
+                >
+                  Lightcurve room
+                </button>
+                <button
+                  type="button"
+                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'https_runner' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  onClick={() => {
+                    setConnectionMode('https_runner');
+                    setRunError('');
+                  }}
+                >
+                  HTTPS runner
+                </button>
+              </div>
+              {connectionMode === 'lightcurve_room' ? (
+                <div className="mt-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-slate-600">
+                  No endpoint needed here. Start the call, then connect your agent to the short-lived LiveKit room shown on the run detail page.
+                </div>
+              ) : (
+                <label className="mt-3 block text-xs text-slate-500">
+                  Advanced runner URL
+                  <input
+                    className="input-field mt-1"
+                    value={agent}
+                    onChange={(event) => setAgent(event.target.value)}
+                    placeholder="https://your-runner.example.com/lightcurve"
+                  />
+                  <span className="mt-1 block leading-5 text-slate-500">
+                    Use this only if your team already exposes a Lightcurve-compatible HTTPS runner.
+                  </span>
+                </label>
+              )}
+            </div>
 
             {runError && (
               <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">{runError}</div>
