@@ -230,6 +230,7 @@ export default function NewExperiment() {
   const stubMode = agentType === STUB_PROVIDER_ID;
   const liveProvider = isLiveProvider(agentType);
   const botToBotProvider = isBotToBotProvider(agentType);
+  const hostedLiveKit = agentType === 'livekit';
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
   const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
   const locatorLabel = stubMode
@@ -244,6 +245,8 @@ export default function NewExperiment() {
       : activeAgent.placeholder;
   const callerMode = stubMode
     ? 'Agent replica'
+    : hostedLiveKit
+      ? 'LiveKit room'
     : replayMode
       ? 'Replay import'
       : vapiBotToBotPhone
@@ -253,7 +256,7 @@ export default function NewExperiment() {
           : 'Bot-to-bot';
   const realPhoneMode = liveProvider && !replayMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
-  const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : agentLocator.trim().length > 0;
+  const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : hostedLiveKit ? true : agentLocator.trim().length > 0;
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -262,7 +265,7 @@ export default function NewExperiment() {
   const handleRun = async () => {
     if (!expName.trim() || selectedIds.length === 0) return;
     if (stubMode && !stubInstructions.trim()) return;
-    if (!stubMode && !agentLocator.trim()) return;
+    if (!stubMode && !hostedLiveKit && !agentLocator.trim()) return;
     const usesLiveProvider = isLiveProvider(agentType);
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
     const needsHumanTester = usesLiveProvider && !elevenLabsReplay && !vapiBotToBotPhone;
@@ -284,7 +287,7 @@ export default function NewExperiment() {
         return;
       }
     }
-    if (!stubMode && isBotToBotProvider(agentType) && !agentLocator.trim().startsWith('https://')) {
+    if (!stubMode && isBotToBotProvider(agentType) && !hostedLiveKit && !agentLocator.trim().startsWith('https://')) {
       setError('For LiveKit, Pipecat, or Custom WebRTC today, enter a compatible HTTPS runner endpoint. Native SIP/WebRTC media bridge is coming next.');
       return;
     }
@@ -315,6 +318,12 @@ export default function NewExperiment() {
               escalationPolicy: stubEscalationPolicy,
               costMode: 'low_cost_testing',
             }
+          : hostedLiveKit
+            ? {
+                mode: 'lightcurve_hosted_room',
+                costMode: 'low_cost_testing',
+                bridge: 'livekit',
+              }
           : agentType === 'custom_webrtc'
             ? { runnerUrl: agentLocator, apiKey }
             : agentType === 'vapi'
@@ -373,7 +382,7 @@ export default function NewExperiment() {
               ? { apiKey, agentId: agentLocator, agentPhoneNumberId: elevenLabsPhoneNumberId, customerNumber: vapiCustomerNumber }
               : { apiKey };
 
-      const connection = stubMode
+      const connection = stubMode || hostedLiveKit
         ? null
         : await createAgentConnection({
             provider: agentType,
@@ -391,7 +400,11 @@ export default function NewExperiment() {
           agentType,
           agentConnectionId: connection?.id ?? null,
           agentConfig,
-          webrtcEndpoint: stubMode ? 'agent-replica://low-cost-testing' : `${agentType}:${agentLocator}`,
+          webrtcEndpoint: stubMode
+            ? 'agent-replica://low-cost-testing'
+            : hostedLiveKit
+              ? 'livekit://lightcurve-hosted-room'
+              : `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,
           promotedFromExperimentId,
           gitSha: stubMode ? 'low-cost-agent-replica' : 'live-sandbox',
@@ -606,6 +619,31 @@ export default function NewExperiment() {
                   This path spends Lightcurve tested minutes only. It does not call your Vapi, Retell, ElevenLabs, or model-provider account.
                 </p>
               </div>
+            ) : hostedLiveKit ? (
+              <div className="mt-5 rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-[#526894]">Testing lane</p>
+                    <h3 className="mt-1 text-sm font-medium text-slate-950">Lightcurve-hosted LiveKit room</h3>
+                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
+                      Lightcurve creates an isolated WebRTC room for this run. Your agent joins with a short-lived
+                      LiveKit token, while Lightcurve joins as the synthetic caller and scores the transcript.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-[#cfd8ff] bg-white px-2.5 py-1 text-xs font-medium text-[#2448bb]">
+                    Low-cost testing
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <MiniMetric label="Transport" value="WebRTC" />
+                  <MiniMetric label="Phone minutes" value="0" />
+                  <MiniMetric label="Provider spend" value="None" />
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                  Use this for broad sandbox coverage before sending only failed or risky cases to Vapi, Retell,
+                  ElevenLabs, or phone-realism checks.
+                </p>
+              </div>
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-4">
                 <div>
@@ -732,7 +770,7 @@ export default function NewExperiment() {
               </div>
             )}
 
-            {botToBotProvider && (
+            {botToBotProvider && !hostedLiveKit && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
                 Bot-to-bot mode queues an isolated caller simulator against your real agent runner URL. Point Pipecat, LiveKit, or Custom WebRTC to your HTTPS runner endpoint.
               </div>

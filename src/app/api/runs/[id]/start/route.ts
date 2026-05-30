@@ -8,6 +8,7 @@ import { executeStubAgentRun, isStubAgentExperiment } from '@/lib/stubAgentRunne
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 import { validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
+import { createLiveKitSandboxSession, isLightcurveHostedLiveKit } from '@/lib/livekitSandbox';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -74,6 +75,51 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         })
         .where(eq(runs.id, id));
 
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
+  if (isLightcurveHostedLiveKit(experiment)) {
+    try {
+      const session = createLiveKitSandboxSession(id, experiment, scenario);
+      await db
+        .update(runs)
+        .set({
+          status: 'running',
+          provider: 'livekit',
+          externalCallId: session.roomName,
+          externalStatus: session.externalStatus,
+          startedAt: new Date(),
+        })
+        .where(eq(runs.id, id));
+      await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
+
+      return NextResponse.json({
+        success: true,
+        provider: 'livekit',
+        status: 'running',
+        externalCallId: session.roomName,
+        externalStatus: session.externalStatus,
+        liveKit: {
+          roomName: session.roomName,
+          liveKitUrl: session.liveKitUrl,
+          agentToken: session.tokens.agent,
+          instructions: session.instructions,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'LiveKit sandbox room could not be created';
+      await db
+        .update(runs)
+        .set({
+          status: 'failed',
+          provider: 'livekit',
+          externalStatus: 'livekit_start_failed',
+          failureSummary: message,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        })
+        .where(eq(runs.id, id));
       return NextResponse.json({ error: message }, { status: 502 });
     }
   }

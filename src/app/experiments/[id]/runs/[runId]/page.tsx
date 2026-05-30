@@ -30,6 +30,8 @@ export default function RunDetail() {
   const [importAudioUrl, setImportAudioUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [liveKitSession, setLiveKitSession] = useState<any>(null);
+  const [liveKitError, setLiveKitError] = useState('');
 
   useEffect(() => {
     const load = () => {
@@ -50,6 +52,28 @@ export default function RunDetail() {
     const interval = setInterval(load, 3000);
     return () => clearInterval(interval);
   }, [runId, polling]);
+
+  useEffect(() => {
+    if (!data?.run || data.run.provider !== 'livekit' || data.run.externalStatus !== 'livekit_room_ready') return;
+    let cancelled = false;
+    fetch(`/api/runs/${runId}/livekit-session`, { cache: 'no-store' })
+      .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
+      .then(({ ok, body }) => {
+        if (cancelled) return;
+        if (!ok) {
+          setLiveKitError(body.error ?? 'LiveKit session unavailable');
+          return;
+        }
+        setLiveKitSession(body);
+        setLiveKitError('');
+      })
+      .catch(() => {
+        if (!cancelled) setLiveKitError('LiveKit session unavailable');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.run?.id, data?.run?.provider, data?.run?.externalStatus, runId]);
 
   if (!data) {
     return (
@@ -156,7 +180,9 @@ export default function RunDetail() {
               <div className="px-5 py-10 text-sm text-gray-400 text-center">
                 {polling
                   ? 'Waiting for call to start...'
-                  : ['vapi', 'retell', 'elevenlabs'].includes(run.provider)
+                  : run.provider === 'livekit' && run.externalStatus === 'livekit_room_ready'
+                    ? 'LiveKit room is ready. Waiting for the customer agent and Lightcurve caller bridge to join before transcript scoring begins.'
+                    : ['vapi', 'retell', 'elevenlabs'].includes(run.provider)
                     ? run.externalStatus === 'awaiting_recording_import'
                       ? 'Waiting for a recording or transcript import. This is the low-cost replay path for expensive live-call providers.'
                       : isVapiBotToBot
@@ -213,6 +239,55 @@ export default function RunDetail() {
                 </div>
               )}
               {persona.goal && <p className="mt-3 text-sm leading-relaxed text-slate-600">{persona.goal}</p>}
+            </div>
+          )}
+
+          {run.provider === 'livekit' && run.externalStatus === 'livekit_room_ready' && (
+            <div className="card overflow-hidden">
+              <div className="border-b border-gray-100 px-5 py-3.5">
+                <h2 className="text-sm font-medium text-gray-800">LiveKit sandbox room</h2>
+                <p className="mt-1 text-xs text-gray-400">
+                  Connect the agent participant to this room for low-cost WebRTC testing.
+                </p>
+              </div>
+              <div className="space-y-3 p-5">
+                {liveKitError ? (
+                  <div className="rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] p-3 text-xs leading-relaxed text-[#8f3d3b]">
+                    {liveKitError}
+                  </div>
+                ) : liveKitSession ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">LiveKit URL</p>
+                        <p className="mt-2 break-all font-mono text-xs text-slate-800">{liveKitSession.liveKitUrl}</p>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room</p>
+                        <p className="mt-2 break-all font-mono text-xs text-slate-800">{liveKitSession.roomName}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Agent join token</label>
+                      <textarea
+                        className="input-field min-h-24 font-mono text-xs"
+                        readOnly
+                        value={liveKitSession.agentToken}
+                      />
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Token is short-lived and scoped to this room. Refresh this page if the agent connects after it expires.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-3 text-xs leading-relaxed text-[#526894]">
+                      {liveKitSession.instructions}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                    Preparing LiveKit room details...
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
