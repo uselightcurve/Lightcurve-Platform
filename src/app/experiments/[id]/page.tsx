@@ -52,6 +52,7 @@ export default function ExperimentDetail() {
   const [polling, setPolling] = useState(true);
   const [promotion, setPromotion] = useState<any>(null);
   const [promotionLoading, setPromotionLoading] = useState(false);
+  const [promotionError, setPromotionError] = useState('');
 
   useEffect(() => {
     const load = () => {
@@ -109,13 +110,33 @@ export default function ExperimentDetail() {
   const firstFailure = failedRuns.find((run) => run.failureSummary)?.failureSummary;
   const sourceLane = costLaneForProvider(exp.agentType, exp.agentConfig, exp.webrtcEndpoint);
   const sourceLaneLabel = COST_LANES[sourceLane].label;
-  const canPromoteFailures = sourceLane === 'low_cost_testing' && failedRuns.length > 0;
+
+  const scoreForRun = (runId: string, metricName: string) =>
+    scores.find((score) => score.runId === runId && score.metricName === metricName)?.value ?? null;
+  const riskyRuns = runs.filter((run) => {
+    const mos = scoreForRun(run.id, 'mos');
+    const task = scoreForRun(run.id, 'task_completed');
+    return run.status === 'failed' || (typeof mos === 'number' && mos < 3.8) || (typeof task === 'number' && task < 0.8);
+  });
+  const localPromotionScenarioIds = Array.from(
+    new Set(riskyRuns.map((run) => run.scenarioId).filter((value): value is string => Boolean(value))),
+  );
+  const promotionScenarioIds = promotion?.scenarioIds?.length ? promotion.scenarioIds : localPromotionScenarioIds;
+  const canPromoteFailures = sourceLane === 'low_cost_testing' && promotionScenarioIds.length > 0;
+  const promotionHref = `/experiments/new?provider=vapi&scenarios=${promotionScenarioIds.join(',')}`;
 
   async function loadPromotion() {
     setPromotionLoading(true);
+    setPromotionError('');
     try {
       const response = await fetch(`/api/experiments/${id}/promotion`, { cache: 'no-store' });
-      if (response.ok) setPromotion(await response.json());
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Could not prepare provider-backed candidates.');
+      }
+      setPromotion(payload);
+    } catch (error) {
+      setPromotionError(error instanceof Error ? error.message : 'Could not prepare provider-backed candidates.');
     } finally {
       setPromotionLoading(false);
     }
@@ -187,19 +208,24 @@ export default function ExperimentDetail() {
                   {promotion.candidateCount} scenario{promotion.candidateCount === 1 ? '' : 's'} prepared for Vapi verification.
                 </p>
               ) : null}
+              {!promotion && !promotionError ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {promotionScenarioIds.length} failed or risky scenario{promotionScenarioIds.length === 1 ? '' : 's'} can be opened now.
+                </p>
+              ) : null}
+              {promotionError ? (
+                <p className="mt-2 text-xs text-[#8f3d3b]">
+                  {promotionError} You can still open the provider-backed suite from the local failed-run list.
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button type="button" className="btn-secondary min-h-9 px-3 py-1.5 text-xs" onClick={loadPromotion} disabled={promotionLoading}>
                 {promotionLoading ? 'Preparing...' : 'Prepare failures'}
               </button>
-              {promotion?.scenarioIds?.length ? (
-                <Link
-                  href={`/experiments/new?provider=vapi&scenarios=${promotion.scenarioIds.join(',')}`}
-                  className="btn-primary min-h-9 px-3 py-1.5 text-xs"
-                >
-                  Open Vapi check
-                </Link>
-              ) : null}
+              <Link href={promotionHref} className="btn-primary min-h-9 px-3 py-1.5 text-xs">
+                Open Vapi check
+              </Link>
             </div>
           </div>
         </div>
