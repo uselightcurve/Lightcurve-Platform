@@ -1142,9 +1142,9 @@ export default function PlaygroundPage() {
           <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
               <div>
-                <h2 className="text-base font-medium text-slate-950">Connect agent for this Playground call</h2>
+                <h2 className="text-base font-medium text-slate-950">Connect your agent</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Choose how this one call reaches your customer agent. Use a Lightcurve room for low-friction testing, or provider phone when your agent only answers a phone number.
+                  Pick how this one Playground call reaches the agent you want to test.
                 </p>
               </div>
               <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
@@ -1188,12 +1188,12 @@ export default function PlaygroundPage() {
 
               {connectionMode === 'lightcurve_room' ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-medium text-slate-950">Recommended for one-off sandboxing</p>
+                  <p className="text-sm font-medium text-slate-950">Recommended for Playground</p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Lightcurve creates a short-lived communication room after you press Start Call. Your agent joins as the agent under test; Lightcurve joins as the synthetic caller, streams the conversation here, and scores the result.
+                    Press Start Call to create a short-lived Lightcurve room. Your agent joins that room; the call, transcript, and score stay on this page.
                   </p>
                   <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-                    No provider API key is needed for this path. Your agent only needs to connect to the generated room using the room URL and token.
+                    No provider API key is needed. Your agent only needs the generated room URL and token.
                   </div>
                   {activeSandboxRun?.liveKit ? (
                     <div className="mt-4 space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
@@ -1217,7 +1217,7 @@ export default function PlaygroundPage() {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                      Press Start Call to generate the room details. This path avoids provider phone charges and is the default for fast Playground checks.
+                      Press Start Call to generate connection details.
                     </div>
                   )}
                 </div>
@@ -1225,7 +1225,7 @@ export default function PlaygroundPage() {
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
                   <p className="text-sm font-medium text-slate-950">Provider phone realism check</p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Use this when your agent currently answers only a phone number. Lightcurve acts as the caller, dials your agent, then imports the transcript and scores back into this Playground.
+                    Use this only when the agent can be tested through a provider phone call.
                   </p>
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <label className="block text-xs text-slate-500">
@@ -1247,7 +1247,7 @@ export default function PlaygroundPage() {
                         onChange={(event) => setVapiApiKey(event.target.value)}
                         placeholder="Required for provider phone calls"
                       />
-                      <span className="mt-1 block leading-5 text-slate-500">Only used for this phone realism call unless saved as an agent connection later.</span>
+                      <span className="mt-1 block leading-5 text-slate-500">Only used to start this provider-backed call.</span>
                     </label>
                     <label className="block text-xs text-slate-500">
                       Vapi outbound phone-number UUID
@@ -1267,11 +1267,11 @@ export default function PlaygroundPage() {
                         onChange={(event) => setVapiCallerAssistantId(event.target.value)}
                         placeholder="Optional"
                       />
-                      <span className="mt-1 block leading-5 text-slate-500">Leave blank unless you maintain a separate caller assistant for tests.</span>
+                      <span className="mt-1 block leading-5 text-slate-500">Optional. Leave blank for the generated Lightcurve caller.</span>
                     </label>
                   </div>
                   <div className="mt-4 rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">
-                    Use two different phone resources: one inbound number your agent answers, and a separate outbound caller phone-number UUID. Provider phone calls can bill your provider account; use the Lightcurve room for low-cost broad testing.
+                    Use different numbers for the agent and caller. Provider phone calls can bill the provider account.
                   </div>
                 </div>
               ) : (
@@ -1284,7 +1284,7 @@ export default function PlaygroundPage() {
                     placeholder="https://your-runner.example.com/lightcurve"
                   />
                   <span className="mt-2 block leading-5 text-slate-500">
-                    Advanced path. This endpoint must implement Lightcurve's runner contract. Use hosted sandbox if you just want to test a voice agent quickly.
+                    Advanced path. Use only if your team already hosts a Lightcurve-compatible runner.
                   </span>
                 </label>
               )}

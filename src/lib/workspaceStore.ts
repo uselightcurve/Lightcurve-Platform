@@ -156,9 +156,9 @@ export const BILLING_PLANS: BillingPlan[] = [
     audience: 'Free version',
     priceLabel: '$0/mo',
     monthlyCents: 0,
-    minutesLimit: 60,
+    minutesLimit: 30,
     actionsLimit: 10000,
-    features: ['60 sandbox minutes', '10,000 eval actions', 'Local CI/CD report'],
+    features: ['30 tested minutes', '10,000 eval actions', 'Local CI/CD report'],
   },
   {
     id: 'pro',
