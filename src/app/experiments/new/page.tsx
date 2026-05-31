@@ -164,6 +164,7 @@ export default function NewExperiment() {
   const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
   const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
   const [vapiMode, setVapiMode] = useState<'bot_to_bot_phone' | 'human_pilot'>('bot_to_bot_phone');
+  const [liveProviderPath, setLiveProviderPath] = useState<'lightcurve_room' | 'phone_realism'>('lightcurve_room');
   const [retellFromNumber, setRetellFromNumber] = useState('');
   const [elevenLabsPhoneNumberId, setElevenLabsPhoneNumberId] = useState('');
   const [elevenLabsMode, setElevenLabsMode] = useState<'live_call' | 'recording_replay'>('recording_replay');
@@ -193,8 +194,12 @@ export default function NewExperiment() {
     const scenarioId = params.get('scenario');
     const scenarioIds = params.get('scenarios')?.split(',').filter(Boolean) ?? [];
     const promotedFrom = params.get('promotedFrom');
+    const lane = params.get('lane');
     if (provider && AGENT_TYPES.some((agent) => agent.id === provider)) {
       setAgentType(provider);
+    }
+    if (lane === 'phone_realism') {
+      setLiveProviderPath('phone_realism');
     }
     if (promotedFrom) {
       setPromotedFromExperimentId(promotedFrom);
@@ -232,26 +237,27 @@ export default function NewExperiment() {
   const botToBotProvider = isBotToBotProvider(agentType);
   const hostedLiveKit = agentType === 'livekit';
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-  const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
-  const providerPhoneMode = liveProvider && !replayMode;
+  const roomNoKeyMode = hostedLiveKit || (liveProvider && liveProviderPath === 'lightcurve_room');
+  const vapiBotToBotPhone = agentType === 'vapi' && liveProviderPath === 'phone_realism' && vapiMode === 'bot_to_bot_phone';
+  const providerPhoneMode = liveProvider && liveProviderPath === 'phone_realism' && !replayMode;
   const needsProviderApiKey = providerPhoneMode;
   const locatorLabel = stubMode
     ? 'Agent instructions'
-    : hostedLiveKit
+    : roomNoKeyMode
       ? 'Lightcurve room connection'
     : vapiBotToBotPhone
       ? 'Your agent phone number or SIP URI'
       : activeAgent.locatorLabel;
   const locatorPlaceholder = stubMode
     ? 'Paste the policy, prompt, or expected call flow you want to preflight'
-    : hostedLiveKit
+    : roomNoKeyMode
       ? 'Lightcurve creates this after you start the run'
     : vapiBotToBotPhone
       ? 'Put your agent phone number, e.g. +14155550123'
       : activeAgent.placeholder;
   const callerMode = stubMode
     ? 'Agent replica'
-    : hostedLiveKit
+    : roomNoKeyMode
       ? 'Lightcurve room'
     : replayMode
       ? 'Replay import'
@@ -262,7 +268,8 @@ export default function NewExperiment() {
           : 'Bot-to-bot';
   const realPhoneMode = providerPhoneMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
-  const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : hostedLiveKit ? true : agentLocator.trim().length > 0;
+  const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : roomNoKeyMode ? true : agentLocator.trim().length > 0;
+  const activeCostLane = roomNoKeyMode || stubMode ? 'low_cost_testing' : costLaneForProvider(agentType);
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -271,11 +278,11 @@ export default function NewExperiment() {
   const handleRun = async () => {
     if (!expName.trim() || selectedIds.length === 0) return;
     if (stubMode && !stubInstructions.trim()) return;
-    if (!stubMode && !hostedLiveKit && !agentLocator.trim()) return;
-    const usesLiveProvider = isLiveProvider(agentType);
+    if (!stubMode && !roomNoKeyMode && !agentLocator.trim()) return;
+    const usesProviderPhone = providerPhoneMode;
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-    const needsHumanTester = usesLiveProvider && !elevenLabsReplay && !vapiBotToBotPhone;
-    if (usesLiveProvider && !elevenLabsReplay && selectedIds.length > MAX_REAL_PHONE_SCENARIOS) {
+    const needsHumanTester = providerPhoneMode && !elevenLabsReplay && !vapiBotToBotPhone;
+    if (usesProviderPhone && !elevenLabsReplay && selectedIds.length > MAX_REAL_PHONE_SCENARIOS) {
       setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Select a smaller pilot suite, then batch the rest.`);
       return;
     }
@@ -293,7 +300,7 @@ export default function NewExperiment() {
         return;
       }
     }
-    if (!stubMode && isBotToBotProvider(agentType) && !hostedLiveKit && !agentLocator.trim().startsWith('https://')) {
+    if (!stubMode && isBotToBotProvider(agentType) && !roomNoKeyMode && !agentLocator.trim().startsWith('https://')) {
       setError('For LiveKit, Pipecat, or Custom WebRTC today, enter a compatible HTTPS runner endpoint. Native SIP/WebRTC media bridge is coming next.');
       return;
     }
@@ -307,12 +314,14 @@ export default function NewExperiment() {
     trackLightcurveEvent('Experiment Run Submitted', {
       agent_type: agentType,
       scenario_count: selectedIds.length,
-      live_provider: usesLiveProvider,
+      live_provider: usesProviderPhone,
+      connection_path: roomNoKeyMode ? 'lightcurve_room' : providerPhoneMode ? 'phone_realism' : 'runner_or_replica',
       bot_to_bot_phone: vapiBotToBotPhone,
       elevenlabs_mode: agentType === 'elevenlabs' ? elevenLabsMode : undefined,
     });
 
     try {
+      const effectiveAgentType = roomNoKeyMode && !stubMode ? 'livekit' : agentType;
       const agentConfig: Record<string, string> =
         stubMode
           ? {
@@ -324,11 +333,12 @@ export default function NewExperiment() {
               escalationPolicy: stubEscalationPolicy,
               costMode: 'low_cost_testing',
             }
-          : hostedLiveKit
+          : roomNoKeyMode
             ? {
                 mode: 'lightcurve_hosted_room',
                 costMode: 'low_cost_testing',
                 bridge: 'livekit',
+                declaredProvider: agentType,
               }
           : agentType === 'custom_webrtc'
             ? { runnerUrl: agentLocator, apiKey }
@@ -388,7 +398,7 @@ export default function NewExperiment() {
               ? { apiKey, agentId: agentLocator, agentPhoneNumberId: elevenLabsPhoneNumberId, customerNumber: vapiCustomerNumber }
               : { apiKey };
 
-      const connection = stubMode || hostedLiveKit
+      const connection = stubMode || roomNoKeyMode
         ? null
         : await createAgentConnection({
             provider: agentType,
@@ -403,12 +413,12 @@ export default function NewExperiment() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: expName,
-          agentType,
+          agentType: effectiveAgentType,
           agentConnectionId: connection?.id ?? null,
           agentConfig,
           webrtcEndpoint: stubMode
             ? 'agent-replica://low-cost-testing'
-            : hostedLiveKit
+            : roomNoKeyMode
               ? 'livekit://lightcurve-hosted-room'
               : `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,
@@ -507,7 +517,7 @@ export default function NewExperiment() {
                 <div
                   key={lane.id}
                   className={`rounded-md border px-3 py-2 ${
-                    costLaneForProvider(agentType) === lane.id
+                    activeCostLane === lane.id
                       ? 'border-[#cfd8ff] bg-white text-[#2448bb]'
                       : 'border-transparent text-slate-500'
                   }`}
@@ -524,7 +534,47 @@ export default function NewExperiment() {
               ElevenLabs credentials only for phone-realism checks and imports.
             </div>
 
-            {agentType === 'vapi' && (
+            {liveProvider && (
+              <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Connection path</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {liveProviderPath === 'lightcurve_room'
+                        ? `No ${activeAgent.label} API key. Your agent joins a Lightcurve test room.`
+                        : `Use ${activeAgent.label} only for a smaller real phone/provider verification set.`}
+                    </p>
+                  </div>
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setLiveProviderPath('lightcurve_room')}
+                      className={`rounded-md px-3 py-1.5 ${liveProviderPath === 'lightcurve_room' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
+                    >
+                      Lightcurve room
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLiveProviderPath('phone_realism')}
+                      className={`rounded-md px-3 py-1.5 ${liveProviderPath === 'phone_realism' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
+                    >
+                      Phone realism
+                    </button>
+                  </div>
+                </div>
+                {liveProviderPath === 'lightcurve_room' && (
+                  <div className="mt-3 rounded-md border border-[#cfd8ff] bg-white p-3 text-xs leading-relaxed text-slate-600">
+                    <p className="font-medium text-slate-900">No provider key needed for this experiment.</p>
+                    <p className="mt-2">
+                      Lightcurve creates the room and connection token after you start the run. Your {activeAgent.label}
+                      agent joins as the agent under test; Lightcurve joins as the synthetic caller and judge.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {agentType === 'vapi' && liveProviderPath === 'phone_realism' && (
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -632,12 +682,14 @@ export default function NewExperiment() {
                   This path spends Lightcurve tested minutes only. It does not call your Vapi, Retell, ElevenLabs, or model-provider account.
                 </p>
               </div>
-            ) : hostedLiveKit ? (
+            ) : roomNoKeyMode ? (
               <div className="mt-5 rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-[#526894]">Testing lane</p>
-                    <h3 className="mt-1 text-sm font-medium text-slate-950">Lightcurve room for real-agent testing</h3>
+                    <h3 className="mt-1 text-sm font-medium text-slate-950">
+                      {liveProvider ? `${activeAgent.label} via Lightcurve room` : 'Lightcurve room for real-agent testing'}
+                    </h3>
                     <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
                       Lightcurve creates an isolated communication room for this run. Your agent joins with a short-lived
                       test token, while Lightcurve joins as the synthetic caller and scores the transcript.
@@ -698,7 +750,7 @@ export default function NewExperiment() {
               </div>
             )}
 
-            {liveProvider && (
+            {liveProvider && liveProviderPath === 'phone_realism' && (
               <div className="mt-4 space-y-3">
                 {agentType !== 'vapi' && (
                   <p className="rounded-md border border-[#e6cf93] bg-[#fffaf0] px-3 py-2 text-xs leading-relaxed text-[#765b1f]">
@@ -844,7 +896,7 @@ export default function NewExperiment() {
                   Choose sandbox callers
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  {liveProvider
+                  {providerPhoneMode
                     ? 'Pick the scenario your human tester will act out on the phone call.'
                     : 'Select the calls that should run before this voice-agent release ships.'}
                 </p>
@@ -994,6 +1046,8 @@ export default function NewExperiment() {
                   ? 'Creating sandbox...'
                   : stubMode
                     ? 'Run low-cost test suite'
+                    : roomNoKeyMode
+                    ? 'Create Lightcurve room test'
                     : replayMode
                     ? 'Create replay sandbox'
                     : vapiBotToBotPhone
