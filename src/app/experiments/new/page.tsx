@@ -7,7 +7,6 @@ import { ProviderLogo } from '@/components/ProviderLogo';
 import { providerDefinitions } from '@/lib/integrations';
 import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
-import { COST_LANES, costLaneForProvider } from '@/lib/costLanes';
 
 type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
 
@@ -269,7 +268,6 @@ export default function NewExperiment() {
   const realPhoneMode = providerPhoneMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
   const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : roomNoKeyMode ? true : agentLocator.trim().length > 0;
-  const activeCostLane = roomNoKeyMode || stubMode ? 'low_cost_testing' : costLaneForProvider(agentType);
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -512,38 +510,12 @@ export default function NewExperiment() {
               ))}
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-              {Object.values(COST_LANES).map((lane) => (
-                <div
-                  key={lane.id}
-                  className={`rounded-md border px-3 py-2 ${
-                    activeCostLane === lane.id
-                      ? 'border-[#cfd8ff] bg-white text-[#2448bb]'
-                      : 'border-transparent text-slate-500'
-                  }`}
-                >
-                  <p className="text-xs font-medium">{lane.label}</p>
-                  <p className="mt-1 text-[11px] leading-4">{lane.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-3 text-sm leading-relaxed text-slate-600">
-              <span className="font-medium text-slate-950">Default path:</span> no provider API key. Use Agent Replica for
-              prompt/policy coverage, or Lightcurve room when your real agent can join the test room. Use Vapi, Retell, or
-              ElevenLabs credentials only for phone-realism checks and imports.
-            </div>
-
             {liveProvider && (
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Connection path</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {liveProviderPath === 'lightcurve_room'
-                        ? `No ${activeAgent.label} API key. Your agent joins a Lightcurve test room.`
-                        : `Use ${activeAgent.label} only for a smaller real phone/provider verification set.`}
-                    </p>
+                    <p className="text-sm font-medium text-slate-950">Connection path</p>
+                    <p className="mt-1 text-xs text-slate-500">Start with a room test. Use phone realism only for final verification.</p>
                   </div>
                   <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm">
                     <button
@@ -563,13 +535,15 @@ export default function NewExperiment() {
                   </div>
                 </div>
                 {liveProviderPath === 'lightcurve_room' && (
-                  <div className="mt-3 rounded-md border border-[#cfd8ff] bg-white p-3 text-xs leading-relaxed text-slate-600">
-                    <p className="font-medium text-slate-900">No provider key needed for this experiment.</p>
-                    <p className="mt-2">
-                      Lightcurve creates the room and connection token after you start the run. Your {activeAgent.label}
-                      agent joins as the agent under test; Lightcurve joins as the synthetic caller and judge.
-                    </p>
-                  </div>
+                  <details className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600">
+                    <summary className="cursor-pointer font-medium text-slate-900">How does my agent join?</summary>
+                    <div className="mt-2 grid gap-1.5">
+                      <p>1. Start the run. Lightcurve creates a short-lived room URL and agent token.</p>
+                      <p>2. Connect your agent process to that room as the agent under test.</p>
+                      <p>3. Lightcurve joins as the synthetic caller, streams turns, and scores the result.</p>
+                      <p className="text-slate-500">If your agent only answers phone calls, switch to Phone realism.</p>
+                    </div>
+                  </details>
                 )}
               </div>
             )}
@@ -603,32 +577,20 @@ export default function NewExperiment() {
                   </div>
                 </div>
                 {vapiBotToBotPhone && (
-                  <div className="mt-3 rounded-md border border-[#cfd8ff] bg-white p-3 text-xs leading-relaxed text-slate-600">
-                    <p className="font-medium text-slate-900">Vapi phone realism needs three customer-owned values:</p>
+                  <details className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600">
+                    <summary className="cursor-pointer font-medium text-slate-900">Required Vapi values</summary>
                     <div className="mt-2 grid gap-1.5">
                       <p>1. Your Vapi API key.</p>
                       <p>2. The inbound phone number your agent answers.</p>
                       <p>3. The Vapi Phone Number UUID for a different outbound caller number.</p>
                     </div>
-                    <p className="mt-2 text-slate-500">
-                      This is only for the small set of risky cases you want verified over Vapi phone infrastructure.
-                      Broad testing should run through Agent Replica or Lightcurve room first.
-                    </p>
-                  </div>
+                  </details>
                 )}
               </div>
             )}
 
             {stubMode ? (
               <div className="mt-5 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="rounded-lg border border-[#cfd8ff] bg-white p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Testing lane</p>
-                  <p className="mt-1 text-sm font-medium text-slate-950">Low-cost hosted agent replica</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    Mirror the customer agent with prompt, policy, and tool behavior first. Run broad coverage here,
-                    then promote only risky failures to provider-backed or phone-realism checks.
-                  </p>
-                </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-slate-600">{locatorLabel}</label>
                   <textarea
@@ -678,25 +640,18 @@ export default function NewExperiment() {
                     />
                   </div>
                 </div>
-                <p className="text-xs leading-relaxed text-slate-500">
-                  This path spends Lightcurve tested minutes only. It does not call your Vapi, Retell, ElevenLabs, or model-provider account.
-                </p>
               </div>
             ) : roomNoKeyMode ? (
               <div className="mt-5 rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-[#526894]">Testing lane</p>
                     <h3 className="mt-1 text-sm font-medium text-slate-950">
                       {liveProvider ? `${activeAgent.label} via Lightcurve room` : 'Lightcurve room for real-agent testing'}
                     </h3>
-                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
-                      Lightcurve creates an isolated communication room for this run. Your agent joins with a short-lived
-                      test token, while Lightcurve joins as the synthetic caller and scores the transcript.
-                    </p>
+                    <p className="mt-1 text-xs text-slate-500">No provider API key. No phone minutes.</p>
                   </div>
                   <span className="rounded-full border border-[#cfd8ff] bg-white px-2.5 py-1 text-xs font-medium text-[#2448bb]">
-                    Low-cost testing
+                    Room test
                   </span>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3">
@@ -704,10 +659,6 @@ export default function NewExperiment() {
                   <MiniMetric label="Phone minutes" value="0" />
                   <MiniMetric label="Provider spend" value="None" />
                 </div>
-                <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                  Use this for broad sandbox coverage before sending only failed or risky cases to Vapi, Retell,
-                  ElevenLabs, or carrier-phone checks.
-                </p>
               </div>
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-4">

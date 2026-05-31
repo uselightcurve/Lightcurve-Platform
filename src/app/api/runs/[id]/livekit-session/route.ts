@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { experiments, runs, scenarios } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
-import { createLiveKitSandboxSession, isLightcurveHostedLiveKit } from '@/lib/livekitSandbox';
+import { createLiveKitJoinOptions, createLiveKitSandboxSession, isLightcurveHostedLiveKit } from '@/lib/livekitSandbox';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -30,6 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       liveKitUrl: session.liveKitUrl,
       agentToken: session.tokens.agent,
       instructions: session.instructions,
+      joinOptions: createLiveKitJoinOptions(session),
     });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);

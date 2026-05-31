@@ -32,6 +32,7 @@ export default function RunDetail() {
   const [importError, setImportError] = useState('');
   const [liveKitSession, setLiveKitSession] = useState<any>(null);
   const [liveKitError, setLiveKitError] = useState('');
+  const [copiedJoinValue, setCopiedJoinValue] = useState('');
 
   useEffect(() => {
     const load = () => {
@@ -154,6 +155,16 @@ export default function RunDetail() {
     }
   };
 
+  const copyJoinValue = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedJoinValue(label);
+      window.setTimeout(() => setCopiedJoinValue(''), 1400);
+    } catch {
+      setCopiedJoinValue('');
+    }
+  };
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -248,9 +259,9 @@ export default function RunDetail() {
           {run.provider === 'livekit' && run.externalStatus === 'livekit_room_ready' && (
             <div className="card overflow-hidden">
               <div className="border-b border-gray-100 px-5 py-3.5">
-                <h2 className="text-sm font-medium text-gray-800">LiveKit sandbox room</h2>
+                <h2 className="text-sm font-medium text-gray-800">Lightcurve room connection</h2>
                 <p className="mt-1 text-xs text-gray-400">
-                  Connect the agent participant to this room for low-cost WebRTC testing.
+                  Connect your agent as the agent participant. Lightcurve joins as the synthetic caller.
                 </p>
               </div>
               <div className="space-y-3 p-5">
@@ -262,16 +273,43 @@ export default function RunDetail() {
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">LiveKit URL</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room URL</p>
+                          <button
+                            type="button"
+                            onClick={() => copyJoinValue('room-url', liveKitSession.liveKitUrl)}
+                            className="text-xs text-[#2448bb]"
+                          >
+                            {copiedJoinValue === 'room-url' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
                         <p className="mt-2 break-all font-mono text-xs text-slate-800">{liveKitSession.liveKitUrl}</p>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room</p>
+                          <button
+                            type="button"
+                            onClick={() => copyJoinValue('room-name', liveKitSession.roomName)}
+                            className="text-xs text-[#2448bb]"
+                          >
+                            {copiedJoinValue === 'room-name' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
                         <p className="mt-2 break-all font-mono text-xs text-slate-800">{liveKitSession.roomName}</p>
                       </div>
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-600">Agent join token</label>
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <label className="block text-xs font-medium text-slate-600">Agent join token</label>
+                        <button
+                          type="button"
+                          onClick={() => copyJoinValue('agent-token', liveKitSession.agentToken)}
+                          className="text-xs text-[#2448bb]"
+                        >
+                          {copiedJoinValue === 'agent-token' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
                       <textarea
                         className="input-field min-h-24 font-mono text-xs"
                         readOnly
@@ -284,6 +322,41 @@ export default function RunDetail() {
                     <div className="rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-3 text-xs leading-relaxed text-[#526894]">
                       {liveKitSession.instructions}
                     </div>
+                    {Array.isArray(liveKitSession.joinOptions) && (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium text-gray-800">Connect your agent</h3>
+                        {liveKitSession.joinOptions.map((option: any) => (
+                          <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                            <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                              {option.label}
+                              <span className="ml-2 text-xs font-normal text-slate-400">{option.summary}</span>
+                            </summary>
+                            <div className="mt-3 grid gap-3">
+                              <div className="grid gap-1.5 text-xs leading-relaxed text-slate-500">
+                                {(option.steps ?? []).map((step: string, index: number) => (
+                                  <p key={`${option.id}-${index}`}>{step}</p>
+                                ))}
+                              </div>
+                              <div className="rounded-lg border border-slate-200 bg-slate-950 p-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <span className="text-xs font-medium text-slate-300">Copy-ready setup</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyJoinValue(option.id, option.code)}
+                                    className="text-xs text-white"
+                                  >
+                                    {copiedJoinValue === option.id ? 'Copied' : 'Copy'}
+                                  </button>
+                                </div>
+                                <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-slate-100">
+                                  {option.code}
+                                </pre>
+                              </div>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">

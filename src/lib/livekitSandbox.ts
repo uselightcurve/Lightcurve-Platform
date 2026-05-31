@@ -3,6 +3,7 @@ import type { experiments, scenarios } from '@/db/schema';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type ScenarioRow = typeof scenarios.$inferSelect;
+type LiveKitSandboxSession = ReturnType<typeof createLiveKitSandboxSession>;
 
 function base64Url(input: string | Buffer) {
   return Buffer.from(input)
@@ -105,6 +106,72 @@ export function createLiveKitSandboxSession(runId: string, experiment: Experimen
       }),
     },
     instructions:
-      'LiveKit room is ready. Connect the customer agent as the agent participant and the Lightcurve runner as the synthetic caller to begin low-cost WebRTC testing.',
+      'Lightcurve room is ready. Connect the agent participant with the room URL and token below. Lightcurve joins as the synthetic caller and judge.',
   };
+}
+
+export function createLiveKitJoinOptions(session: LiveKitSandboxSession) {
+  const envBlock = `LIGHTCURVE_ROOM=${session.roomName}
+LIGHTCURVE_ROOM_URL=${session.liveKitUrl}
+LIGHTCURVE_AGENT_TOKEN=${session.tokens.agent}`;
+
+  return [
+    {
+      id: 'livekit_agents',
+      label: 'LiveKit / Pipecat agent',
+      summary: 'Use this when your agent runtime can join a realtime room.',
+      steps: [
+        'Copy the three environment values into your agent runner.',
+        'Start your agent runner and connect as the agent participant.',
+        'Return to Lightcurve; transcript, timing, and scores appear on this run.',
+      ],
+      code: `${envBlock}
+
+# Python example
+from livekit import rtc
+
+room = rtc.Room()
+await room.connect(
+    os.environ["LIGHTCURVE_ROOM_URL"],
+    os.environ["LIGHTCURVE_AGENT_TOKEN"],
+)
+
+# Start your voice-agent pipeline after the room connects.`,
+    },
+    {
+      id: 'browser_webrtc',
+      label: 'Custom WebRTC client',
+      summary: 'Use this when your agent is controlled from a browser or Node WebRTC client.',
+      steps: [
+        'Use the room URL and token in your WebRTC client.',
+        'Publish the agent audio track and subscribe to the caller audio track.',
+        'Send the agent response audio back into the same room.',
+      ],
+      code: `${envBlock}
+
+import { Room } from "livekit-client";
+
+const room = new Room();
+await room.connect(process.env.LIGHTCURVE_ROOM_URL!, process.env.LIGHTCURVE_AGENT_TOKEN!);
+
+// Publish your agent microphone/output track here.
+// Subscribe to Lightcurve caller audio and route it into your agent.`,
+    },
+    {
+      id: 'hosted_provider',
+      label: 'Hosted Vapi / Retell / ElevenLabs',
+      summary: 'Use this only if the hosted agent can join an external realtime room.',
+      steps: [
+        'Point the hosted agent runtime or custom transport to the room URL.',
+        'Use the token as the agent participant credential.',
+        'If the provider only exposes phone/SIP, use Phone realism instead.',
+      ],
+      code: `${envBlock}
+
+# Hosted-provider note:
+# No provider API key is needed for Lightcurve room mode.
+# The provider must support joining an external realtime room or custom transport.
+# If it only answers phone numbers, switch the experiment to Phone realism.`,
+    },
+  ];
 }
