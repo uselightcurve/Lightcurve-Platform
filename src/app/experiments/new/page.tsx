@@ -173,6 +173,12 @@ export default function NewExperiment() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [roomSession, setRoomSession] = useState<any>(null);
+  const [roomSessionError, setRoomSessionError] = useState('');
+  const [createdExperimentId, setCreatedExperimentId] = useState('');
+  const [createdRunId, setCreatedRunId] = useState('');
+  const [copiedJoinValue, setCopiedJoinValue] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -271,6 +277,16 @@ export default function NewExperiment() {
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
+
+  const copyJoinValue = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedJoinValue(label);
+      window.setTimeout(() => setCopiedJoinValue(''), 1400);
+    } catch {
+      setCopiedJoinValue('');
+    }
   };
 
   const handleRun = async () => {
@@ -445,6 +461,27 @@ export default function NewExperiment() {
         scenario_count: selectedIds.length,
         run_count: (data.runs ?? []).length,
       });
+
+      if (roomNoKeyMode && data.runs?.[0]?.id) {
+        const runId = data.runs[0].id;
+        setCreatedExperimentId(data.experiment.id);
+        setCreatedRunId(runId);
+        setRoomSession(null);
+        setRoomSessionError('');
+        setRoomModalOpen(true);
+        try {
+          const sessionResponse = await fetch(`/api/runs/${runId}/livekit-session`, { cache: 'no-store' });
+          const sessionData = await sessionResponse.json().catch(() => ({}));
+          if (!sessionResponse.ok) {
+            setRoomSessionError(sessionData.error ?? 'Lightcurve room details are not ready yet. Open the run detail and refresh in a moment.');
+          } else {
+            setRoomSession(sessionData);
+          }
+        } catch {
+          setRoomSessionError('Lightcurve room details are not ready yet. Open the run detail and refresh in a moment.');
+        }
+        return;
+      }
       router.push(`/experiments/${data.experiment.id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Experiment could not be created';
@@ -1028,6 +1065,145 @@ export default function NewExperiment() {
               ))}
             </div>
           </aside>
+        </div>
+      )}
+
+      {roomModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-medium text-slate-950">Connect agent to Lightcurve room</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Paste these one-time details into your agent runtime. Lightcurve joins as the caller and judge.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                onClick={() => setRoomModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[72vh] space-y-4 overflow-auto p-5">
+              {roomSessionError ? (
+                <div className="rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] p-3 text-xs leading-relaxed text-[#8f3d3b]">
+                  {roomSessionError}
+                </div>
+              ) : roomSession ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room URL</p>
+                        <button
+                          type="button"
+                          onClick={() => copyJoinValue('room-url', roomSession.liveKitUrl)}
+                          className="text-xs text-[#2448bb]"
+                        >
+                          {copiedJoinValue === 'room-url' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="mt-2 break-all font-mono text-xs text-slate-800">{roomSession.liveKitUrl}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room</p>
+                        <button
+                          type="button"
+                          onClick={() => copyJoinValue('room-name', roomSession.roomName)}
+                          className="text-xs text-[#2448bb]"
+                        >
+                          {copiedJoinValue === 'room-name' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="mt-2 break-all font-mono text-xs text-slate-800">{roomSession.roomName}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-medium text-slate-600">Agent join token</label>
+                      <button
+                        type="button"
+                        onClick={() => copyJoinValue('agent-token', roomSession.agentToken)}
+                        className="text-xs text-[#2448bb]"
+                      >
+                        {copiedJoinValue === 'agent-token' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <textarea className="input-field min-h-24 font-mono text-xs" readOnly value={roomSession.agentToken} />
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                      Token is short-lived and scoped to this room. Refresh the run detail if the agent connects after it expires.
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-3 text-xs leading-relaxed text-[#526894]">
+                    {roomSession.instructions}
+                  </div>
+
+                  {Array.isArray(roomSession.joinOptions) && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-800">Choose your agent runtime</h3>
+                      {roomSession.joinOptions.map((option: any) => (
+                        <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                          <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                            {option.label}
+                            <span className="ml-2 text-xs font-normal text-slate-400">{option.summary}</span>
+                          </summary>
+                          <div className="mt-3 grid gap-3">
+                            <div className="grid gap-1.5 text-xs leading-relaxed text-slate-500">
+                              {(option.steps ?? []).map((stepText: string, index: number) => (
+                                <p key={`${option.id}-${index}`}>{stepText}</p>
+                              ))}
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium text-slate-500">Copy-ready setup</span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyJoinValue(option.id, option.code)}
+                                  className="text-xs text-[#2448bb]"
+                                >
+                                  {copiedJoinValue === option.id ? 'Copied' : 'Copy'}
+                                </button>
+                              </div>
+                              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-800">
+                                {option.code}
+                              </pre>
+                            </div>
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                  Preparing Lightcurve room details...
+                </div>
+              )}
+
+              {createdRunId && (
+                <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                  <Link
+                    href={`/experiments/${createdExperimentId}`}
+                    className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                  >
+                    Open experiment
+                  </Link>
+                  <Link
+                    href={`/experiments/${createdExperimentId}/runs/${createdRunId}`}
+                    className="btn-primary min-h-8 px-3 py-1.5 text-xs"
+                  >
+                    Open full run
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
