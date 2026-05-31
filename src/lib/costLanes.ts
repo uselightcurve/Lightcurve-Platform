@@ -10,17 +10,17 @@ export const COST_LANES: Record<CostLaneId, CostLane> = {
   low_cost_testing: {
     id: 'low_cost_testing',
     label: 'Low-cost testing',
-    description: 'Hosted agent replica tests broad coverage before spending provider minutes.',
+    description: 'Agent replica or Lightcurve room coverage before spending provider minutes.',
   },
   provider_backed: {
     id: 'provider_backed',
     label: 'Provider-backed',
-    description: 'Runs against a customer-owned HTTPS runner, LiveKit, Pipecat, or WebRTC bridge.',
+    description: 'Runs against a customer-owned HTTPS runner, Pipecat, or WebRTC bridge.',
   },
   phone_realism: {
     id: 'phone_realism',
     label: 'Phone realism',
-    description: 'Runs a smaller verification set through real provider phone or SIP paths.',
+    description: 'Runs only risky cases through Vapi, Retell, ElevenLabs, phone, or SIP paths.',
   },
 };
 

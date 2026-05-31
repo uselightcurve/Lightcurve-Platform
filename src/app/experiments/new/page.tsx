@@ -13,7 +13,7 @@ type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
 
 const AGENT_TYPES = providerDefinitions.map((provider) => ({
   id: provider.id,
-  label: provider.name,
+  label: provider.id === 'livekit' ? 'Lightcurve room' : provider.name,
   detail: provider.tagline,
   placeholder: provider.locatorPlaceholder,
   locatorLabel: provider.locatorLabel,
@@ -233,20 +233,26 @@ export default function NewExperiment() {
   const hostedLiveKit = agentType === 'livekit';
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
   const vapiBotToBotPhone = agentType === 'vapi' && vapiMode === 'bot_to_bot_phone';
+  const providerPhoneMode = liveProvider && !replayMode;
+  const needsProviderApiKey = providerPhoneMode;
   const locatorLabel = stubMode
     ? 'Agent instructions'
+    : hostedLiveKit
+      ? 'Lightcurve room connection'
     : vapiBotToBotPhone
       ? 'Your agent phone number or SIP URI'
       : activeAgent.locatorLabel;
   const locatorPlaceholder = stubMode
     ? 'Paste the policy, prompt, or expected call flow you want to preflight'
+    : hostedLiveKit
+      ? 'Lightcurve creates this after you start the run'
     : vapiBotToBotPhone
       ? 'Put your agent phone number, e.g. +14155550123'
       : activeAgent.placeholder;
   const callerMode = stubMode
     ? 'Agent replica'
     : hostedLiveKit
-      ? 'LiveKit room'
+      ? 'Lightcurve room'
     : replayMode
       ? 'Replay import'
       : vapiBotToBotPhone
@@ -254,7 +260,7 @@ export default function NewExperiment() {
         : liveProvider
           ? 'Human pilot'
           : 'Bot-to-bot';
-  const realPhoneMode = liveProvider && !replayMode;
+  const realPhoneMode = providerPhoneMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
   const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : hostedLiveKit ? true : agentLocator.trim().length > 0;
 
@@ -512,6 +518,12 @@ export default function NewExperiment() {
               ))}
             </div>
 
+            <div className="mt-4 rounded-lg border border-[#cfd8ff] bg-[#f8faff] p-3 text-sm leading-relaxed text-slate-600">
+              <span className="font-medium text-slate-950">Default path:</span> no provider API key. Use Agent Replica for
+              prompt/policy coverage, or Lightcurve room when your real agent can join the test room. Use Vapi, Retell, or
+              ElevenLabs credentials only for phone-realism checks and imports.
+            </div>
+
             {agentType === 'vapi' && (
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -542,14 +554,15 @@ export default function NewExperiment() {
                 </div>
                 {vapiBotToBotPhone && (
                   <div className="mt-3 rounded-md border border-[#cfd8ff] bg-white p-3 text-xs leading-relaxed text-slate-600">
-                    <p className="font-medium text-slate-900">Vapi bot-to-bot needs three customer-owned values:</p>
+                    <p className="font-medium text-slate-900">Vapi phone realism needs three customer-owned values:</p>
                     <div className="mt-2 grid gap-1.5">
                       <p>1. Your Vapi API key.</p>
                       <p>2. The inbound phone number your agent answers.</p>
                       <p>3. The Vapi Phone Number UUID for a different outbound caller number.</p>
                     </div>
                     <p className="mt-2 text-slate-500">
-                      Lightcurve creates the synthetic caller for each scenario. You do not need to provide a caller assistant ID.
+                      This is only for the small set of risky cases you want verified over Vapi phone infrastructure.
+                      Broad testing should run through Agent Replica or Lightcurve room first.
                     </p>
                   </div>
                 )}
@@ -624,10 +637,10 @@ export default function NewExperiment() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-[#526894]">Testing lane</p>
-                    <h3 className="mt-1 text-sm font-medium text-slate-950">Lightcurve-hosted LiveKit room</h3>
+                    <h3 className="mt-1 text-sm font-medium text-slate-950">Lightcurve room for real-agent testing</h3>
                     <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
-                      Lightcurve creates an isolated WebRTC room for this run. Your agent joins with a short-lived
-                      LiveKit token, while Lightcurve joins as the synthetic caller and scores the transcript.
+                      Lightcurve creates an isolated communication room for this run. Your agent joins with a short-lived
+                      test token, while Lightcurve joins as the synthetic caller and scores the transcript.
                     </p>
                   </div>
                   <span className="rounded-full border border-[#cfd8ff] bg-white px-2.5 py-1 text-xs font-medium text-[#2448bb]">
@@ -641,7 +654,7 @@ export default function NewExperiment() {
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-slate-500">
                   Use this for broad sandbox coverage before sending only failed or risky cases to Vapi, Retell,
-                  ElevenLabs, or phone-realism checks.
+                  ElevenLabs, or carrier-phone checks.
                 </p>
               </div>
             ) : (
@@ -667,16 +680,21 @@ export default function NewExperiment() {
                     </p>
                   )}
                 </div>
-                <div>
+                {needsProviderApiKey && (
+                  <div>
                   <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
                   <input
                     type="password"
                     className="input-field"
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
-                    placeholder="Required unless saved in an agent connection"
+                    placeholder="Only for provider phone/import runs"
                   />
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                    Not needed for Agent Replica or Lightcurve room. Required only when Lightcurve asks your provider to place or import calls.
+                  </p>
                 </div>
+                )}
               </div>
             )}
 
@@ -772,7 +790,7 @@ export default function NewExperiment() {
 
             {botToBotProvider && !hostedLiveKit && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
-                Bot-to-bot mode queues an isolated caller simulator against your real agent runner URL. Point Pipecat, LiveKit, or Custom WebRTC to your HTTPS runner endpoint.
+                Bot-to-bot mode queues an isolated caller simulator against your real agent runner URL. Point Pipecat or a Custom WebRTC bridge to your HTTPS runner endpoint; use Lightcurve room if your agent can join a test room directly.
               </div>
             )}
 
