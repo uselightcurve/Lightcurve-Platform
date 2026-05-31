@@ -22,19 +22,6 @@ function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
   );
 }
 
-function formatUsd(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return '$0.0000';
-  return `$${value.toFixed(4)}`;
-}
-
-function auditBadgeClass(status: string) {
-  if (status === 'detected') return 'border-[#b7e0d0] bg-[#effaf5] text-[#2f6f5f]';
-  if (status === 'proxy') return 'border-[#ead7a7] bg-[#fff9e8] text-[#8a6a20]';
-  if (status === 'external') return 'border-[#cfd8ff] bg-[#f8faff] text-[#2448bb]';
-  if (status === 'pending') return 'border-slate-200 bg-slate-50 text-slate-500';
-  return 'border-slate-200 bg-white text-slate-400';
-}
-
 export default function RunDetail() {
   const { id, runId } = useParams<{ id: string; runId: string }>();
   const [data, setData] = useState<any>(null);
@@ -117,7 +104,6 @@ export default function RunDetail() {
   const pronunciationSource = scenario?.pronunciation ?? experimentConfig.pronunciation ?? null;
   const traces: any[] = data.traces ?? [];
   const scores: any[] = data.scores ?? [];
-  const resourceAudit = data.resourceAudit;
   const pronunciationReport = pronunciationSource
     ? buildPronunciationReport(pronunciationSource, traces)
     : null;
@@ -566,52 +552,6 @@ export default function RunDetail() {
             <div className="rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] p-4">
               <div className="text-xs font-medium text-[#8f3d3b]">Failure reason</div>
               <p className="mt-1 text-xs leading-relaxed text-[#8f3d3b]">{run.failureSummary}</p>
-            </div>
-          )}
-
-          {resourceAudit && (
-            <div className="card overflow-hidden">
-              <div className="border-b border-gray-100 px-5 py-3.5">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium text-gray-800">Resource audit</h3>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs ${resourceAudit.billable ? 'border-[#b7e0d0] bg-[#effaf5] text-[#2f6f5f]' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
-                    {resourceAudit.billable ? 'Billable' : 'Not billable'}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-gray-400">{resourceAudit.verdict}</p>
-              </div>
-              <div className="grid grid-cols-3 gap-3 p-5">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-400">Tested minutes</p>
-                  <p className="mt-1 text-lg font-medium text-slate-950">{resourceAudit.testedMinutes.toFixed(2)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-400">Est. Lightcurve cost</p>
-                  <p className="mt-1 text-lg font-medium text-slate-950">{formatUsd(resourceAudit.estimatedLightcurveCostUsd)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-400">Provider spend</p>
-                  <p className="mt-1 text-lg font-medium capitalize text-slate-950">
-                    {resourceAudit.providerSpend === 'possible' ? 'Possible' : resourceAudit.providerSpend}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2 border-t border-gray-100 p-5 pt-0">
-                {(resourceAudit.resources ?? []).map((resource: any) => (
-                  <div key={resource.label} className="rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-medium text-slate-700">{resource.label}</span>
-                      <span className={`rounded-full border px-2 py-0.5 text-[11px] capitalize ${auditBadgeClass(resource.status)}`}>
-                        {resource.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">{resource.detail}</p>
-                    {resource.estimatedCostUsd ? (
-                      <p className="mt-1 text-xs text-slate-400">Estimated: {formatUsd(resource.estimatedCostUsd)}</p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
