@@ -23,6 +23,13 @@ const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Tickets', 'Payments', 'Knowledge Base'];
 type PlaygroundConnectionMode = 'lightcurve_room' | 'vapi_phone' | 'https_runner';
+type LiveKitJoinOption = {
+  id: string;
+  label: string;
+  summary: string;
+  steps?: string[];
+  code?: string;
+};
 type ActiveSandboxRun = {
   experimentId: string;
   runId: string;
@@ -35,6 +42,7 @@ type ActiveSandboxRun = {
     liveKitUrl: string;
     agentToken: string;
     instructions: string;
+    joinOptions?: LiveKitJoinOption[];
   };
 };
 type LiveTraceTurn = {
@@ -304,6 +312,7 @@ export default function PlaygroundPage() {
   const [runError, setRunError] = useState('');
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveSandboxRun | null>(null);
+  const [copiedJoinValue, setCopiedJoinValue] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -621,6 +630,19 @@ export default function PlaygroundPage() {
         provider: startPayload?.provider,
         status: startPayload?.status,
       });
+      let liveKitSession = startPayload?.liveKit;
+      if (!usesVapiPhone && liveKitSession) {
+        try {
+          const sessionResponse = await fetch(`/api/runs/${run.id}/livekit-session`, { cache: 'no-store' });
+          const sessionPayload = await sessionResponse.json().catch(() => null);
+          if (sessionResponse.ok && sessionPayload?.agentToken) {
+            liveKitSession = sessionPayload;
+          }
+        } catch {
+          // The inline room fields from startPayload are still enough for the user to connect.
+        }
+      }
+
       const nextRun: ActiveSandboxRun = {
         experimentId: experimentPayload.experiment.id,
         runId: run.id,
@@ -628,7 +650,7 @@ export default function PlaygroundPage() {
         status: startPayload?.status,
         externalCallId: startPayload?.externalCallId,
         externalStatus: startPayload?.externalStatus,
-        liveKit: startPayload?.liveKit,
+        liveKit: liveKitSession,
       };
       setActiveSandboxRun(nextRun);
       if (usesVapiPhone) {
@@ -661,10 +683,13 @@ export default function PlaygroundPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function copyToClipboard(value: string) {
+  async function copyToClipboard(value: string, copiedKey?: string) {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
+      const key = copiedKey ?? (value.startsWith('ey') ? 'agent-token' : value.startsWith('wss://') ? 'room-url' : 'room-name');
+      setCopiedJoinValue(key);
+      window.setTimeout(() => setCopiedJoinValue((current) => (current === key ? '' : current)), 1500);
       trackLightcurveEvent('Playground Value Copied', {
         value_type: value.startsWith('ey') ? 'agent_token' : value.startsWith('wss://') ? 'livekit_url' : 'room_name',
       });
@@ -1196,21 +1221,94 @@ export default function PlaygroundPage() {
                     No provider API key is needed. Your agent only needs the generated room URL and token.
                   </div>
                   {activeSandboxRun?.liveKit ? (
-                    <div className="mt-4 space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Room</p>
-                        <p className="mt-1 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
+                    <div className="mt-4 space-y-4 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room URL</p>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(activeSandboxRun.liveKit?.liveKitUrl ?? '', 'modal-room-url')}
+                              className="text-xs text-[#2448bb]"
+                            >
+                              {copiedJoinValue === 'modal-room-url' ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+                          <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room</p>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(activeSandboxRun.liveKit?.roomName ?? '', 'modal-room-name')}
+                              className="text-xs text-[#2448bb]"
+                            >
+                              {copiedJoinValue === 'modal-room-name' ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+                          <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Room URL</p>
-                        <p className="mt-1 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Agent token</p>
-                        <p className="mt-1 max-h-24 overflow-auto break-all rounded-md border border-slate-200 bg-white p-2 font-mono text-[11px] text-slate-700">
-                          {activeSandboxRun.liveKit.agentToken}
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <label className="block text-xs font-medium text-slate-600">Agent join token</label>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(activeSandboxRun.liveKit?.agentToken ?? '', 'modal-agent-token')}
+                            className="text-xs text-[#2448bb]"
+                          >
+                            {copiedJoinValue === 'modal-agent-token' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <textarea className="input-field min-h-24 font-mono text-xs" readOnly value={activeSandboxRun.liveKit.agentToken} />
+                        <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                          Token is short-lived and scoped to this room. Start the agent soon after creating the Playground call.
                         </p>
                       </div>
+
+                      <div className="rounded-lg border border-[#cfd8ff] bg-white p-3 text-xs leading-relaxed text-[#526894]">
+                        {activeSandboxRun.liveKit.instructions}
+                      </div>
+
+                      {Array.isArray(activeSandboxRun.liveKit.joinOptions) && (
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-medium text-gray-800">Choose your agent runtime</h3>
+                          {activeSandboxRun.liveKit.joinOptions.map((option) => (
+                            <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                              <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                                {option.label}
+                                <span className="ml-2 text-xs font-normal text-slate-400">{option.summary}</span>
+                              </summary>
+                              <div className="mt-3 grid gap-3">
+                                <div className="grid gap-1.5 text-xs leading-relaxed text-slate-500">
+                                  {(option.steps ?? []).map((stepText, index) => (
+                                    <p key={`${option.id}-${index}`}>{stepText}</p>
+                                  ))}
+                                </div>
+                                {option.code && (
+                                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                      <span className="text-xs font-medium text-slate-500">Copy-ready setup</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(option.code ?? '', `modal-${option.id}`)}
+                                        className="text-xs text-[#2448bb]"
+                                      >
+                                        {copiedJoinValue === `modal-${option.id}` ? 'Copied' : 'Copy'}
+                                      </button>
+                                    </div>
+                                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-800">
+                                      {option.code}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </details>
+                          ))}
+                        </div>
+                      )}
+
                       <button type="button" className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
                         Return to live call
                       </button>
