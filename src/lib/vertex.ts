@@ -18,21 +18,60 @@ export function hasVertexAI() {
   return Boolean(vertexProject());
 }
 
-export async function generateWithLightcurveModel(modelName: string, prompt: string) {
+export type LightcurveModelProvider = 'vertex-ai' | 'gemini-api' | 'none';
+
+export type LightcurveModelResult = {
+  text: string | null;
+  provider: LightcurveModelProvider;
+  model: string;
+  project?: string;
+  location?: string;
+  error?: string;
+};
+
+export function describeLightcurveModel(result: Pick<LightcurveModelResult, 'provider' | 'model' | 'location'>) {
+  if (result.provider === 'vertex-ai') {
+    return `vertex-ai:${result.model}${result.location ? `:${result.location}` : ''}`;
+  }
+  if (result.provider === 'gemini-api') return `gemini-api:${result.model}`;
+  return 'heuristic-fallback';
+}
+
+export async function generateWithLightcurveModelResult(modelName: string, prompt: string): Promise<LightcurveModelResult> {
+  const project = vertexProject();
+  const location = vertexLocation();
+
   if (hasVertexAI()) {
-    const vertex = new VertexAI({ project: vertexProject(), location: vertexLocation() });
-    const model = vertex.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent(prompt);
-    const text = extractVertexText(result);
-    if (text) return text;
+    try {
+      const vertex = new VertexAI({ project, location });
+      const model = vertex.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const text = extractVertexText(result);
+      if (text) return { text, provider: 'vertex-ai', model: modelName, project, location };
+    } catch (error) {
+      console.warn('Vertex AI generation failed; attempting configured fallback.', error);
+    }
   }
 
   if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy_key') {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent(prompt);
-    return result.response.text().trim();
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return { text: result.response.text().trim(), provider: 'gemini-api', model: modelName };
+    } catch (error) {
+      return {
+        text: null,
+        provider: 'none',
+        model: modelName,
+        error: error instanceof Error ? error.message : 'Gemini API generation failed.',
+      };
+    }
   }
 
-  return null;
+  return { text: null, provider: 'none', model: modelName };
+}
+
+export async function generateWithLightcurveModel(modelName: string, prompt: string) {
+  return (await generateWithLightcurveModelResult(modelName, prompt)).text;
 }

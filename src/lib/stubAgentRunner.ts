@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { experiments, runs, scenarios, scores, traces, usageEvents } from '@/db/schema';
-import { generateWithLightcurveModel } from '@/lib/vertex';
+import { describeLightcurveModel, generateWithLightcurveModelResult } from '@/lib/vertex';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
@@ -17,6 +17,7 @@ type StubJudge = {
   mos: number;
   taskCompletion: number;
   captureAccuracy: number;
+  method: string;
   rationale: string;
   recommendation: string;
 };
@@ -101,12 +102,12 @@ async function generateStubReply(experiment: ExperimentRow, scenario: ScenarioRo
     'Return only the next agent utterance.',
   ].join('\n');
 
-  const generated = await generateWithLightcurveModel(
+  const generated = await generateWithLightcurveModelResult(
     process.env.STUB_AGENT_MODEL ?? process.env.BOT_TO_BOT_CALLER_MODEL ?? 'gemini-2.5-flash-lite',
     prompt,
   );
 
-  if (generated?.trim()) return generated.trim().replace(/^["']|["']$/g, '').slice(0, 700);
+  if (generated.text?.trim()) return generated.text.trim().replace(/^["']|["']$/g, '').slice(0, 700);
   const lastCaller = [...transcript].reverse().find((turn) => turn.speaker === 'caller')?.text ?? 'that';
   return `I can help with that. I will verify the details, follow the policy, and confirm the next step for: ${lastCaller.slice(0, 110)}.`;
 }
@@ -136,17 +137,19 @@ async function judgeStubRun(
     `Transcript: ${JSON.stringify(transcript).slice(0, 7000)}`,
   ].join('\n');
 
-  const generated = await generateWithLightcurveModel(
+  const generated = await generateWithLightcurveModelResult(
     process.env.STUB_AGENT_JUDGE_MODEL ?? process.env.BOT_TO_BOT_JUDGE_MODEL ?? 'gemini-2.5-flash',
     prompt,
   );
-  const parsed = parseJsonObject(generated);
+  const judgeMethod = describeLightcurveModel(generated);
+  const parsed = parseJsonObject(generated.text);
   if (parsed) {
     return {
       mos: clamp(Number(parsed.mos ?? 3.4), 1, 5),
       taskCompletion: clamp(Number(parsed.taskCompletion ?? 0.55), 0, 1),
       captureAccuracy: clamp(Number(parsed.captureAccuracy ?? 0.75), 0, 1),
-      rationale: stringValue(parsed.rationale, 'Judged with Lightcurve stub-agent evaluator.'),
+      method: judgeMethod,
+      rationale: stringValue(parsed.rationale, `Judged with ${judgeMethod}.`),
       recommendation: stringValue(parsed.recommendation, 'Tighten the prompt around verification and next-step confirmation.'),
     };
   }
@@ -160,7 +163,8 @@ async function judgeStubRun(
     mos,
     taskCompletion,
     captureAccuracy: confirms ? 0.86 : 0.62,
-    rationale: 'Fallback judge used because Vertex/Gemini did not return structured JSON.',
+    method: 'heuristic-fallback',
+    rationale: 'Fallback judge used because Vertex AI/Gemini did not return structured JSON.',
     recommendation: confirms
       ? 'Run a provider-backed realism check for audio quality and interruption handling.'
       : 'Prompt the agent to verify captured details and give a concrete next action before ending the call.',
@@ -241,21 +245,21 @@ export async function executeStubAgentRun(
       runId,
       metricName: 'mos',
       value: Number(judged.mos.toFixed(2)),
-      method: 'lightcurve-agent-replica-audio-proxy',
+      method: `agent-replica:${judged.method}:audio-proxy`,
       rationale: judged.rationale,
     },
     {
       runId,
       metricName: 'task_completed',
       value: Number(judged.taskCompletion.toFixed(3)),
-      method: 'lightcurve-llm-judge',
+      method: `agent-replica:${judged.method}`,
       rationale: judged.recommendation,
     },
     {
       runId,
       metricName: 'capture_overall',
       value: Number(judged.captureAccuracy.toFixed(3)),
-      method: 'lightcurve-capture-judge',
+      method: `agent-replica:${judged.method}:capture-judge`,
       rationale: 'Measures whether the agent captured, confirmed, or safely clarified critical details.',
     },
     {

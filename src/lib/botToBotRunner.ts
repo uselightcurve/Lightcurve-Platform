@@ -3,7 +3,11 @@ import type { experiments, runs, scenarios } from '@/db/schema';
 import { db } from '@/db';
 import { scores, traces, runs as runsTable, usageEvents } from '@/db/schema';
 import { VOICE_MAP } from '@/lib/constants';
-import { generateWithLightcurveModel } from '@/lib/vertex';
+import {
+  describeLightcurveModel,
+  generateWithLightcurveModel,
+  generateWithLightcurveModelResult,
+} from '@/lib/vertex';
 import { getRunnerAuthToken, validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
 
 type ExperimentRow = typeof experiments.$inferSelect;
@@ -20,6 +24,7 @@ type JudgeResult = {
   mos: number;
   taskCompletion: number;
   sttConfidence: number;
+  method: string;
   rationale: string;
   recommendation: string;
 };
@@ -241,6 +246,7 @@ async function judgeBotToBotRun(
       mos: Number(mos.toFixed(1)),
       taskCompletion: 0.86,
       sttConfidence: Number(baseStt.toFixed(2)),
+      method: 'internal-runner-baseline',
       rationale: 'Internal runner completed the scenario goal and confirmed the next step.',
       recommendation: 'Connect a real agent runner endpoint next to compare this baseline against your production agent.',
     };
@@ -263,10 +269,12 @@ Score:
 Return:
 {"mos":4.0,"taskCompletion":0.8,"rationale":"one sentence","recommendation":"one sentence"}
 `;
-  const judgeText = await generateWithLightcurveModel(
+  const judgeResult = await generateWithLightcurveModelResult(
     process.env.BOT_TO_BOT_JUDGE_MODEL ?? 'gemini-2.5-flash',
     judgePrompt,
   );
+  const judgeText = judgeResult.text;
+  const judgeMethod = describeLightcurveModel(judgeResult);
 
   if (judgeText) {
     try {
@@ -276,11 +284,12 @@ Return:
         mos: clamp(Number(parsed.mos ?? 3.5), 1, 5),
         taskCompletion: clamp(Number(parsed.taskCompletion ?? parsed.task_completion ?? 0.5), 0, 1),
         sttConfidence: Number(baseStt.toFixed(2)),
-        rationale: stringValue(parsed.rationale) ?? 'LLM judge completed the sandbox evaluation.',
+        method: judgeMethod,
+        rationale: stringValue(parsed.rationale) ?? `${judgeMethod} completed the sandbox evaluation.`,
         recommendation: stringValue(parsed.recommendation) ?? 'Review failed turns and tighten the agent prompt.',
       };
     } catch {
-      console.warn('LLM judge returned non-JSON; falling back to heuristic scoring.');
+      console.warn(`${judgeMethod} returned non-JSON; falling back to heuristic scoring.`);
     }
   }
 
@@ -293,7 +302,8 @@ Return:
       mos: Number(mos.toFixed(1)),
       taskCompletion: Number(taskCompletion.toFixed(2)),
       sttConfidence: Number(baseStt.toFixed(2)),
-      rationale: 'Heuristic judge used because Vertex AI/Gemini is not configured.',
+      method: 'heuristic-fallback',
+      rationale: 'Heuristic judge used because Vertex AI/Gemini did not return usable structured output.',
       recommendation: 'Enable Vertex AI for stricter LLM-as-judge scoring with evidence.',
     };
   }
@@ -368,11 +378,12 @@ export async function executeBotToBotRun(runId: string, experiment: ExperimentRo
   }
 
   await db.delete(scores).where(eq(scores.runId, runId));
+  const scoreMethod = judge.method === 'internal-runner-baseline' ? judge.method : judge.method;
   await db.insert(scores).values([
-    { runId, metricName: 'mos', value: judge.mos, method: 'llm-judge-audio-proxy', rationale: judge.rationale },
-    { runId, metricName: 'task_completed', value: judge.taskCompletion, method: 'llm-judge', rationale: judge.rationale },
+    { runId, metricName: 'mos', value: judge.mos, method: `${scoreMethod}:audio-proxy`, rationale: judge.rationale },
+    { runId, metricName: 'task_completed', value: judge.taskCompletion, method: scoreMethod, rationale: judge.rationale },
     { runId, metricName: 'latency_p95', value: latencyP95, method: 'bot-to-bot-trace', rationale: 'Computed from caller LLM/TTS and agent runner response timings.' },
-    { runId, metricName: 'stt_confidence', value: judge.sttConfidence, method: 'audio-condition-proxy', rationale: 'Estimated from scenario noise and language until provider STT confidence is available.' },
+    { runId, metricName: 'stt_confidence', value: judge.sttConfidence, method: 'no-agent-audio-stt-proxy', rationale: 'Estimated from scenario noise and language. No real agent audio STT evidence was captured for this run.' },
   ]);
 
   const endedAt = new Date();

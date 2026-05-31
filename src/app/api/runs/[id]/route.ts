@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { experiments, runs, scenarios, traces, scores } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { buildResourceAudit } from '@/lib/resourceAudit';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,6 +20,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       : [];
     const runTraces = await db.select().from(traces).where(eq(traces.runId, id));
     const runScores = await db.select().from(scores).where(eq(scores.runId, id));
+    const resourceAudit = buildResourceAudit({
+      run: runData[0],
+      experiment: experimentData[0] ?? null,
+      traces: runTraces,
+      scores: runScores,
+    });
 
     return NextResponse.json({
       run: runData[0],
@@ -26,6 +33,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       scenario: scenarioData[0] ?? null,
       traces: runTraces,
       scores: runScores,
+      resourceAudit,
     });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
