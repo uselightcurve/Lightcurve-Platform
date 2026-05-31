@@ -50,6 +50,13 @@ type LiveTraceTurn = {
   text: string;
   latencyMs?: number | null;
 };
+type SandboxFixture = {
+  title: string;
+  endpoint: string;
+  status: string;
+  rows: Array<{ label: string; value: string }>;
+  timeline: Array<{ tool: string; detail: string; status?: 'queued' | 'calling' | '200 OK' | 'blocked' }>;
+};
 
 function dedupeScenarios(items: StoredScenario[]) {
   return items.filter((scenario, index, array) => {
@@ -130,16 +137,10 @@ function environmentForScenario(scenario: StoredScenario, environmentType: strin
   const valueType = scenario.pronunciation?.entityType === 'email' ? 'Email' : scenario.pronunciation?.entityType === 'phone_number' ? 'Phone' : 'Intent';
   const targetValue = scenario.pronunciation?.targetValue ?? scenario.persona.goal;
 
-  const environments: Record<string, {
-    title: string;
-    endpoint: string;
-    status: string;
-    rows: Array<{ label: string; value: string }>;
-    timeline: Array<{ tool: string; detail: string }>;
-  }> = {
+  const environments: Record<string, SandboxFixture> = {
     CRM: {
       title: 'CRM',
-      endpoint: '/sandbox/crm/customer',
+      endpoint: '/api/sandbox/crm/customer',
       status: scenario.pronunciation ? 'Contact update open' : 'Customer profile loaded',
       rows: [
         { label: 'Customer', value: name },
@@ -154,7 +155,7 @@ function environmentForScenario(scenario: StoredScenario, environmentType: strin
     },
     Calendar: {
       title: 'Calendar',
-      endpoint: '/sandbox/calendar/slots',
+      endpoint: '/api/sandbox/calendar/slots',
       status: 'Availability fixture',
       rows: [
         { label: 'Today', value: domain === 'healthcare' ? 'No slots' : '2 slots' },
@@ -169,7 +170,7 @@ function environmentForScenario(scenario: StoredScenario, environmentType: strin
     },
     Tickets: {
       title: 'Tickets',
-      endpoint: '/sandbox/tickets/open',
+      endpoint: '/api/sandbox/tickets/open',
       status: 'Support fixture',
       rows: [
         { label: 'Open ticket', value: scenario.persona.interrupts ? 'Exists' : 'None' },
@@ -184,7 +185,7 @@ function environmentForScenario(scenario: StoredScenario, environmentType: strin
     },
     Payments: {
       title: 'Payments',
-      endpoint: '/sandbox/payments/authorize',
+      endpoint: '/api/sandbox/payments/authorize',
       status: 'Payment fixture',
       rows: [
         { label: 'Method', value: domain === 'banking' ? 'ACH' : 'Visa ending 4242' },
@@ -199,7 +200,7 @@ function environmentForScenario(scenario: StoredScenario, environmentType: strin
     },
     'Knowledge Base': {
       title: 'Knowledge Base',
-      endpoint: '/sandbox/kb/search',
+      endpoint: '/api/sandbox/kb/search',
       status: 'Policy grounding',
       rows: [
         { label: 'Article', value: `${domain} policy` },
@@ -228,8 +229,44 @@ function SandboxEnvironmentPanel({
   callState: 'idle' | 'running' | 'complete';
   visibleTurns: number;
 }) {
-  const environment = environmentForScenario(scenario, environmentType);
+  const fallbackEnvironment = environmentForScenario(scenario, environmentType);
+  const [toolFixture, setToolFixture] = useState<SandboxFixture | null>(null);
+  const [toolError, setToolError] = useState('');
+  const environment = toolFixture ?? fallbackEnvironment;
   const phase = callState === 'complete' ? environment.timeline.length : Math.max(0, Math.min(visibleTurns - 1, environment.timeline.length));
+
+  useEffect(() => {
+    let cancelled = false;
+    async function runSandboxTool() {
+      setToolError('');
+      try {
+        const response = await fetch(fallbackEnvironment.endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            domain: scenario.domain,
+            language: scenario.language,
+            personaName: scenario.persona.name,
+            goal: scenario.persona.goal,
+            interrupts: scenario.persona.interrupts,
+            callerSeed: scenario.callerSeed,
+            entityType: scenario.pronunciation?.entityType,
+            targetValue: scenario.pronunciation?.targetValue,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error ?? 'Sandbox tool failed.');
+        if (!cancelled) setToolFixture(payload as SandboxFixture);
+      } catch (error) {
+        if (!cancelled) setToolError(error instanceof Error ? error.message : 'Sandbox tool failed.');
+      }
+    }
+
+    void runSandboxTool();
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackEnvironment.endpoint, scenario]);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white">
@@ -261,20 +298,27 @@ function SandboxEnvironmentPanel({
           ))}
         </div>
 
+        {toolError && (
+          <div className="mt-3 rounded-md border border-[#e3c3c1] bg-[#fbf3f2] px-3 py-2 text-xs text-[#8f3d3b]">
+            {toolError}
+          </div>
+        )}
+
         <div className="mt-3 space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Tool timeline</p>
           {environment.timeline.map((item, index) => {
             const active = callState === 'running' && phase === index;
             const complete = callState === 'complete' || phase > index;
+            const visibleStatus = complete ? (item.status ?? '200 OK') : active ? 'calling' : 'queued';
             return (
               <div
                 key={item.tool}
-                className={`rounded-md border px-3 py-2 ${active ? 'border-[#cfd8ff] bg-[#f5f7ff]' : 'border-slate-100 bg-slate-50'}`}
+                className={`rounded-md border px-3 py-2 ${active ? 'border-[#cfd8ff] bg-[#f5f7ff]' : visibleStatus === 'blocked' ? 'border-[#e3c3c1] bg-[#fbf3f2]' : 'border-slate-100 bg-slate-50'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <code className="truncate text-[11px] text-slate-800">{item.tool}</code>
-                  <span className={`shrink-0 text-[11px] ${complete ? 'text-[#2f6f5f]' : active ? 'text-[#2448bb]' : 'text-slate-400'}`}>
-                    {complete ? '200 OK' : active ? 'calling' : 'queued'}
+                  <span className={`shrink-0 text-[11px] ${visibleStatus === 'blocked' ? 'text-[#8f3d3b]' : complete ? 'text-[#2f6f5f]' : active ? 'text-[#2448bb]' : 'text-slate-400'}`}>
+                    {visibleStatus}
                   </span>
                 </div>
                 <p className="mt-1 truncate text-[11px] text-slate-500">{item.detail}</p>
@@ -930,100 +974,49 @@ export default function PlaygroundPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[1fr_320px] gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-3">
                     {activeSandboxRun && (
-                      <div className="rounded-lg border border-[#cfd8ff] bg-white p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Agent connection</p>
-                            <h3 className="mt-1 text-sm font-medium text-slate-950">
-                              {activeSandboxRun.provider === 'vapi' ? 'Vapi phone call started' : 'Lightcurve room ready'}
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#cfd8ff] bg-white px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-[#2f5ae0]" />
+                            <h3 className="text-sm font-medium text-slate-950">
+                              {activeSandboxRun.provider === 'vapi' ? 'Provider phone call' : 'Lightcurve room'}
                             </h3>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {activeSandboxRun.provider === 'vapi'
-                                ? 'Lightcurve is dialing your Vapi agent as the synthetic caller. Refresh status here until the transcript and scores arrive.'
-                                : 'Connect your customer agent as the agent participant. Lightcurve stays in this Playground as the caller, observer, and scorer.'}
-                            </p>
+                            <span className="rounded-full border border-[#cfd8ff] bg-[#f6f8ff] px-2 py-0.5 text-[11px] text-[#2448bb]">
+                              {activeSandboxRun.status ?? 'ready'}
+                            </span>
                           </div>
-                          <span className="rounded-full border border-[#cfd8ff] bg-[#f6f8ff] px-2 py-0.5 text-xs text-[#2448bb]">
-                            {activeSandboxRun.status ?? 'ready'}
-                          </span>
+                          <p className="mt-1 truncate text-xs text-slate-500">
+                            {activeSandboxRun.liveKit?.roomName ?? activeSandboxRun.externalCallId ?? activeSandboxRun.runId}
+                          </p>
                         </div>
-
-                        {activeSandboxRun.liveKit ? (
-                          <>
-                            <div className="mt-4 grid grid-cols-2 gap-3">
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Room</p>
-                                  <button
-                                    type="button"
-                                    className="text-xs text-[#2448bb]"
-                                    onClick={() => copyToClipboard(activeSandboxRun.liveKit?.roomName ?? '')}
-                                  >
-                                    Copy
-                                  </button>
-                                </div>
-                                <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
-                              </div>
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Room URL</p>
-                                  <button
-                                    type="button"
-                                    className="text-xs text-[#2448bb]"
-                                    onClick={() => copyToClipboard(activeSandboxRun.liveKit?.liveKitUrl ?? '')}
-                                  >
-                                    Copy
-                                  </button>
-                                </div>
-                                <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
-                              </div>
-                            </div>
-
-                            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Agent token</p>
-                                <button
-                                  type="button"
-                                  className="text-xs text-[#2448bb]"
-                                  onClick={() => copyToClipboard(activeSandboxRun.liveKit?.agentToken ?? '')}
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                              <p className="mt-2 max-h-20 overflow-auto break-all rounded-md bg-white p-2 font-mono text-[11px] text-slate-700">
-                                {activeSandboxRun.liveKit.agentToken}
-                              </p>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="mt-4 grid grid-cols-2 gap-3">
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Provider call ID</p>
-                              <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.externalCallId ?? 'Waiting for provider'}</p>
-                            </div>
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Provider status</p>
-                              <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.externalStatus ?? activeSandboxRun.status ?? 'started'}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                            <p className="text-slate-400">Provider</p>
-                            <p className="mt-1 text-slate-800">{activeSandboxRun.provider ?? 'lightcurve_room'}</p>
-                          </div>
-                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                            <p className="text-slate-400">Run ID</p>
-                            <p className="mt-1 truncate font-mono text-slate-800">{activeSandboxRun.runId}</p>
-                          </div>
-                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                            <p className="text-slate-400">Next</p>
-                            <p className="mt-1 text-slate-800">{activeSandboxRun.provider === 'vapi' ? 'Refresh status after call ends' : 'Join agent, then watch transcript'}</p>
-                          </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                            onClick={() => setAgentModalOpen(true)}
+                          >
+                            Connection
+                          </button>
+                          {activeSandboxRun.provider === 'vapi' && (
+                            <button
+                              type="button"
+                              className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                              onClick={() => void pollActiveRun()}
+                              disabled={pollingRun}
+                            >
+                              {pollingRun ? 'Refreshing...' : 'Refresh'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                            onClick={() => router.push(`/experiments/${activeSandboxRun.experimentId}/runs/${activeSandboxRun.runId}`)}
+                          >
+                            Audit detail
+                          </button>
                         </div>
                       </div>
                     )}
@@ -1044,58 +1037,36 @@ export default function PlaygroundPage() {
                     )}
                   </div>
 
-                  <div className="space-y-4">
-                    {activeSandboxRun && (
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
-                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Developer controls</p>
-                        <div className="mt-3 grid gap-2">
-                          <button
-                            type="button"
-                            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
-                            onClick={() => setAgentModalOpen(true)}
-                          >
-                            Edit connection
-                          </button>
-                          {activeSandboxRun.provider === 'vapi' && (
-                            <button
-                              type="button"
-                              className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
-                              onClick={() => void pollActiveRun()}
-                              disabled={pollingRun}
-                            >
-                              {pollingRun ? 'Refreshing...' : 'Refresh call status'}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
-                            onClick={() => router.push(`/experiments/${activeSandboxRun.experimentId}/runs/${activeSandboxRun.runId}`)}
-                          >
-                            Open audit detail
-                          </button>
-                        </div>
-                        <p className="mt-3 text-xs leading-5 text-slate-500">
-                          The audit page is secondary. This panel is the live one-call workspace.
-                        </p>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <details className="rounded-lg border border-slate-200 bg-white p-3">
+                      <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                        Sandbox tools
+                        <span className="ml-2 text-xs font-normal text-slate-400">{environmentType}</span>
+                      </summary>
+                      <div className="mt-3">
+                        <SandboxEnvironmentPanel
+                          scenario={activeScenario}
+                          environmentType={environmentType}
+                          callState={callState}
+                          visibleTurns={visibleTurns}
+                        />
                       </div>
-                    )}
-
-                    <SandboxEnvironmentPanel
-                      scenario={activeScenario}
-                      environmentType={environmentType}
-                      callState={callState}
-                      visibleTurns={visibleTurns}
-                    />
+                    </details>
 
                     {pronunciationReport && (
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Capture action</p>
-                          <h3 className="mt-1 text-sm font-medium text-slate-950">{entityLabel(pronunciationReport.entityType)}</h3>
+                      <details className="rounded-lg border border-slate-200 bg-white p-3">
+                      <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                        Capture report
+                        <span className="ml-2 text-xs font-normal text-slate-400">{entityLabel(pronunciationReport.entityType)}</span>
+                      </summary>
+                      <div className="mt-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Capture action</p>
+                            <h3 className="mt-1 text-sm font-medium text-slate-950">{entityLabel(pronunciationReport.entityType)}</h3>
+                          </div>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">{pronunciationReport.accent}</span>
                         </div>
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">{pronunciationReport.accent}</span>
-                      </div>
 
                       <div className="mt-4 space-y-3 text-xs">
                         <div>
@@ -1126,6 +1097,7 @@ export default function PlaygroundPage() {
                         ))}
                       </div>
                       </div>
+                      </details>
                     )}
                   </div>
                 </div>
