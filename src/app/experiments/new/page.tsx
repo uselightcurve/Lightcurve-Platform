@@ -892,6 +892,17 @@ export default function NewExperiment() {
               <div className="flex gap-2">
                 <button
                   type="button"
+                  className="btn-primary text-xs"
+                  onClick={() => setStep(3)}
+                  disabled={selectedIds.length === 0 || selectedTooManyPhoneScenarios}
+                >
+                  Configure gate
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
                   className="btn-secondary text-xs"
                   onClick={() => setSelectedIds(realPhoneMode ? highPressureIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : highPressureIds)}
                 >

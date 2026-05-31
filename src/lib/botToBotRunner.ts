@@ -393,7 +393,7 @@ export async function executeBotToBotRun(runId: string, experiment: ExperimentRo
     .where(eq(runsTable.id, runId))
     .returning();
 
-  if (experiment.ownerUserId) {
+  if (experiment.ownerUserId && status === 'complete') {
     const existingUsage = await db
       .select()
       .from(usageEvents)
@@ -404,7 +404,7 @@ export async function executeBotToBotRun(runId: string, experiment: ExperimentRo
         ownerUserId: experiment.ownerUserId,
         eventType: 'run_completed',
         minutes: durationMs / 60000,
-        actions: 0,
+        actions: Math.max(1, traceRows.length),
         sourceRunId: runId,
         sourceExperimentId: experiment.id,
       });

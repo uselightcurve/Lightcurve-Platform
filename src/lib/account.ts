@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { subscriptions, usageEvents, users } from '@/db/schema';
+import { runs, subscriptions, usageEvents, users } from '@/db/schema';
 import { planFor, type PlanId } from '@/lib/plans';
 
 export type AccountContext = {
@@ -76,16 +76,26 @@ export async function getBillingSummary(userId: string) {
   };
   const plan = planFor(subscription.plan);
 
-  const [usage] = await db
-    .select({
-      minutesUsed: sql<number>`coalesce(sum(${usageEvents.minutes}), 0)`,
-      actionsUsed: sql<number>`coalesce(sum(${usageEvents.actions}), 0)`,
-    })
+  const usageRows = await db
+    .select()
     .from(usageEvents)
     .where(eq(usageEvents.ownerUserId, userId));
 
-  const minutesUsed = Number(usage?.minutesUsed ?? 0);
-  const actionsUsed = Number(usage?.actionsUsed ?? 0);
+  const runLinkedUsageIds = Array.from(
+    new Set(usageRows.map((event) => event.sourceRunId).filter((id): id is string => Boolean(id))),
+  );
+  const completedRunIds = new Set<string>();
+  if (runLinkedUsageIds.length) {
+    const completedRuns = await db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(and(eq(runs.ownerUserId, userId), eq(runs.status, 'complete'), inArray(runs.id, runLinkedUsageIds)));
+    completedRuns.forEach((run) => completedRunIds.add(run.id));
+  }
+
+  const billableUsageRows = usageRows.filter((event) => !event.sourceRunId || completedRunIds.has(event.sourceRunId));
+  const minutesUsed = billableUsageRows.reduce((sum, event) => sum + Number(event.minutes ?? 0), 0);
+  const actionsUsed = billableUsageRows.reduce((sum, event) => sum + Number(event.actions ?? 0), 0);
   const minutesRemaining = plan.minutesLimit === null ? null : Math.max(0, plan.minutesLimit - minutesUsed);
   const actionsRemaining = plan.actionsLimit === null ? null : Math.max(0, plan.actionsLimit - actionsUsed);
 

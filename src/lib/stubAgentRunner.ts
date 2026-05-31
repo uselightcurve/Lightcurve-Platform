@@ -286,7 +286,7 @@ export async function executeStubAgentRun(
     .from(usageEvents)
     .where(and(eq(usageEvents.sourceRunId, runId), eq(usageEvents.eventType, 'stub_agent_run_completed')))
     .limit(1);
-  if (!existingUsage.length && run.ownerUserId) {
+  if (!existingUsage.length && run.ownerUserId && passed) {
     await db.insert(usageEvents).values({
       ownerUserId: run.ownerUserId,
       eventType: 'stub_agent_run_completed',

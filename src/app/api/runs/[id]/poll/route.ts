@@ -83,12 +83,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         .set({ status: 'completed', completedAt: new Date() })
         .where(eq(experiments.id, experiment.id));
     }
-    const existingUsage = await db.select().from(usageEvents).where(and(eq(usageEvents.sourceRunId, id), eq(usageEvents.eventType, 'run_completed'))).limit(1);
-    if (!existingUsage.length) {
+    const shouldRecordUsage = normalized.runStatus === 'complete' && (updatedRunData[0].durationMs ?? 0) > 0;
+    const existingUsage = shouldRecordUsage
+      ? await db.select().from(usageEvents).where(and(eq(usageEvents.sourceRunId, id), eq(usageEvents.eventType, 'run_completed'))).limit(1)
+      : [];
+    if (shouldRecordUsage && !existingUsage.length) {
       await recordUsageEvent({
         userId: account.userId,
         eventType: 'run_completed',
         minutes: (updatedRunData[0].durationMs ?? 0) / 60000,
+        actions: Math.max(1, normalized.traces.length),
         sourceRunId: id,
         sourceExperimentId: experiment.id,
       });

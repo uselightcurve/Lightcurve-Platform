@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { experiments, runs, scenarios, scores } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { REAL_SCENARIO_LIBRARY } from '@/lib/realScenarioLibrary';
-import { assertUsageAvailable, recordUsageEvent, requireAccount, unauthorizedJson } from '@/lib/account';
+import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { getOwnedAgentConnection, sanitizeAgentConfig } from '@/lib/agentConnections';
 import { releaseWorkflowForExperiment } from '@/lib/releaseWorkflow';
 
@@ -188,13 +188,6 @@ export async function POST(req: Request) {
       }).returning();
       createdRuns.push(r[0]);
     }
-    await recordUsageEvent({
-      userId: account.userId,
-      eventType: 'experiment_created',
-      actions: Math.max(1, createdRuns.length),
-      sourceExperimentId: expId,
-    });
-
     return NextResponse.json({ experiment: exp[0], runs: createdRuns });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);

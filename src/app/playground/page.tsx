@@ -1145,12 +1145,12 @@ export default function PlaygroundPage() {
       </div>
 
       {agentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/30 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3">
               <div>
                 <h2 className="text-base font-medium text-slate-950">Connect your agent</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
+                <p className="mt-1 text-xs leading-5 text-slate-500">
                   Use the Lightcurve room details below to join the agent you want to test.
                 </p>
               </div>
@@ -1159,11 +1159,11 @@ export default function PlaygroundPage() {
               </button>
             </div>
 
-            <div className="space-y-4 p-5">
+            <div className="max-h-[calc(100vh-150px)] space-y-3 overflow-y-auto p-4">
               <div className="grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
                 <button
                   type="button"
-                  className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
                   onClick={() => {
                     setConnectionMode('lightcurve_room');
                     setRunError('');
@@ -1173,7 +1173,7 @@ export default function PlaygroundPage() {
                 </button>
                 <button
                   type="button"
-                  className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'vapi_phone' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'vapi_phone' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
                   onClick={() => {
                     setConnectionMode('vapi_phone');
                     setRunError('');
@@ -1183,7 +1183,7 @@ export default function PlaygroundPage() {
                 </button>
                 <button
                   type="button"
-                  className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'https_runner' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'https_runner' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
                   onClick={() => {
                     setConnectionMode('https_runner');
                     setRunError('');
@@ -1194,17 +1194,17 @@ export default function PlaygroundPage() {
               </div>
 
               {connectionMode === 'lightcurve_room' ? (
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-3">
                   {activeSandboxRun?.liveKit ? (
-                    <div className="space-y-4 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
+                    <div className="space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
                       <div>
                         <p className="text-sm font-medium text-slate-950">Lightcurve room details</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Paste these one-time values into your agent runtime. Lightcurve joins this room as the synthetic caller and judge.
                         </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room URL</p>
                             <button
@@ -1215,9 +1215,9 @@ export default function PlaygroundPage() {
                               {copiedJoinValue === 'modal-room-url' ? 'Copied' : 'Copy'}
                             </button>
                           </div>
-                          <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
+                          <p className="mt-1.5 break-all font-mono text-[11px] leading-5 text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
                         </div>
-                        <div className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Room</p>
                             <button
@@ -1228,7 +1228,7 @@ export default function PlaygroundPage() {
                               {copiedJoinValue === 'modal-room-name' ? 'Copied' : 'Copy'}
                             </button>
                           </div>
-                          <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
+                          <p className="mt-1.5 break-all font-mono text-[11px] leading-5 text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
                         </div>
                       </div>
                       <div>
@@ -1242,21 +1242,21 @@ export default function PlaygroundPage() {
                             {copiedJoinValue === 'modal-agent-token' ? 'Copied' : 'Copy'}
                           </button>
                         </div>
-                        <textarea className="input-field min-h-24 font-mono text-xs" readOnly value={activeSandboxRun.liveKit.agentToken} />
+                        <textarea className="input-field max-h-24 min-h-16 font-mono text-[11px] leading-5" readOnly value={activeSandboxRun.liveKit.agentToken} />
                         <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                           Token is short-lived and scoped to this room. Start the agent soon after creating the Playground call.
                         </p>
                       </div>
 
-                      <div className="rounded-lg border border-[#cfd8ff] bg-white p-3 text-xs leading-relaxed text-[#526894]">
+                      <div className="rounded-lg border border-[#cfd8ff] bg-white p-2.5 text-xs leading-relaxed text-[#526894]">
                         {activeSandboxRun.liveKit.instructions}
                       </div>
 
                       {Array.isArray(activeSandboxRun.liveKit.joinOptions) && (
                         <div className="space-y-3">
-                          <h3 className="text-sm font-medium text-gray-800">Choose your agent runtime</h3>
+                          <h3 className="text-xs font-medium uppercase tracking-wide text-gray-500">Agent runtime</h3>
                           {activeSandboxRun.liveKit.joinOptions.map((option) => (
-                            <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                            <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-2.5">
                               <summary className="cursor-pointer text-sm font-medium text-slate-900">
                                 {option.label}
                                 <span className="ml-2 text-xs font-normal text-slate-400">{option.summary}</span>
@@ -1279,7 +1279,7 @@ export default function PlaygroundPage() {
                                         {copiedJoinValue === `modal-${option.id}` ? 'Copied' : 'Copy'}
                                       </button>
                                     </div>
-                                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-800">
+                                    <pre className="max-h-28 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed text-slate-800">
                                       {option.code}
                                     </pre>
                                   </div>
