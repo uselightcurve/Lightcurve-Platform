@@ -22,18 +22,25 @@ const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Tickets', 'Payments', 'Knowledge Base'];
-type PlaygroundConnectionMode = 'lightcurve_room' | 'https_runner';
+type PlaygroundConnectionMode = 'lightcurve_room' | 'vapi_phone' | 'https_runner';
 type ActiveSandboxRun = {
   experimentId: string;
   runId: string;
   provider?: string;
   status?: string;
+  externalCallId?: string;
+  externalStatus?: string;
   liveKit?: {
     roomName: string;
     liveKitUrl: string;
     agentToken: string;
     instructions: string;
   };
+};
+type LiveTraceTurn = {
+  speaker: 'caller' | 'agent';
+  text: string;
+  latencyMs?: number | null;
 };
 
 function dedupeScenarios(items: StoredScenario[]) {
@@ -78,6 +85,18 @@ function speechRate(pace: PronunciationPace) {
   if (pace === 'slow') return 0.72;
   if (pace === 'fast') return 1.18;
   return 0.92;
+}
+
+function looksLikeUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function looksLikePhoneNumber(value: string) {
+  return /^\+\d{8,15}$/.test(value.trim().replace(/[\s().-]/g, ''));
+}
+
+function normalizePhone(value: string) {
+  return value.trim().replace(/[\s().-]/g, '');
 }
 
 async function createPlaygroundConnection(endpoint: string) {
@@ -266,6 +285,13 @@ export default function PlaygroundPage() {
   const [scenarioId, setScenarioId] = useState(REAL_SCENARIO_LIBRARY[0]?.id ?? '');
   const [agent, setAgent] = useState('');
   const [connectionMode, setConnectionMode] = useState<PlaygroundConnectionMode>('lightcurve_room');
+  const [vapiAgentNumber, setVapiAgentNumber] = useState('');
+  const [vapiApiKey, setVapiApiKey] = useState('');
+  const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
+  const [vapiCallerAssistantId, setVapiCallerAssistantId] = useState('');
+  const [providerTurns, setProviderTurns] = useState<LiveTraceTurn[]>([]);
+  const [providerScores, setProviderScores] = useState<Array<{ metricName: string; value: number }>>([]);
+  const [pollingRun, setPollingRun] = useState(false);
   const [scenarios, setScenarios] = useState<StoredScenario[]>(dedupeScenarios(REAL_SCENARIO_LIBRARY as StoredScenario[]));
   const [visibleTurns, setVisibleTurns] = useState(0);
   const [pronunciationEnabled, setPronunciationEnabled] = useState(true);
@@ -389,8 +415,16 @@ export default function PlaygroundPage() {
     return buildPronunciationReport(activeScenario.pronunciation, transcript);
   }, [activeScenario, transcript]);
 
+  const providerBackedLiveCall = activeSandboxRun?.provider === 'vapi';
+  const displayedTranscript = providerBackedLiveCall ? providerTurns : transcript.slice(0, callState === 'complete' ? transcript.length : visibleTurns);
+  const liveMosScore = providerScores.find((score) => score.metricName === 'mos')?.value ?? 4.1;
+  const liveTaskScore =
+    providerScores.find((score) => score.metricName === 'task_completed')?.value
+    ?? pronunciationReport?.segments.find((item) => item.label === 'Overall capture')?.value
+    ?? 0.86;
+
   useEffect(() => {
-    if (callState !== 'running') return;
+    if (callState !== 'running' || providerBackedLiveCall) return;
     setVisibleTurns(0);
     const interval = window.setInterval(() => {
       setVisibleTurns((current) => {
@@ -403,7 +437,7 @@ export default function PlaygroundPage() {
       });
     }, 850);
     return () => window.clearInterval(interval);
-  }, [callState, transcript.length]);
+  }, [callState, providerBackedLiveCall, transcript.length]);
 
   function selectPreset(value: string) {
     setTargetValue(value);
@@ -432,8 +466,50 @@ export default function PlaygroundPage() {
     window.speechSynthesis.speak(utterance);
   }
 
+  async function pollActiveRun(runOverride?: ActiveSandboxRun) {
+    const targetRun = runOverride ?? activeSandboxRun;
+    if (!targetRun?.runId || pollingRun) return;
+    setPollingRun(true);
+    try {
+      const response = await fetch(`/api/runs/${targetRun.runId}/poll`, { method: 'POST' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? 'Unable to refresh provider call.');
+      const turns = Array.isArray(payload?.traces)
+        ? payload.traces.map((trace: Record<string, unknown>) => ({
+            speaker: trace.speaker === 'agent' ? 'agent' : 'caller',
+            text: String(trace.text ?? ''),
+            latencyMs: typeof trace.totalLatencyMs === 'number' ? trace.totalLatencyMs : null,
+          })).filter((turn: LiveTraceTurn) => turn.text)
+        : [];
+      const scores = Array.isArray(payload?.scores)
+        ? payload.scores.map((score: Record<string, unknown>) => ({
+            metricName: String(score.metricName ?? ''),
+            value: Number(score.value ?? 0),
+          })).filter((score: { metricName: string; value: number }) => score.metricName)
+        : [];
+      setProviderTurns(turns);
+      setProviderScores(scores);
+      setActiveSandboxRun((current) => current ? {
+        ...current,
+        status: payload?.run?.status ?? current.status,
+        externalStatus: payload?.run?.externalStatus ?? payload?.externalStatus ?? current.externalStatus,
+      } : current);
+      if (payload?.run?.status === 'complete' || payload?.run?.status === 'failed') {
+        setCallState('complete');
+      }
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : 'Unable to refresh provider call.');
+    } finally {
+      setPollingRun(false);
+    }
+  }
+
   async function startOrEndCall() {
     if (callState === 'running') {
+      if (providerBackedLiveCall) {
+        await pollActiveRun();
+        return;
+      }
       setVisibleTurns(transcript.length);
       setCallState('complete');
       trackLightcurveEvent('Playground Call Ended', {
@@ -444,6 +520,7 @@ export default function PlaygroundPage() {
     }
     if (!activeScenario) return;
     const usesHttpsRunner = connectionMode === 'https_runner';
+    const usesVapiPhone = connectionMode === 'vapi_phone';
     if (usesHttpsRunner && !agent.trim()) {
       setRunError('Enter your compatible HTTPS runner URL, or switch back to the Lightcurve room for a no-endpoint Playground test.');
       return;
@@ -458,8 +535,29 @@ export default function PlaygroundPage() {
         return;
       }
     }
+    if (usesVapiPhone) {
+      if (!vapiApiKey.trim()) {
+        setRunError('Add your Vapi API key for this one-call Playground test, or use the Lightcurve room to avoid provider credentials.');
+        return;
+      }
+      if (!looksLikePhoneNumber(vapiAgentNumber)) {
+        setRunError('Add the inbound phone number your Vapi agent answers, formatted like +12164748341. This is not a Vapi UUID.');
+        return;
+      }
+      if (!looksLikeUuid(vapiPhoneNumberId)) {
+        setRunError('Add the outbound caller phone-number UUID from Vapi Phone Numbers. Use the UUID, not the formatted +1 number.');
+        return;
+      }
+      if (vapiCallerAssistantId.trim() && !looksLikeUuid(vapiCallerAssistantId)) {
+        setRunError('The optional synthetic caller assistant must be a Vapi assistant UUID. Leave it blank to let Lightcurve create the caller from the scenario.');
+        return;
+      }
+    }
     setRunError('');
     setVisibleTurns(0);
+    setProviderTurns([]);
+    setProviderScores([]);
+    setActiveSandboxRun(null);
     setCallState('running');
     trackLightcurveEvent('Playground Sandbox Started', {
       scenario_id: baseScenario?.id ?? activeScenario.id,
@@ -472,23 +570,37 @@ export default function PlaygroundPage() {
       const connection = usesHttpsRunner ? await createPlaygroundConnection(agent.trim()) : null;
       const scenarioForRun = activeScenario.pronunciation ? activeScenario : baseScenario ?? activeScenario;
       const scenarioOverrides = activeScenario.pronunciation ? [activeScenario] : [];
+      const agentType = usesVapiPhone ? 'vapi' : usesHttpsRunner ? 'custom_webrtc' : 'livekit';
+      const agentConfig = usesVapiPhone
+        ? {
+            callMode: 'bot_to_bot_phone',
+            targetAgentNumber: normalizePhone(vapiAgentNumber),
+            apiKey: vapiApiKey.trim(),
+            phoneNumberId: vapiPhoneNumberId.trim(),
+            callerAssistantId: vapiCallerAssistantId.trim() || undefined,
+            costMode: 'phone_realism',
+            bridge: 'vapi_phone',
+            pronunciation: activeScenario.pronunciation ?? null,
+            sandboxEnvironment: environmentType,
+          }
+        : {
+            endpointType: usesHttpsRunner ? 'webrtc' : 'lightcurve_room',
+            endpoint: usesHttpsRunner ? agent.trim() : 'lightcurve://hosted-room',
+            mode: usesHttpsRunner ? 'https_runner' : 'lightcurve_hosted_room',
+            costMode: 'low_cost_testing',
+            bridge: usesHttpsRunner ? 'custom_https_runner' : 'lightcurve_room',
+            pronunciation: activeScenario.pronunciation ?? null,
+            sandboxEnvironment: environmentType,
+          };
       const experimentResponse = await fetch('/api/experiments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           name: `${activeScenario.name} playground check`,
-          agentType: usesHttpsRunner ? 'custom_webrtc' : 'livekit',
+          agentType,
           agentConnectionId: connection?.id ?? null,
-          agentConfig: {
-            endpointType: usesHttpsRunner ? 'webrtc' : 'livekit_room',
-            endpoint: usesHttpsRunner ? agent.trim() : 'livekit://lightcurve-hosted-room',
-            mode: usesHttpsRunner ? 'https_runner' : 'lightcurve_hosted_room',
-            costMode: 'low_cost_testing',
-            bridge: usesHttpsRunner ? 'custom_https_runner' : 'livekit',
-            pronunciation: activeScenario.pronunciation ?? null,
-            sandboxEnvironment: environmentType,
-          },
-          webrtcEndpoint: usesHttpsRunner ? agent.trim() : 'livekit://lightcurve-hosted-room',
+          agentConfig,
+          webrtcEndpoint: usesVapiPhone ? normalizePhone(vapiAgentNumber) : usesHttpsRunner ? agent.trim() : 'lightcurve://hosted-room',
           scenarioIds: [scenarioForRun.id],
           scenarioOverrides,
           gitSha: 'playground',
@@ -509,13 +621,21 @@ export default function PlaygroundPage() {
         provider: startPayload?.provider,
         status: startPayload?.status,
       });
-      setActiveSandboxRun({
+      const nextRun: ActiveSandboxRun = {
         experimentId: experimentPayload.experiment.id,
         runId: run.id,
         provider: startPayload?.provider,
         status: startPayload?.status,
+        externalCallId: startPayload?.externalCallId,
+        externalStatus: startPayload?.externalStatus,
         liveKit: startPayload?.liveKit,
-      });
+      };
+      setActiveSandboxRun(nextRun);
+      if (usesVapiPhone) {
+        window.setTimeout(() => {
+          void pollActiveRun(nextRun);
+        }, 2500);
+      }
     } catch (error) {
       setCallState('idle');
       const message = error instanceof Error ? error.message : 'Unable to start sandbox call.';
@@ -598,8 +718,10 @@ export default function PlaygroundPage() {
                   <p className="text-sm font-medium text-slate-950">Agent under test</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
                     {connectionMode === 'lightcurve_room'
-                      ? 'Hosted sandbox room. No endpoint needed before you start.'
-                      : 'Advanced HTTPS runner connected for this Playground call.'}
+                      ? 'Connect your agent to a Lightcurve room for a low-friction one-call test.'
+                      : connectionMode === 'vapi_phone'
+                        ? 'Dial your Vapi agent for a one-call phone realism check.'
+                        : 'Advanced HTTPS runner connected for this Playground call.'}
                   </p>
                 </div>
                 <button
@@ -611,7 +733,7 @@ export default function PlaygroundPage() {
                 </button>
               </div>
               <div className="mt-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-slate-600">
-                Playground tests one customer agent at a time. Experiments are for large scenario suites.
+                Playground tests one customer agent at a time. Experiments are for broad suites and promotion checks.
               </div>
             </div>
 
@@ -745,7 +867,7 @@ export default function PlaygroundPage() {
             onClick={startOrEndCall}
             className="mt-auto flex min-h-12 items-center justify-center rounded-lg border border-[#2f5ae0] bg-[#2f5ae0] px-4 text-sm font-medium text-white hover:bg-[#2448bb]"
           >
-            {callState === 'running' ? 'End Call' : 'Start Call'}
+            {callState === 'running' && providerBackedLiveCall ? 'Refresh status' : callState === 'running' ? 'End Call' : 'Start Call'}
           </button>
         </aside>
 
@@ -785,14 +907,18 @@ export default function PlaygroundPage() {
 
                 <div className="grid grid-cols-[1fr_320px] gap-4">
                   <div className="space-y-3">
-                    {activeSandboxRun?.liveKit && (
+                    {activeSandboxRun && (
                       <div className="rounded-lg border border-[#cfd8ff] bg-white p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Agent connection</p>
-                            <h3 className="mt-1 text-sm font-medium text-slate-950">Hosted sandbox room ready</h3>
+                            <h3 className="mt-1 text-sm font-medium text-slate-950">
+                              {activeSandboxRun.provider === 'vapi' ? 'Vapi phone call started' : 'Lightcurve room ready'}
+                            </h3>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                              Connect your customer agent as the agent participant. Lightcurve stays in this Playground as the caller, observer, and scorer.
+                              {activeSandboxRun.provider === 'vapi'
+                                ? 'Lightcurve is dialing your Vapi agent as the synthetic caller. Refresh status here until the transcript and scores arrive.'
+                                : 'Connect your customer agent as the agent participant. Lightcurve stays in this Playground as the caller, observer, and scorer.'}
                             </p>
                           </div>
                           <span className="rounded-full border border-[#cfd8ff] bg-[#f6f8ff] px-2 py-0.5 text-xs text-[#2448bb]">
@@ -800,55 +926,70 @@ export default function PlaygroundPage() {
                           </span>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Room</p>
-                              <button
-                                type="button"
-                                className="text-xs text-[#2448bb]"
-                                onClick={() => copyToClipboard(activeSandboxRun.liveKit?.roomName ?? '')}
-                              >
-                                Copy
-                              </button>
+                        {activeSandboxRun.liveKit ? (
+                          <>
+                            <div className="mt-4 grid grid-cols-2 gap-3">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Room</p>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-[#2448bb]"
+                                    onClick={() => copyToClipboard(activeSandboxRun.liveKit?.roomName ?? '')}
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                                <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
+                              </div>
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Room URL</p>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-[#2448bb]"
+                                    onClick={() => copyToClipboard(activeSandboxRun.liveKit?.liveKitUrl ?? '')}
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                                <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
+                              </div>
                             </div>
-                            <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
-                          </div>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">LiveKit URL</p>
-                              <button
-                                type="button"
-                                className="text-xs text-[#2448bb]"
-                                onClick={() => copyToClipboard(activeSandboxRun.liveKit?.liveKitUrl ?? '')}
-                              >
-                                Copy
-                              </button>
-                            </div>
-                            <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
-                          </div>
-                        </div>
 
-                        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Agent token</p>
-                            <button
-                              type="button"
-                              className="text-xs text-[#2448bb]"
-                              onClick={() => copyToClipboard(activeSandboxRun.liveKit?.agentToken ?? '')}
-                            >
-                              Copy
-                            </button>
+                            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Agent token</p>
+                                <button
+                                  type="button"
+                                  className="text-xs text-[#2448bb]"
+                                  onClick={() => copyToClipboard(activeSandboxRun.liveKit?.agentToken ?? '')}
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                              <p className="mt-2 max-h-20 overflow-auto break-all rounded-md bg-white p-2 font-mono text-[11px] text-slate-700">
+                                {activeSandboxRun.liveKit.agentToken}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Provider call ID</p>
+                              <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.externalCallId ?? 'Waiting for provider'}</p>
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Provider status</p>
+                              <p className="mt-2 break-all font-mono text-xs text-slate-800">{activeSandboxRun.externalStatus ?? activeSandboxRun.status ?? 'started'}</p>
+                            </div>
                           </div>
-                          <p className="mt-2 max-h-20 overflow-auto break-all rounded-md bg-white p-2 font-mono text-[11px] text-slate-700">
-                            {activeSandboxRun.liveKit.agentToken}
-                          </p>
-                        </div>
+                        )}
 
                         <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
                             <p className="text-slate-400">Provider</p>
-                            <p className="mt-1 text-slate-800">{activeSandboxRun.provider ?? 'livekit'}</p>
+                            <p className="mt-1 text-slate-800">{activeSandboxRun.provider ?? 'lightcurve_room'}</p>
                           </div>
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
                             <p className="text-slate-400">Run ID</p>
@@ -856,25 +997,30 @@ export default function PlaygroundPage() {
                           </div>
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
                             <p className="text-slate-400">Next</p>
-                            <p className="mt-1 text-slate-800">Join agent, then watch transcript</p>
+                            <p className="mt-1 text-slate-800">{activeSandboxRun.provider === 'vapi' ? 'Refresh status after call ends' : 'Join agent, then watch transcript'}</p>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {transcript.slice(0, callState === 'complete' ? transcript.length : visibleTurns).map((turn, index) => (
+                    {displayedTranscript.map((turn, index) => (
                       <div key={`${turn.speaker}-${index}-${turn.text}`} className="rounded-lg border border-slate-200 bg-white p-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs uppercase text-slate-500">{turn.speaker}</span>
-                          {turn.latencyMs > 0 && <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-xs text-[#2448bb]">{turn.latencyMs}ms</span>}
+                          {(turn.latencyMs ?? 0) > 0 && <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-xs text-[#2448bb]">{turn.latencyMs}ms</span>}
                         </div>
                         <p className="mt-2 text-sm leading-6 text-slate-700">{turn.text}</p>
                       </div>
                     ))}
+                    {providerBackedLiveCall && displayedTranscript.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-slate-200 bg-white p-5 text-center text-sm leading-6 text-slate-500">
+                        Waiting for provider transcript. Refresh after the call ends, or open the audit detail if you need raw provider status.
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
-                    {activeSandboxRun?.liveKit && (
+                    {activeSandboxRun && (
                       <div className="rounded-lg border border-slate-200 bg-white p-4">
                         <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Developer controls</p>
                         <div className="mt-3 grid gap-2">
@@ -885,6 +1031,16 @@ export default function PlaygroundPage() {
                           >
                             Edit connection
                           </button>
+                          {activeSandboxRun.provider === 'vapi' && (
+                            <button
+                              type="button"
+                              className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                              onClick={() => void pollActiveRun()}
+                              disabled={pollingRun}
+                            >
+                              {pollingRun ? 'Refreshing...' : 'Refresh call status'}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
@@ -951,8 +1107,8 @@ export default function PlaygroundPage() {
 
                 {callState === 'complete' && (
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="card p-4"><p className="text-xs text-slate-500">MOS</p><div className="mt-3"><ScoreBar value={4.1} max={4.5} /></div></div>
-                    <div className="card p-4"><p className="text-xs text-slate-500">Task Completion</p><div className="mt-3"><ScoreBar value={pronunciationReport?.segments.find((item) => item.label === 'Overall capture')?.value ?? 0.86} /></div></div>
+                    <div className="card p-4"><p className="text-xs text-slate-500">MOS</p><div className="mt-3"><ScoreBar value={liveMosScore} max={4.5} /></div></div>
+                    <div className="card p-4"><p className="text-xs text-slate-500">Task Completion</p><div className="mt-3"><ScoreBar value={liveTaskScore} /></div></div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                       {pronunciationReport
                         ? 'Require exact readback before saving the captured value.'
@@ -988,7 +1144,7 @@ export default function PlaygroundPage() {
               <div>
                 <h2 className="text-base font-medium text-slate-950">Connect agent for this Playground call</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Keep this simple: use the hosted sandbox for a quick one-off test, or switch to a runner URL only if your team already has one.
+                  Choose how this one call reaches your customer agent. Use a Lightcurve room for low-friction testing, or provider phone when your agent only answers a phone number.
                 </p>
               </div>
               <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
@@ -997,7 +1153,7 @@ export default function PlaygroundPage() {
             </div>
 
             <div className="space-y-4 p-5">
-              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <div className="grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
                 <button
                   type="button"
                   className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
@@ -1006,7 +1162,17 @@ export default function PlaygroundPage() {
                     setRunError('');
                   }}
                 >
-                  Hosted sandbox
+                  Lightcurve room
+                </button>
+                <button
+                  type="button"
+                  className={`min-h-10 rounded-md px-3 text-sm ${connectionMode === 'vapi_phone' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  onClick={() => {
+                    setConnectionMode('vapi_phone');
+                    setRunError('');
+                  }}
+                >
+                  Provider phone
                 </button>
                 <button
                   type="button"
@@ -1022,15 +1188,12 @@ export default function PlaygroundPage() {
 
               {connectionMode === 'lightcurve_room' ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-medium text-slate-950">Recommended for Playground</p>
+                  <p className="text-sm font-medium text-slate-950">Recommended for one-off sandboxing</p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Lightcurve creates a short-lived sandbox room after you press Start Call. Your agent joins that room as the agent under test; Lightcurve joins as the synthetic caller and scores the conversation.
+                    Lightcurve creates a short-lived communication room after you press Start Call. Your agent joins as the agent under test; Lightcurve joins as the synthetic caller, streams the conversation here, and scores the result.
                   </p>
                   <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-                    <p className="font-medium text-slate-800">Using Vapi?</p>
-                    <p className="mt-1">
-                      For one phone-call realism check, use Experiments &gt; Create Experiment &gt; Vapi. Enter your Vapi API key, your agent assistant ID, the phone number your agent answers, and the Vapi phone-number UUID used as the caller line.
-                    </p>
+                    No provider API key is needed for this path. Your agent only needs to connect to the generated room using the room URL and token.
                   </div>
                   {activeSandboxRun?.liveKit ? (
                     <div className="mt-4 space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
@@ -1039,7 +1202,7 @@ export default function PlaygroundPage() {
                         <p className="mt-1 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.roomName}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">LiveKit URL</p>
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Room URL</p>
                         <p className="mt-1 break-all font-mono text-xs text-slate-800">{activeSandboxRun.liveKit.liveKitUrl}</p>
                       </div>
                       <div>
@@ -1054,9 +1217,62 @@ export default function PlaygroundPage() {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                      Press Start Call to generate the room details. Nothing is billed to a provider account in this idle preview.
+                      Press Start Call to generate the room details. This path avoids provider phone charges and is the default for fast Playground checks.
                     </div>
                   )}
+                </div>
+              ) : connectionMode === 'vapi_phone' ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <p className="text-sm font-medium text-slate-950">Provider phone realism check</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Use this when your agent currently answers only a phone number. Lightcurve acts as the caller, dials your agent, then imports the transcript and scores back into this Playground.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <label className="block text-xs text-slate-500">
+                      Your agent phone number
+                      <input
+                        className="input-field mt-1"
+                        value={vapiAgentNumber}
+                        onChange={(event) => setVapiAgentNumber(event.target.value)}
+                        placeholder="+12164748341"
+                      />
+                      <span className="mt-1 block leading-5 text-slate-500">The inbound number your agent answers. This is not the caller number.</span>
+                    </label>
+                    <label className="block text-xs text-slate-500">
+                      Vapi API key
+                      <input
+                        className="input-field mt-1"
+                        type="password"
+                        value={vapiApiKey}
+                        onChange={(event) => setVapiApiKey(event.target.value)}
+                        placeholder="Required for provider phone calls"
+                      />
+                      <span className="mt-1 block leading-5 text-slate-500">Only used for this phone realism call unless saved as an agent connection later.</span>
+                    </label>
+                    <label className="block text-xs text-slate-500">
+                      Vapi outbound phone-number UUID
+                      <input
+                        className="input-field mt-1"
+                        value={vapiPhoneNumberId}
+                        onChange={(event) => setVapiPhoneNumberId(event.target.value)}
+                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      />
+                      <span className="mt-1 block leading-5 text-slate-500">Paste the UUID from your provider phone-number page, not the formatted +1 number.</span>
+                    </label>
+                    <label className="block text-xs text-slate-500">
+                      Dedicated caller assistant UUID
+                      <input
+                        className="input-field mt-1"
+                        value={vapiCallerAssistantId}
+                        onChange={(event) => setVapiCallerAssistantId(event.target.value)}
+                        placeholder="Optional"
+                      />
+                      <span className="mt-1 block leading-5 text-slate-500">Leave blank unless you maintain a separate caller assistant for tests.</span>
+                    </label>
+                  </div>
+                  <div className="mt-4 rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">
+                    Use two different phone resources: one inbound number your agent answers, and a separate outbound caller phone-number UUID. Provider phone calls can bill your provider account; use the Lightcurve room for low-cost broad testing.
+                  </div>
                 </div>
               ) : (
                 <label className="block text-xs text-slate-500">
