@@ -557,7 +557,7 @@ export default function PlaygroundPage() {
     }
   }
 
-  async function startOrEndCall() {
+  async function startOrEndCall(modeOverride?: PlaygroundConnectionMode) {
     if (callState === 'running') {
       if (providerBackedLiveCall) {
         await pollActiveRun();
@@ -572,8 +572,9 @@ export default function PlaygroundPage() {
       return;
     }
     if (!activeScenario) return;
-    const usesHttpsRunner = connectionMode === 'https_runner';
-    const usesVapiPhone = connectionMode === 'vapi_phone';
+    const selectedConnectionMode = modeOverride ?? connectionMode;
+    const usesHttpsRunner = selectedConnectionMode === 'https_runner';
+    const usesVapiPhone = selectedConnectionMode === 'vapi_phone';
     if (usesHttpsRunner && !agent.trim()) {
       setRunError('Enter your compatible HTTPS runner URL, or switch back to the Lightcurve room for a no-endpoint Playground test.');
       return;
@@ -617,7 +618,7 @@ export default function PlaygroundPage() {
       environment_type: environmentType,
       pronunciation_enabled: pronunciationEnabled,
       entity_type: pronunciationEnabled ? entityType : undefined,
-      connection_mode: connectionMode,
+      connection_mode: selectedConnectionMode,
     });
     try {
       const connection = usesHttpsRunner ? await createPlaygroundConnection(agent.trim()) : null;
@@ -713,6 +714,15 @@ export default function PlaygroundPage() {
     }
   }
 
+  async function openLightcurveRoomDetails() {
+    setRunError('');
+    setConnectionMode('lightcurve_room');
+    setAgentModalOpen(true);
+    if (callState === 'idle' && !activeSandboxRun?.liveKit) {
+      await startOrEndCall('lightcurve_room');
+    }
+  }
+
   function downloadTranscript() {
     trackLightcurveEvent('Transcript Downloaded', {
       scenario_id: activeScenario?.id,
@@ -796,7 +806,7 @@ export default function PlaygroundPage() {
                 <button
                   type="button"
                   className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
-                  onClick={() => setAgentModalOpen(true)}
+                  onClick={() => void openLightcurveRoomDetails()}
                 >
                   Connect
                 </button>
@@ -933,7 +943,7 @@ export default function PlaygroundPage() {
           </div>
 
           <button
-            onClick={startOrEndCall}
+            onClick={() => void startOrEndCall()}
             className="mt-auto flex min-h-12 items-center justify-center rounded-lg border border-[#2f5ae0] bg-[#2f5ae0] px-4 text-sm font-medium text-white hover:bg-[#2448bb]"
           >
             {callState === 'running' && providerBackedLiveCall ? 'Refresh status' : callState === 'running' ? 'End Call' : 'Start Call'}
@@ -1123,9 +1133,9 @@ export default function PlaygroundPage() {
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs">Play</button>
                 <div className="flex-1"><Waveform /></div>
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={downloadTranscript}>Download</button>
-                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={startOrEndCall}>Re-run</button>
+                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>Re-run</button>
                 <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork Scenario</button>
-                <button className="btn-primary min-h-8 px-3 py-1.5 text-xs" onClick={startOrEndCall}>
+                <button className="btn-primary min-h-8 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>
                   Start new real run
                 </button>
               </div>
@@ -1141,7 +1151,7 @@ export default function PlaygroundPage() {
               <div>
                 <h2 className="text-base font-medium text-slate-950">Connect your agent</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Pick how this one Playground call reaches the agent you want to test.
+                  Use the Lightcurve room details below to join the agent you want to test.
                 </p>
               </div>
               <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
@@ -1185,15 +1195,14 @@ export default function PlaygroundPage() {
 
               {connectionMode === 'lightcurve_room' ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-medium text-slate-950">Recommended for Playground</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Press Start Call to create a short-lived Lightcurve room. Your agent joins that room; the call, transcript, and score stay on this page.
-                  </p>
-                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-                    No provider API key is needed. Your agent only needs the generated room URL and token.
-                  </div>
                   {activeSandboxRun?.liveKit ? (
-                    <div className="mt-4 space-y-4 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
+                    <div className="space-y-4 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-950">Lightcurve room details</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Paste these one-time values into your agent runtime. Lightcurve joins this room as the synthetic caller and judge.
+                        </p>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg border border-slate-200 bg-white p-3">
                           <div className="flex items-center justify-between gap-2">
@@ -1286,8 +1295,31 @@ export default function PlaygroundPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                      Press Start Call to generate connection details.
+                    <div className="space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-4">
+                      <div>
+                        <p className="text-sm font-medium text-slate-950">Creating Lightcurve room...</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Room URL, room name, and join token will appear here. No provider API key is needed for this path.
+                        </p>
+                      </div>
+                      {runError ? (
+                        <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">
+                          {runError}
+                        </div>
+                      ) : (
+                        <div className="h-2 overflow-hidden rounded-full bg-white">
+                          <div className="h-full w-1/2 animate-pulse rounded-full bg-[#2f5ae0]" />
+                        </div>
+                      )}
+                      {callState === 'idle' && (
+                        <button
+                          type="button"
+                          className="btn-primary min-h-9 px-3 py-1.5 text-xs"
+                          onClick={() => void startOrEndCall('lightcurve_room')}
+                        >
+                          Create room details
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
