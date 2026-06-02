@@ -32,9 +32,69 @@ function isBotToBotProvider(provider: string) {
 }
 
 const steps = [
-  { id: 1, label: 'Agent' },
-  { id: 2, label: 'Callers' },
-  { id: 3, label: 'Gate' },
+  { id: 1, label: 'Use case' },
+  { id: 2, label: 'Scenarios' },
+  { id: 3, label: 'Connect' },
+  { id: 4, label: 'Gate' },
+];
+
+const USE_CASES = [
+  {
+    id: 'ecommerce',
+    label: 'Ecommerce support',
+    detail: 'Orders, refunds, delivery issues, and contact-detail capture.',
+    domains: ['ecommerce', 'retail'],
+    keywords: ['order', 'refund', 'cancel', 'shipping', 'delivery', 'payment', 'email', 'phone'],
+    goal: 'Resolve order, refund, and delivery issues while confirming critical customer details.',
+  },
+  {
+    id: 'support',
+    label: 'Customer support',
+    detail: 'Tickets, escalations, missing information, and policy checks.',
+    domains: ['general', 'support', 'saas'],
+    keywords: ['ticket', 'support', 'lookup', 'escalation', 'policy', 'missing', 'help'],
+    goal: 'Resolve the customer issue, verify account details, and escalate only when needed.',
+  },
+  {
+    id: 'healthcare',
+    label: 'Healthcare booking',
+    detail: 'Appointments, urgent callers, reschedules, and timezone confusion.',
+    domains: ['healthcare'],
+    keywords: ['clinic', 'appointment', 'booking', 'reschedule', 'cancel', 'urgent', 'timezone'],
+    goal: 'Book or update an appointment safely while handling urgency and scheduling constraints.',
+  },
+  {
+    id: 'banking',
+    label: 'Banking / fintech',
+    detail: 'Fraud, card issues, account verification, and payment failures.',
+    domains: ['banking', 'fintech'],
+    keywords: ['fraud', 'card', 'charge', 'payment', 'account', 'verification', 'dispute'],
+    goal: 'Resolve account or payment issues while verifying identity and avoiding unsafe actions.',
+  },
+  {
+    id: 'telecom',
+    label: 'Telecom',
+    detail: 'Billing, outages, plan upgrades, credits, and frustrated callers.',
+    domains: ['telecom'],
+    keywords: ['plan', 'outage', 'bill', 'billing', 'upgrade', 'internet', 'credit'],
+    goal: 'Handle billing, outage, or plan-change requests with clear next steps.',
+  },
+  {
+    id: 'collections',
+    label: 'Collections',
+    detail: 'Partial payments, failed cards, authorizations, and repayment promises.',
+    domains: ['payments', 'banking', 'fintech'],
+    keywords: ['collection', 'payment', 'partial', 'authorization', 'failed', 'invoice', 'balance'],
+    goal: 'Collect payment information, explain options, and confirm the agreed next step.',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    detail: 'Describe the job and Lightcurve will find the closest caller set.',
+    domains: [],
+    keywords: [],
+    goal: '',
+  },
 ];
 
 const EMOTION_STYLES: Record<string, string> = {
@@ -70,6 +130,68 @@ function endpointTypeFor(value: string) {
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('wss:')) return 'webrtc';
   if (looksLikePhoneNumber(trimmed)) return 'phone';
   return 'provider_api';
+}
+
+function tokenize(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9+@._-]+/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length > 2);
+}
+
+function scenarioText(scenario: StoredScenario) {
+  return [
+    scenario.name,
+    scenario.domain,
+    scenario.language,
+    scenario.persona?.name,
+    scenario.persona?.goal,
+    scenario.persona?.opening_line,
+    scenario.persona?.emotional_state,
+    ...(((scenario as any).tags ?? []) as string[]),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function scoreScenarioForUseCase(scenario: StoredScenario, useCaseId: string, goalText: string, language: string) {
+  const useCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
+  const text = scenarioText(scenario);
+  const goalTokens = tokenize(goalText);
+  const emotion = scenario.persona?.emotional_state ?? 'neutral';
+  let score = 0;
+
+  if (language !== 'all' && scenario.language?.toLowerCase() === language.toLowerCase()) score += 3;
+  if (useCase.domains.some((domain) => scenario.domain?.toLowerCase().includes(domain))) score += 7;
+  score += useCase.keywords.filter((keyword) => text.includes(keyword)).length * 3;
+  score += goalTokens.filter((token) => text.includes(token)).length * 2;
+  if (scenario.persona?.interrupts) score += 2;
+  if (['angry', 'irate', 'urgent', 'frustrated', 'confused', 'nervous'].includes(emotion)) score += 2;
+  if (text.includes('email') || text.includes('phone') || text.includes('verify') || text.includes('confirm')) score += 2;
+  if (text.includes('policy') || text.includes('refund denied') || text.includes('failed') || text.includes('duplicate')) score += 1;
+
+  return score;
+}
+
+function generateSuiteName(useCaseId: string, goalText: string) {
+  const useCase = USE_CASES.find((item) => item.id === useCaseId);
+  if (goalText.trim()) return `${goalText.trim().slice(0, 42)} sandbox`;
+  return `${useCase?.label ?? 'Voice agent'} sandbox`;
+}
+
+function selectScenariosForUseCase(scenarios: StoredScenario[], useCaseId: string, goalText: string, language: string) {
+  const ranked = scenarios
+    .map((scenario, index) => ({
+      scenario,
+      index,
+      score: scoreScenarioForUseCase(scenario, useCaseId, goalText, language),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const positive = ranked.filter((item) => item.score > 0).slice(0, 12).map((item) => item.scenario);
+  return positive.length >= 4 ? positive : scenarios.slice(0, 12);
 }
 
 async function createAgentConnection(params: {
@@ -144,7 +266,11 @@ function MiniMetric({ label, value }: { label: string; value: string | number })
 export default function NewExperiment() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [agentType, setAgentType] = useState(STUB_PROVIDER_ID);
+  const [agentType, setAgentType] = useState('livekit');
+  const [useCaseId, setUseCaseId] = useState('ecommerce');
+  const [useCaseGoal, setUseCaseGoal] = useState('Resolve order, refund, and delivery issues while confirming critical customer details.');
+  const [languagePreference, setLanguagePreference] = useState('all');
+  const [suiteGenerated, setSuiteGenerated] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [agentLocator, setAgentLocator] = useState('');
   const [stubInstructions, setStubInstructions] = useState(
@@ -213,12 +339,14 @@ export default function NewExperiment() {
     if (scenarioId && scenarios.some((scenario) => scenario.id === scenarioId)) {
       setSelectedIds((current) => (current.includes(scenarioId) ? current : [scenarioId]));
       setStep(2);
+      setSuiteGenerated(true);
     }
     if (scenarioIds.length) {
       const validIds = scenarioIds.filter((id) => scenarios.some((scenario) => scenario.id === id));
       if (validIds.length) {
         setSelectedIds(validIds);
-        setStep(promotedFrom ? 1 : 2);
+        setStep(2);
+        setSuiteGenerated(true);
       }
     }
   }, [scenarios]);
@@ -226,6 +354,13 @@ export default function NewExperiment() {
   const selectedScenarios = useMemo(() => {
     return scenarios.filter((scenario) => selectedIds.includes(scenario.id));
   }, [scenarios, selectedIds]);
+
+  const visibleScenarioOptions = useMemo(() => {
+    if (!suiteGenerated) return scenarios.slice(0, 120);
+    const selected = new Set(selectedIds);
+    const suggestions = scenarios.filter((scenario) => !selected.has(scenario.id)).slice(0, 24);
+    return [...selectedScenarios, ...suggestions];
+  }, [scenarios, selectedIds, selectedScenarios, suiteGenerated]);
 
   const highPressureIds = useMemo(() => {
     return scenarios
@@ -274,6 +409,21 @@ export default function NewExperiment() {
   const realPhoneMode = providerPhoneMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
   const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : roomNoKeyMode ? true : agentLocator.trim().length > 0;
+
+  const selectedUseCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
+
+  const generateScenarioSuite = () => {
+    const generated = selectScenariosForUseCase(scenarios, useCaseId, useCaseGoal, languagePreference);
+    setSelectedIds(generated.map((scenario) => scenario.id));
+    setExpName(generateSuiteName(useCaseId, useCaseGoal));
+    setSuiteGenerated(true);
+    trackLightcurveEvent('Use Case Suite Generated', {
+      use_case: useCaseId,
+      scenario_count: generated.length,
+      language: languagePreference,
+    });
+    setStep(2);
+  };
 
   const toggleScenario = (id: string) => {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -507,8 +657,7 @@ export default function NewExperiment() {
           </div>
           <h1 className="page-title">New voice-agent sandbox test</h1>
           <p className="page-subtitle max-w-2xl">
-            Connect an agent, choose real-world caller scenarios, then run a sandbox check for MOS, task completion,
-            hallucination risk, and latency.
+            Start with the business problem. Lightcurve builds the caller suite, then you connect the voice agent you want to test.
           </p>
           {promotedFromExperimentId && (
             <div className="mt-3 inline-flex rounded-lg border border-[#cfd8ff] bg-white px-3 py-2 text-xs text-slate-600">
@@ -520,12 +669,104 @@ export default function NewExperiment() {
       </div>
 
       {step === 1 && (
+        <div className="grid grid-cols-[1fr_340px] gap-5">
+          <section className="card p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-medium text-slate-950">What do you want to test?</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Pick the business use case. Lightcurve will choose realistic caller scenarios and stress cases from the library.
+                </p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-500">
+                Use-case first
+              </span>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {USE_CASES.map((useCase) => (
+                <button
+                  key={useCase.id}
+                  type="button"
+                  onClick={() => {
+                    setUseCaseId(useCase.id);
+                    if (useCase.goal) setUseCaseGoal(useCase.goal);
+                  }}
+                  className={`rounded-lg border p-4 text-left transition-colors ${
+                    useCaseId === useCase.id
+                      ? 'border-[#526dff] bg-[#f8faff] ring-1 ring-[#526dff]'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="text-sm font-medium text-slate-950">{useCase.label}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">{useCase.detail}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-[1fr_180px] gap-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                  What should the agent successfully do?
+                </label>
+                <textarea
+                  className="input-field min-h-24 resize-y"
+                  value={useCaseGoal}
+                  onChange={(event) => setUseCaseGoal(event.target.value)}
+                  placeholder="Example: update the customer email, confirm it back, and create a support ticket if verification fails."
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Language / region</label>
+                <select
+                  className="input-field"
+                  value={languagePreference}
+                  onChange={(event) => setLanguagePreference(event.target.value)}
+                >
+                  <option value="all">Any</option>
+                  <option value="en-US">en-US</option>
+                  <option value="en-GB">en-GB</option>
+                  <option value="hi-IN">hi-IN</option>
+                  <option value="es-ES">es-ES</option>
+                </select>
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
+                  The suite includes normal callers plus edge cases like interruptions, missing info, urgency, email or phone capture, and policy conflicts.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-xs text-slate-500">
+                Selected use case: <span className="font-medium text-slate-800">{selectedUseCase.label}</span>
+              </p>
+              <button type="button" className="btn-primary" onClick={generateScenarioSuite} disabled={!scenarios.length}>
+                Generate test suite
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
+                </svg>
+              </button>
+            </div>
+          </section>
+
+          <aside className="card p-5">
+            <p className="section-label">How it starts</p>
+            <h2 className="mt-2 text-base font-medium text-slate-950">No prompt required</h2>
+            <div className="mt-5 space-y-4 text-sm leading-relaxed text-slate-600">
+              <p>Bring the business task first. Lightcurve turns it into a caller suite.</p>
+              <p>Next, connect by phone number or a Lightcurve test room. Advanced provider setup stays available when needed.</p>
+              <p>After the run, you get transcript evidence, scoring, and a release-ready result.</p>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {step === 3 && (
         <div className="grid grid-cols-[1fr_360px] gap-5">
           <section className="card p-5">
             <div>
-              <h2 className="text-base font-medium text-slate-950">Connect your voice agent</h2>
+              <h2 className="text-base font-medium text-slate-950">Connect the agent to test</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Lightcurve tests your voice agent through live calls, replay imports, or the isolated bot-to-bot caller bridge.
+                Use a phone number for realism, a Lightcurve test room for lower-friction checks, or advanced setup for technical runners.
               </p>
             </div>
 
@@ -552,7 +793,7 @@ export default function NewExperiment() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-slate-950">Connection path</p>
-                    <p className="mt-1 text-xs text-slate-500">Start with a room test. Use phone realism only for final verification.</p>
+                    <p className="mt-1 text-xs text-slate-500">Start simple, then use phone realism for final verification.</p>
                   </div>
                   <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm">
                     <button
@@ -575,10 +816,10 @@ export default function NewExperiment() {
                   <details className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600">
                     <summary className="cursor-pointer font-medium text-slate-900">How does my agent join?</summary>
                     <div className="mt-2 grid gap-1.5">
-                      <p>1. Start the run. Lightcurve creates a short-lived room URL and agent token.</p>
-                      <p>2. Connect your agent process to that room as the agent under test.</p>
-                      <p>3. Lightcurve joins as the synthetic caller, streams turns, and scores the result.</p>
-                      <p className="text-slate-500">If your agent only answers phone calls, switch to Phone realism.</p>
+                      <p>1. Start the run. Lightcurve creates one-time room details.</p>
+                      <p>2. Your agent joins as the agent being tested.</p>
+                      <p>3. Lightcurve acts as the caller and scores the conversation.</p>
+                      <p className="text-slate-500">If your agent only answers a phone number, switch to Phone realism.</p>
                     </div>
                   </details>
                 )}
@@ -830,7 +1071,7 @@ export default function NewExperiment() {
 
             {botToBotProvider && !hostedLiveKit && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
-                Bot-to-bot mode queues an isolated caller simulator against your real agent runner URL. Point Pipecat or a Custom WebRTC bridge to your HTTPS runner endpoint; use Lightcurve room if your agent can join a test room directly.
+                Use this only when your team already has a compatible runner endpoint. Otherwise, use the Lightcurve test room or phone-number path.
               </div>
             )}
 
@@ -842,9 +1083,12 @@ export default function NewExperiment() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end">
-              <button type="button" className="btn-primary" onClick={() => setStep(2)} disabled={!canProceedFromAgentStep}>
-                Pick callers
+            <div className="mt-6 flex items-center justify-between">
+              <button type="button" className="btn-secondary" onClick={() => setStep(2)}>
+                Back
+              </button>
+              <button type="button" className="btn-primary" onClick={() => setStep(4)} disabled={!canProceedFromAgentStep}>
+                Configure gate
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
                 </svg>
@@ -853,7 +1097,7 @@ export default function NewExperiment() {
           </section>
 
           <aside className="card p-5">
-            <p className="section-label">What gets tested</p>
+            <p className="section-label">What Lightcurve measures</p>
             <h2 className="mt-2 text-base font-medium text-slate-950">A sandboxed voice loop</h2>
             <div className="mt-5 space-y-4">
               {[
@@ -880,23 +1124,31 @@ export default function NewExperiment() {
           <div className="card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-medium text-slate-950">
-                  Choose sandbox callers
-                </h2>
+                <h2 className="text-base font-medium text-slate-950">Generated test suite</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {providerPhoneMode
                     ? 'Pick the scenario your human tester will act out on the phone call.'
-                    : 'Select the calls that should run before this voice-agent release ships.'}
+                    : suiteGenerated
+                      ? `${selectedIds.length} callers selected from the ${selectedUseCase.label.toLowerCase()} use case. Remove any that do not fit, or add nearby suggestions.`
+                      : 'Select the calls that should run before this voice-agent release ships.'}
                 </p>
               </div>
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={generateScenarioSuite}
+                  disabled={!scenarios.length}
+                >
+                  Regenerate
+                </button>
                 <button
                   type="button"
                   className="btn-primary text-xs"
                   onClick={() => setStep(3)}
                   disabled={selectedIds.length === 0 || selectedTooManyPhoneScenarios}
                 >
-                  Configure gate
+                  Connect agent
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
                   </svg>
@@ -934,7 +1186,7 @@ export default function NewExperiment() {
           )}
 
           <div className="grid grid-cols-3 gap-3">
-            {scenarios.map((scenario) => {
+            {visibleScenarioOptions.map((scenario) => {
               const selected = selectedIds.includes(scenario.id);
               const emotion = scenario.persona?.emotional_state ?? 'neutral';
 
@@ -979,7 +1231,7 @@ export default function NewExperiment() {
               Back
             </button>
             <button type="button" className="btn-primary" onClick={() => setStep(3)} disabled={selectedIds.length === 0 || selectedTooManyPhoneScenarios}>
-              Configure gate
+              Connect agent
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
               </svg>
@@ -988,7 +1240,7 @@ export default function NewExperiment() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <div className="grid grid-cols-[1fr_400px] gap-5">
           <section className="card p-5">
             <h2 className="text-base font-medium text-slate-950">Name the release gate</h2>
@@ -1032,7 +1284,7 @@ export default function NewExperiment() {
             )}
 
             <div className="mt-6 flex items-center justify-between">
-              <button type="button" className="btn-secondary" onClick={() => setStep(2)}>
+              <button type="button" className="btn-secondary" onClick={() => setStep(3)}>
                 Back
               </button>
               <button
