@@ -344,7 +344,8 @@ export default function NewExperiment() {
     if (scenarioIds.length) {
       const validIds = scenarioIds.filter((id) => scenarios.some((scenario) => scenario.id === id));
       if (validIds.length) {
-        setSelectedIds(validIds);
+        const promotedRealPhone = lane === 'phone_realism' && provider !== null && LIVE_PROVIDER_IDS.includes(provider);
+        setSelectedIds(promotedRealPhone ? validIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : validIds);
         setStep(2);
         setSuiteGenerated(true);
       }
@@ -412,21 +413,39 @@ export default function NewExperiment() {
 
   const selectedUseCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
 
+  useEffect(() => {
+    if (!realPhoneMode || selectedIds.length <= MAX_REAL_PHONE_SCENARIOS) return;
+    setSelectedIds((current) => current.slice(0, MAX_REAL_PHONE_SCENARIOS));
+  }, [realPhoneMode, selectedIds.length]);
+
   const generateScenarioSuite = () => {
     const generated = selectScenariosForUseCase(scenarios, useCaseId, useCaseGoal, languagePreference);
-    setSelectedIds(generated.map((scenario) => scenario.id));
+    const generatedIds = generated.map((scenario) => scenario.id);
+    const cappedIds = realPhoneMode ? generatedIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : generatedIds;
+    setSelectedIds(cappedIds);
     setExpName(generateSuiteName(useCaseId, useCaseGoal));
     setSuiteGenerated(true);
     trackLightcurveEvent('Use Case Suite Generated', {
       use_case: useCaseId,
-      scenario_count: generated.length,
+      scenario_count: cappedIds.length,
       language: languagePreference,
     });
     setStep(2);
   };
 
   const toggleScenario = (id: string) => {
-    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+    setSelectedIds((current) => {
+      if (current.includes(id)) {
+        setError('');
+        return current.filter((item) => item !== id);
+      }
+      if (realPhoneMode && current.length >= MAX_REAL_PHONE_SCENARIOS) {
+        setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Remove one scenario before adding another.`);
+        return current;
+      }
+      setError('');
+      return [...current, id];
+    });
   };
 
   const copyJoinValue = async (label: string, value: string) => {
