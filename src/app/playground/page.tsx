@@ -21,7 +21,7 @@ import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
-const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Tickets', 'Payments', 'Knowledge Base'];
+const ENVIRONMENT_TYPES = ['CRM', 'Calendar'];
 type PlaygroundConnectionMode = 'lightcurve_room' | 'vapi_phone' | 'https_runner';
 type LiveKitJoinOption = {
   id: string;
@@ -33,6 +33,7 @@ type LiveKitJoinOption = {
 type ActiveSandboxRun = {
   experimentId: string;
   runId: string;
+  sandboxEnvironmentId?: string;
   provider?: string;
   status?: string;
   externalCallId?: string;
@@ -51,11 +52,20 @@ type LiveTraceTurn = {
   latencyMs?: number | null;
 };
 type SandboxFixture = {
+  environmentId?: string;
+  sourceId?: string | null;
   title: string;
   endpoint: string;
   status: string;
   rows: Array<{ label: string; value: string }>;
   timeline: Array<{ tool: string; detail: string; status?: 'queued' | 'calling' | '200 OK' | 'blocked' }>;
+};
+type SandboxSource = {
+  id: string;
+  type: string;
+  name: string;
+  sourceKind: string;
+  sampleRows?: unknown;
 };
 
 function dedupeScenarios(items: StoredScenario[]) {
@@ -131,119 +141,131 @@ async function createPlaygroundConnection(endpoint: string) {
   return data.agentConnection as { id: string };
 }
 
-function environmentForScenario(scenario: StoredScenario, environmentType: string) {
-  const domain = scenario.domain ?? 'general';
-  const name = scenario.persona.name;
-  const valueType = scenario.pronunciation?.entityType === 'email' ? 'Email' : scenario.pronunciation?.entityType === 'phone_number' ? 'Phone' : 'Intent';
-  const targetValue = scenario.pronunciation?.targetValue ?? scenario.persona.goal;
+function parseDelimitedLine(line: string) {
+  const cells: string[] = [];
+  let current = '';
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
 
-  const environments: Record<string, SandboxFixture> = {
-    CRM: {
-      title: 'CRM',
-      endpoint: '/api/sandbox/crm/customer',
-      status: scenario.pronunciation ? 'Contact update open' : 'Customer profile loaded',
-      rows: [
-        { label: 'Customer', value: name },
-        { label: valueType, value: targetValue },
-        { label: 'Record', value: scenario.persona.interrupts ? 'Duplicate match' : `${domain.slice(0, 3).toUpperCase()}-${scenario.callerSeed}` },
-      ],
-      timeline: [
-        { tool: 'crm.lookup_customer', detail: `${name} profile` },
-        { tool: 'crm.validate_field', detail: scenario.pronunciation ? targetValue : 'Required customer field' },
-        { tool: 'crm.save_pending', detail: 'Waits for caller confirmation' },
-      ],
-    },
-    Calendar: {
-      title: 'Calendar',
-      endpoint: '/api/sandbox/calendar/slots',
-      status: 'Availability fixture',
-      rows: [
-        { label: 'Today', value: domain === 'healthcare' ? 'No slots' : '2 slots' },
-        { label: 'Next open', value: 'Fri 3:30 PM' },
-        { label: 'Timezone', value: scenario.language === 'hi-IN' ? 'IST locked' : 'Caller local' },
-      ],
-      timeline: [
-        { tool: 'calendar.find_slots', detail: 'Available appointment windows' },
-        { tool: 'calendar.detect_conflict', detail: 'Double-booking guard' },
-        { tool: 'calendar.hold_slot', detail: 'Temporary sandbox hold' },
-      ],
-    },
-    Tickets: {
-      title: 'Tickets',
-      endpoint: '/api/sandbox/tickets/open',
-      status: 'Support fixture',
-      rows: [
-        { label: 'Open ticket', value: scenario.persona.interrupts ? 'Exists' : 'None' },
-        { label: 'Policy', value: domain === 'ecommerce' ? 'Refund review' : 'Escalation path' },
-        { label: 'SLA', value: domain === 'healthcare' ? 'Priority' : 'Standard' },
-      ],
-      timeline: [
-        { tool: 'tickets.search_open', detail: 'Existing issue lookup' },
-        { tool: 'tickets.apply_policy', detail: 'Refund or escalation rule' },
-        { tool: 'tickets.create_note', detail: 'Transcript evidence attached' },
-      ],
-    },
-    Payments: {
-      title: 'Payments',
-      endpoint: '/api/sandbox/payments/authorize',
-      status: 'Payment fixture',
-      rows: [
-        { label: 'Method', value: domain === 'banking' ? 'ACH' : 'Visa ending 4242' },
-        { label: 'Auth', value: scenario.persona.interrupts ? 'Requires retry' : 'Approved' },
-        { label: 'Fallback', value: 'Confirm consent' },
-      ],
-      timeline: [
-        { tool: 'payments.authorize', detail: 'Sandbox authorization' },
-        { tool: 'payments.handle_failure', detail: 'Failed-card branch available' },
-        { tool: 'payments.write_receipt', detail: 'Receipt waits for confirmation' },
-      ],
-    },
-    'Knowledge Base': {
-      title: 'Knowledge Base',
-      endpoint: '/api/sandbox/kb/search',
-      status: 'Policy grounding',
-      rows: [
-        { label: 'Article', value: `${domain} policy` },
-        { label: 'Version', value: scenario.persona.interrupts ? 'Conflict found' : 'Current' },
-        { label: 'Escalate', value: 'If policy mismatch' },
-      ],
-      timeline: [
-        { tool: 'kb.search_policy', detail: 'Relevant policy snippets' },
-        { tool: 'kb.compare_versions', detail: 'Outdated-info guard' },
-        { tool: 'kb.cite_answer', detail: 'Grounded response check' },
-      ],
-    },
-  };
+function parseSandboxRows(input: string) {
+  const text = input.trim();
+  if (!text) return [];
+  if (text.startsWith('[')) {
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error('JSON must be an array of records.');
+    return parsed.filter((row) => row && typeof row === 'object' && !Array.isArray(row)) as Record<string, unknown>[];
+  }
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) throw new Error('CSV needs a header row and at least one record.');
+  const headers = parseDelimitedLine(lines[0]).map((header) => header.trim()).filter(Boolean);
+  return lines.slice(1).map((line) => {
+    const cells = parseDelimitedLine(line);
+    return headers.reduce<Record<string, string>>((record, header, index) => {
+      record[header] = cells[index] ?? '';
+      return record;
+    }, {});
+  });
+}
 
-  return environments[environmentType] ?? environments.CRM;
+function sandboxTemplate(type: string) {
+  if (type === 'Calendar') {
+    return [
+      'date,slot,timezone,availability,booking_status,customer_name,notes',
+      '2026-06-03,09:30,America/New_York,available,open,Jordan,Initial appointment',
+      '2026-06-03,10:00,America/New_York,conflict,held_by_another_customer,Maya,Conflict guard',
+    ].join('\n');
+  }
+  return [
+    'customer_name,email,phone,account_status,order_status,record_status,pending_value',
+    'Jordan,john.smith@gmail.com,+12164748341,active,refund_review_required,single_match,',
+    'Jordan,duplicate.customer@example.com,+18005550007,active,duplicate_record,duplicate_match,',
+  ].join('\n');
 }
 
 function SandboxEnvironmentPanel({
   scenario,
   environmentType,
+  environmentId,
   callState,
   visibleTurns,
 }: {
   scenario: StoredScenario;
   environmentType: string;
+  environmentId?: string;
   callState: 'idle' | 'running' | 'complete';
   visibleTurns: number;
 }) {
-  const fallbackEnvironment = environmentForScenario(scenario, environmentType);
-  const [toolFixture, setToolFixture] = useState<SandboxFixture | null>(null);
+  const [environment, setEnvironment] = useState<SandboxFixture | null>(null);
   const [toolError, setToolError] = useState('');
-  const environment = toolFixture ?? fallbackEnvironment;
-  const phase = callState === 'complete' ? environment.timeline.length : Math.max(0, Math.min(visibleTurns - 1, environment.timeline.length));
+  const [executedActions, setExecutedActions] = useState<string[]>([]);
+  const tool = environmentType === 'Calendar' ? 'calendar' : 'crm';
+  const actionPlan = useMemo(
+    () => tool === 'calendar'
+      ? ['find_slots', 'detect_conflict', 'hold_slot', 'confirm_booking']
+      : ['customer', 'validate_field', 'save_pending', 'confirm_save'],
+    [tool],
+  );
+  const phase = callState === 'complete'
+    ? actionPlan.length
+    : Math.max(0, Math.min(visibleTurns - 1, actionPlan.length - 1));
 
   useEffect(() => {
     let cancelled = false;
-    async function runSandboxTool() {
+    async function loadEnvironment() {
+      if (!environmentId) {
+        setEnvironment(null);
+        setExecutedActions([]);
+        return;
+      }
+      setToolError('');
+      setExecutedActions([]);
+      try {
+        const response = await fetch(`/api/sandbox/environments/${environmentId}`, { cache: 'no-store' });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error ?? 'Sandbox data unavailable.');
+        if (!cancelled) setEnvironment(payload.environment as SandboxFixture);
+      } catch (error) {
+        if (!cancelled) setToolError(error instanceof Error ? error.message : 'Sandbox data unavailable.');
+      }
+    }
+
+    void loadEnvironment();
+    return () => {
+      cancelled = true;
+    };
+  }, [environmentId]);
+
+  useEffect(() => {
+    if (!environmentId || callState === 'idle') return;
+    const action = actionPlan[Math.max(0, Math.min(visibleTurns - 1, actionPlan.length - 1))];
+    if (!action || executedActions.includes(action)) return;
+    let cancelled = false;
+
+    async function runAction() {
       setToolError('');
       try {
-        const response = await fetch(fallbackEnvironment.endpoint, {
+        const response = await fetch(`/api/sandbox/${tool}/${action}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
+            environmentId,
             domain: scenario.domain,
             language: scenario.language,
             personaName: scenario.persona.name,
@@ -252,21 +274,42 @@ function SandboxEnvironmentPanel({
             callerSeed: scenario.callerSeed,
             entityType: scenario.pronunciation?.entityType,
             targetValue: scenario.pronunciation?.targetValue,
+            value: scenario.pronunciation?.targetValue,
           }),
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok) throw new Error(payload?.error ?? 'Sandbox tool failed.');
-        if (!cancelled) setToolFixture(payload as SandboxFixture);
+        if (!cancelled) {
+          setEnvironment(payload.environment as SandboxFixture);
+          setExecutedActions((current) => current.includes(action) ? current : [...current, action]);
+        }
       } catch (error) {
         if (!cancelled) setToolError(error instanceof Error ? error.message : 'Sandbox tool failed.');
       }
     }
 
-    void runSandboxTool();
+    void runAction();
     return () => {
       cancelled = true;
     };
-  }, [fallbackEnvironment.endpoint, scenario]);
+  }, [actionPlan, callState, environmentId, executedActions, scenario, tool, visibleTurns]);
+
+  if (!environmentId) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-500">
+        A fresh {environmentType} copy appears when the call starts. Source data is never mutated.
+      </div>
+    );
+  }
+
+  if (!environment) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-500">
+        Preparing isolated {environmentType} data...
+        {toolError && <div className="mt-2 rounded-md border border-[#e3c3c1] bg-[#fbf3f2] px-3 py-2 text-[#8f3d3b]">{toolError}</div>}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white">
@@ -312,7 +355,7 @@ function SandboxEnvironmentPanel({
             const visibleStatus = complete ? (item.status ?? '200 OK') : active ? 'calling' : 'queued';
             return (
               <div
-                key={item.tool}
+                key={`${item.tool}-${index}`}
                 className={`rounded-md border px-3 py-2 ${active ? 'border-[#cfd8ff] bg-[#f5f7ff]' : visibleStatus === 'blocked' ? 'border-[#e3c3c1] bg-[#fbf3f2]' : 'border-slate-100 bg-slate-50'}`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -357,6 +400,14 @@ export default function PlaygroundPage() {
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveSandboxRun | null>(null);
   const [copiedJoinValue, setCopiedJoinValue] = useState('');
+  const [sandboxSources, setSandboxSources] = useState<SandboxSource[]>([]);
+  const [sandboxSourceId, setSandboxSourceId] = useState('');
+  const [sandboxSetupOpen, setSandboxSetupOpen] = useState(false);
+  const [sandboxUploadText, setSandboxUploadText] = useState('');
+  const [sandboxPreviewRows, setSandboxPreviewRows] = useState<Record<string, unknown>[]>([]);
+  const [sandboxSetupName, setSandboxSetupName] = useState('');
+  const [sandboxSetupError, setSandboxSetupError] = useState('');
+  const [sandboxSaving, setSandboxSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -383,9 +434,44 @@ export default function PlaygroundPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSandboxSources() {
+      try {
+        const response = await fetch(`/api/sandbox/sources?type=${environmentType.toLowerCase()}`, { cache: 'no-store' });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error ?? 'Sandbox sources unavailable.');
+        const sources = (Array.isArray(payload?.sources) ? payload.sources : []) as SandboxSource[];
+        if (!cancelled) {
+          setSandboxSources(sources);
+          setSandboxSourceId((current) => {
+            if (current && sources.some((source) => source.id === current)) return current;
+            return sources[0]?.id ?? '';
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSandboxSources([]);
+          setSandboxSourceId('');
+          setRunError(error instanceof Error ? error.message : 'Sandbox sources unavailable.');
+        }
+      }
+    }
+
+    void loadSandboxSources();
+    return () => {
+      cancelled = true;
+    };
+  }, [environmentType]);
+
   const baseScenario = useMemo(() => {
     return scenarios.find((scenario) => scenario.id === scenarioId) ?? scenarios[0];
   }, [scenarioId, scenarios]);
+
+  const selectedSandboxSource = useMemo(() => {
+    return sandboxSources.find((source) => source.id === sandboxSourceId) ?? null;
+  }, [sandboxSourceId, sandboxSources]);
 
   const pronunciationSpec = useMemo(() => {
     return createPronunciationSpec({
@@ -519,6 +605,67 @@ export default function PlaygroundPage() {
     window.speechSynthesis.speak(utterance);
   }
 
+  function openSandboxSetup() {
+    const template = sandboxTemplate(environmentType);
+    setSandboxUploadText((current) => current || template);
+    setSandboxPreviewRows(parseSandboxRows(template).slice(0, 6));
+    setSandboxSetupName((current) => current || `${environmentType} sandbox data`);
+    setSandboxSetupError('');
+    setSandboxSetupOpen(true);
+  }
+
+  function previewSandboxUpload() {
+    try {
+      const rows = parseSandboxRows(sandboxUploadText);
+      if (!rows.length) throw new Error('Add at least one row.');
+      setSandboxPreviewRows(rows.slice(0, 6));
+      setSandboxSetupError('');
+    } catch (error) {
+      setSandboxPreviewRows([]);
+      setSandboxSetupError(error instanceof Error ? error.message : 'Unable to read this data.');
+    }
+  }
+
+  async function saveSandboxSource() {
+    let rows: Record<string, unknown>[] = [];
+    try {
+      rows = parseSandboxRows(sandboxUploadText);
+      if (!rows.length) throw new Error('Add at least one row.');
+    } catch (error) {
+      setSandboxSetupError(error instanceof Error ? error.message : 'Unable to read this data.');
+      return;
+    }
+
+    setSandboxSaving(true);
+    setSandboxSetupError('');
+    try {
+      const response = await fetch('/api/sandbox/sources', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: environmentType,
+          name: sandboxSetupName || `${environmentType} sandbox data`,
+          rows,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? 'Sandbox source could not be saved.');
+      const source = payload.source as SandboxSource;
+      setSandboxSources((current) => [source, ...current.filter((item) => item.id !== source.id)]);
+      setSandboxSourceId(source.id);
+      setSandboxPreviewRows(rows.slice(0, 6));
+      setSandboxSetupOpen(false);
+      trackLightcurveEvent('Sandbox Source Saved', {
+        environment_type: environmentType,
+        row_count: rows.length,
+      });
+    } catch (error) {
+      setSandboxSetupError(error instanceof Error ? error.message : 'Sandbox source could not be saved.');
+    } finally {
+      setSandboxSaving(false);
+    }
+  }
+
   async function pollActiveRun(runOverride?: ActiveSandboxRun) {
     const targetRun = runOverride ?? activeSandboxRun;
     if (!targetRun?.runId || pollingRun) return;
@@ -636,6 +783,7 @@ export default function PlaygroundPage() {
             bridge: 'vapi_phone',
             pronunciation: activeScenario.pronunciation ?? null,
             sandboxEnvironment: environmentType,
+            sandboxSourceId: sandboxSourceId || undefined,
           }
         : {
             endpointType: usesHttpsRunner ? 'webrtc' : 'lightcurve_room',
@@ -645,6 +793,7 @@ export default function PlaygroundPage() {
             bridge: usesHttpsRunner ? 'custom_https_runner' : 'lightcurve_room',
             pronunciation: activeScenario.pronunciation ?? null,
             sandboxEnvironment: environmentType,
+            sandboxSourceId: sandboxSourceId || undefined,
           };
       const experimentResponse = await fetch('/api/experiments', {
         method: 'POST',
@@ -664,6 +813,19 @@ export default function PlaygroundPage() {
       if (!experimentResponse.ok) throw new Error(experimentPayload?.error ?? 'Unable to create sandbox run.');
       const run = experimentPayload?.runs?.[0];
       if (!run?.id) throw new Error('Sandbox run was not created.');
+
+      const environmentResponse = await fetch('/api/sandbox/environments', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: environmentType,
+          sourceId: sandboxSourceId || undefined,
+          runId: run.id,
+          scenario: activeScenario,
+        }),
+      });
+      const environmentPayload = await environmentResponse.json().catch(() => null);
+      if (!environmentResponse.ok) throw new Error(environmentPayload?.error ?? 'Sandbox data copy could not be created.');
 
       const startResponse = await fetch(`/api/runs/${run.id}/start`, { method: 'POST' });
       const startPayload = await startResponse.json().catch(() => null);
@@ -696,6 +858,7 @@ export default function PlaygroundPage() {
         externalCallId: startPayload?.externalCallId,
         externalStatus: startPayload?.externalStatus,
         liveKit: liveKitSession,
+        sandboxEnvironmentId: environmentPayload?.environment?.environmentId,
       };
       setActiveSandboxRun(nextRun);
       if (usesVapiPhone) {
@@ -820,22 +983,64 @@ export default function PlaygroundPage() {
               <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">{runError}</div>
             )}
 
-            <label className="block text-xs text-slate-500">
-              Sandbox environment
-              <select
-                className="select-field mt-1"
-                value={environmentType}
-                onChange={(event) => {
-                  setEnvironmentType(event.target.value);
-                  setCallState('idle');
-                  setVisibleTurns(0);
-                }}
-              >
-                {ENVIRONMENT_TYPES.map((item) => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-            </label>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-950">Sandbox data</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Each run gets a private copy. Your source file stays unchanged.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
+                  onClick={openSandboxSetup}
+                >
+                  Setup
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="block text-xs text-slate-500">
+                  Environment
+                  <select
+                    className="select-field mt-1"
+                    value={environmentType}
+                    onChange={(event) => {
+                      setEnvironmentType(event.target.value);
+                      setSandboxSourceId('');
+                      setCallState('idle');
+                      setVisibleTurns(0);
+                    }}
+                  >
+                    {ENVIRONMENT_TYPES.map((item) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs text-slate-500">
+                  Source
+                  <select
+                    className="select-field mt-1"
+                    value={sandboxSourceId}
+                    onChange={(event) => {
+                      setSandboxSourceId(event.target.value);
+                      setCallState('idle');
+                      setVisibleTurns(0);
+                    }}
+                  >
+                    <option value="">Starter data</option>
+                    {sandboxSources.map((source) => (
+                      <option key={source.id} value={source.id}>{source.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {selectedSandboxSource
+                  ? `${selectedSandboxSource.name} will be copied into this call.`
+                  : 'No upload required. Lightcurve will create safe starter data from the selected scenario.'}
+              </p>
+            </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between gap-3">
@@ -1057,6 +1262,7 @@ export default function PlaygroundPage() {
                         <SandboxEnvironmentPanel
                           scenario={activeScenario}
                           environmentType={environmentType}
+                          environmentId={activeSandboxRun?.sandboxEnvironmentId}
                           callState={callState}
                           visibleTurns={visibleTurns}
                         />
@@ -1143,6 +1349,113 @@ export default function PlaygroundPage() {
           )}
         </section>
       </div>
+
+      {sandboxSetupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-medium text-slate-950">Sandbox data</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Upload {environmentType} data once. Each call gets an isolated copy.
+                </p>
+              </div>
+              <button type="button" className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setSandboxSetupOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <label className="block text-xs text-slate-500">
+                  Source name
+                  <input
+                    className="input-field mt-1"
+                    value={sandboxSetupName}
+                    onChange={(event) => setSandboxSetupName(event.target.value)}
+                    placeholder={`${environmentType} sandbox data`}
+                  />
+                </label>
+                <button type="button" className="btn-secondary mt-5 min-h-10 px-3 text-xs" onClick={() => {
+                  const template = sandboxTemplate(environmentType);
+                  setSandboxUploadText(template);
+                  setSandboxPreviewRows(parseSandboxRows(template).slice(0, 6));
+                  setSandboxSetupError('');
+                }}>
+                  Use template
+                </button>
+              </div>
+
+              <label className="block text-xs text-slate-500">
+                Paste CSV or JSON array
+                <textarea
+                  className="input-field mt-1 min-h-36 font-mono text-xs leading-5"
+                  value={sandboxUploadText}
+                  onChange={(event) => setSandboxUploadText(event.target.value)}
+                  placeholder={sandboxTemplate(environmentType)}
+                />
+              </label>
+
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs leading-5 text-slate-500">
+                  Required fields are flexible. Lightcurve keeps every column and uses known names like email, phone, date, slot, timezone, and status.
+                </p>
+                <button type="button" className="btn-secondary min-h-9 px-3 py-1.5 text-xs" onClick={previewSandboxUpload}>
+                  Preview
+                </button>
+              </div>
+
+              {sandboxSetupError && (
+                <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">
+                  {sandboxSetupError}
+                </div>
+              )}
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Preview</p>
+                  <span className="text-xs text-slate-400">{sandboxPreviewRows.length ? `${sandboxPreviewRows.length} rows shown` : 'No preview yet'}</span>
+                </div>
+                {sandboxPreviewRows.length ? (
+                  <div className="max-h-44 overflow-auto rounded-md border border-slate-200 bg-white">
+                    <table className="min-w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          {Object.keys(sandboxPreviewRows[0] ?? {}).slice(0, 5).map((key) => (
+                            <th key={key} className="px-3 py-2 font-medium">{key}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sandboxPreviewRows.map((row, rowIndex) => (
+                          <tr key={`preview-${rowIndex}`} className="border-t border-slate-100">
+                            {Object.keys(sandboxPreviewRows[0] ?? {}).slice(0, 5).map((key) => (
+                              <td key={`${rowIndex}-${key}`} className="max-w-44 truncate px-3 py-2 text-slate-700">{String(row[key] ?? '')}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-6 text-center text-xs text-slate-500">
+                    Paste data and preview it before saving.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button type="button" className="btn-secondary min-h-9 px-3 py-1.5 text-xs" onClick={() => setSandboxSetupOpen(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn-primary min-h-9 px-3 py-1.5 text-xs" onClick={() => void saveSandboxSource()} disabled={sandboxSaving}>
+                  {sandboxSaving ? 'Saving...' : 'Save sandbox source'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {agentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/30 px-4 py-6 backdrop-blur-sm">

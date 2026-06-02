@@ -128,3 +128,52 @@ export const billingEvents = pgTable('billing_events', {
   payload: jsonb('payload').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export const sandboxSources = pgTable('sandbox_sources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  type: text('type').notNull(),
+  name: text('name').notNull(),
+  sourceKind: text('source_kind').notNull().default('upload'),
+  schemaMapping: jsonb('schema_mapping'),
+  sampleRows: jsonb('sample_rows').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const sandboxEnvironments = pgTable('sandbox_environments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  runId: uuid('run_id').references(() => runs.id),
+  sourceId: uuid('source_id').references(() => sandboxSources.id),
+  type: text('type').notNull(),
+  status: text('status').notNull().default('ready'),
+  seedMetadata: jsonb('seed_metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const sandboxRecords = pgTable('sandbox_records', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  environmentId: uuid('environment_id').notNull().references(() => sandboxEnvironments.id),
+  kind: text('kind').notNull(),
+  externalRef: text('external_ref'),
+  data: jsonb('data').notNull(),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const sandboxToolEvents = pgTable('sandbox_tool_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  environmentId: uuid('environment_id').notNull().references(() => sandboxEnvironments.id),
+  runId: uuid('run_id').references(() => runs.id),
+  tool: text('tool').notNull(),
+  action: text('action').notNull(),
+  input: jsonb('input').notNull(),
+  output: jsonb('output').notNull(),
+  status: text('status').notNull().default('200 OK'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
