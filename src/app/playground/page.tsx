@@ -1252,8 +1252,8 @@ export default function PlaygroundPage() {
                     )}
                   </div>
 
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <details className="rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="space-y-3">
+                    <details open className="rounded-lg border border-slate-200 bg-white p-3">
                       <summary className="cursor-pointer text-sm font-medium text-slate-900">
                         Sandbox tools
                         <span className="ml-2 text-xs font-normal text-slate-400">{environmentType}</span>
@@ -1268,53 +1268,6 @@ export default function PlaygroundPage() {
                         />
                       </div>
                     </details>
-
-                    {pronunciationReport && (
-                      <details className="rounded-lg border border-slate-200 bg-white p-3">
-                      <summary className="cursor-pointer text-sm font-medium text-slate-900">
-                        Capture report
-                        <span className="ml-2 text-xs font-normal text-slate-400">{entityLabel(pronunciationReport.entityType)}</span>
-                      </summary>
-                      <div className="mt-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Capture action</p>
-                            <h3 className="mt-1 text-sm font-medium text-slate-950">{entityLabel(pronunciationReport.entityType)}</h3>
-                          </div>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">{pronunciationReport.accent}</span>
-                        </div>
-
-                      <div className="mt-4 space-y-3 text-xs">
-                        <div>
-                          <p className="text-slate-400">Expected</p>
-                          <p className="mt-1 break-all font-mono text-slate-900">{pronunciationReport.expectedValue}</p>
-                        </div>
-                        <div>
-                          <p className="text-slate-400">Agent captured</p>
-                          <p className="mt-1 break-all font-mono text-slate-900">{pronunciationReport.capturedValue ?? 'Pending until readback'}</p>
-                        </div>
-                        <div>
-                          <p className="text-slate-400">Pacing</p>
-                          <p className="mt-1 text-slate-700">
-                            {pronunciationReport.pacing.driftPercent}% drift during readback
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-3">
-                        {pronunciationReport.segments.slice(0, 5).map((segment) => (
-                          <div key={segment.label}>
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-xs text-slate-500">{segment.label}</span>
-                              <span className={`text-xs ${segment.pass ? 'text-[#2f6f5f]' : 'text-[#8f3d3b]'}`}>{segment.pass ? 'Pass' : 'Fail'}</span>
-                            </div>
-                            <ScoreBar value={segment.value} />
-                          </div>
-                        ))}
-                      </div>
-                      </div>
-                      </details>
-                    )}
                   </div>
                 </div>
 
@@ -1323,9 +1276,33 @@ export default function PlaygroundPage() {
                     <div className="card p-4"><p className="text-xs text-slate-500">MOS</p><div className="mt-3"><ScoreBar value={liveMosScore} max={4.5} /></div></div>
                     <div className="card p-4"><p className="text-xs text-slate-500">Task Completion</p><div className="mt-3"><ScoreBar value={liveTaskScore} /></div></div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      {pronunciationReport
-                        ? 'Require exact readback before saving the captured value.'
-                        : 'Confirm the next action before repeating policy or tool status.'}
+                      {pronunciationReport ? (
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-slate-500">Capture report</p>
+                            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500">
+                              {entityLabel(pronunciationReport.entityType)}
+                            </span>
+                          </div>
+                          <p className="mt-3 break-all font-mono text-xs text-slate-900">{pronunciationReport.expectedValue}</p>
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <p className="text-slate-400">Exact</p>
+                              <p className={pronunciationReport.segments[0]?.pass ? 'text-[#2f6f5f]' : 'text-[#8f3d3b]'}>
+                                {pronunciationReport.segments[0]?.pass ? 'Pass' : 'Fail'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">Readback</p>
+                              <p className={pronunciationReport.segments[1]?.pass ? 'text-[#2f6f5f]' : 'text-[#8f3d3b]'}>
+                                {pronunciationReport.segments[1]?.pass ? 'Pass' : 'Fail'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        'Confirm the next action before repeating policy or tool status.'
+                      )}
                     </div>
                   </div>
                 )}
@@ -1335,14 +1312,14 @@ export default function PlaygroundPage() {
 
           {callState === 'complete' && (
             <div className="border-t border-slate-100 bg-white px-5 py-4">
-              <div className="flex items-center gap-3">
-                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs">Play</button>
-                <div className="flex-1"><Waveform /></div>
-                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={downloadTranscript}>Download</button>
-                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>Re-run</button>
-                <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork Scenario</button>
-                <button className="btn-primary min-h-8 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>
-                  Start new real run
+              <div className="flex flex-wrap items-center gap-3">
+                <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs">Play</button>
+                <div className="min-w-52 flex-1"><Waveform /></div>
+                <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={downloadTranscript}>Download</button>
+                <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>Re-run</button>
+                <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork Scenario</button>
+                <button className="btn-primary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>
+                  Start new call
                 </button>
               </div>
             </div>
