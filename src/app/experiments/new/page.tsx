@@ -12,7 +12,7 @@ type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
 
 const AGENT_TYPES = providerDefinitions.map((provider) => ({
   id: provider.id,
-  label: provider.id === 'livekit' ? 'Lightcurve room' : provider.name,
+  label: provider.name,
   detail: provider.tagline,
   placeholder: provider.locatorPlaceholder,
   locatorLabel: provider.locatorLabel,
