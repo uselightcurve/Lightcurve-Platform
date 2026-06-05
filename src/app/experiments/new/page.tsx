@@ -411,23 +411,24 @@ export default function NewExperiment() {
   const botToBotProvider = isBotToBotProvider(agentType);
   const hostedLiveKit = agentType === 'livekit';
   const replayMode = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-  const roomNoKeyMode = hostedLiveKit || (liveProvider && liveProviderPath === 'lightcurve_room');
-  const vapiBotToBotPhone = agentType === 'vapi' && liveProviderPath === 'phone_realism' && vapiMode === 'bot_to_bot_phone';
-  const providerPhoneMode = liveProvider && liveProviderPath === 'phone_realism' && !replayMode;
-  const needsProviderApiKey = providerPhoneMode;
+  const realPhoneMode = liveProvider && liveProviderPath === 'phone_realism' && !replayMode;
+  const roomNoKeyMode = !realPhoneMode && (hostedLiveKit || (liveProvider && liveProviderPath === 'lightcurve_room'));
+  const vapiBotToBotPhone = false;
+  const providerPhoneMode = realPhoneMode;
+  const needsProviderApiKey = false;
   const locatorLabel = stubMode
     ? 'Agent instructions'
     : roomNoKeyMode
       ? 'Lightcurve room connection'
-    : vapiBotToBotPhone
-      ? 'Your agent phone number or SIP URI'
+    : realPhoneMode
+      ? 'Agent phone number or SIP URI'
       : activeAgent.locatorLabel;
   const locatorPlaceholder = stubMode
     ? 'Paste the policy, prompt, or expected call flow you want to preflight'
     : roomNoKeyMode
       ? 'Lightcurve creates this after you start the run'
-    : vapiBotToBotPhone
-      ? 'Put your agent phone number, e.g. +14155550123'
+    : realPhoneMode
+      ? '+14155550123 or sip:agent@example.com'
       : activeAgent.placeholder;
   const callerMode = stubMode
     ? 'Agent replica'
@@ -435,12 +436,11 @@ export default function NewExperiment() {
       ? 'Lightcurve room'
     : replayMode
       ? 'Replay import'
-      : vapiBotToBotPhone
-        ? 'Bot-to-bot phone'
+      : realPhoneMode
+        ? 'Real phone verification'
         : liveProvider
-          ? 'Human pilot'
+          ? 'Room test'
           : 'Bot-to-bot';
-  const realPhoneMode = providerPhoneMode;
   const selectedTooManyPhoneScenarios = realPhoneMode && selectedIds.length > MAX_REAL_PHONE_SCENARIOS;
   const canProceedFromAgentStep = stubMode ? stubInstructions.trim().length > 0 : roomNoKeyMode ? true : agentLocator.trim().length > 0;
 
@@ -495,28 +495,24 @@ export default function NewExperiment() {
     if (!expName.trim() || selectedIds.length === 0) return;
     if (stubMode && !stubInstructions.trim()) return;
     if (!stubMode && !roomNoKeyMode && !agentLocator.trim()) return;
-    const usesProviderPhone = providerPhoneMode;
+    const usesProviderPhone = realPhoneMode;
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
-    const needsHumanTester = providerPhoneMode && !elevenLabsReplay && !vapiBotToBotPhone;
+    const needsHumanTester = false;
     if (usesProviderPhone && !elevenLabsReplay && selectedIds.length > MAX_REAL_PHONE_SCENARIOS) {
       setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Select a smaller pilot suite, then batch the rest.`);
       return;
     }
-    if (!stubMode && vapiBotToBotPhone) {
+    if (!stubMode && realPhoneMode) {
       if (looksLikeUuid(agentLocator)) {
-        setError('For Vapi bot-to-bot, enter the target agent phone number or SIP URI here, not a Vapi phone-number ID.');
+        setError('Enter the phone number or SIP URI your agent answers, not a provider phone-number UUID.');
         return;
       }
       if (!agentLocator.trim().startsWith('sip:') && !looksLikePhoneNumber(agentLocator)) {
         setError('Enter the phone number or SIP URI your voice agent answers. Example: +14155550123 or sip:agent@example.com.');
         return;
       }
-      if (vapiPhoneNumberId.trim() && !looksLikeUuid(vapiPhoneNumberId)) {
-        setError('Paste the Vapi Phone Number UUID for the outbound caller. Do not paste the +1 phone number here.');
-        return;
-      }
     }
-    if (!stubMode && isBotToBotProvider(agentType) && !roomNoKeyMode && !agentLocator.trim().startsWith('https://')) {
+    if (!stubMode && isBotToBotProvider(agentType) && !roomNoKeyMode && !realPhoneMode && !agentLocator.trim().startsWith('https://')) {
       setError('For LiveKit, Pipecat, or Custom WebRTC today, enter a compatible HTTPS runner endpoint. Native SIP/WebRTC media bridge is coming next.');
       return;
     }
@@ -531,7 +527,7 @@ export default function NewExperiment() {
       agent_type: agentType,
       scenario_count: selectedIds.length,
       live_provider: usesProviderPhone,
-      connection_path: roomNoKeyMode ? 'lightcurve_room' : providerPhoneMode ? 'phone_realism' : 'runner_or_replica',
+      connection_path: roomNoKeyMode ? 'lightcurve_room' : realPhoneMode ? 'managed_phone_bridge' : 'runner_or_replica',
       bot_to_bot_phone: vapiBotToBotPhone,
       elevenlabs_mode: agentType === 'elevenlabs' ? elevenLabsMode : undefined,
     });
@@ -555,6 +551,16 @@ export default function NewExperiment() {
                 costMode: 'low_cost_testing',
                 bridge: 'livekit',
                 declaredProvider: agentType,
+              }
+          : realPhoneMode
+            ? {
+                mode: 'vobiz_phone_verification',
+                bridge: 'vobiz_phone',
+                targetAgentNumber: agentLocator,
+                endpointType: endpointTypeFor(agentLocator),
+                declaredProvider: agentType,
+                costMode: 'phone_realism',
+                promotedFromExperimentId: promotedFromExperimentId ?? '',
               }
           : agentType === 'custom_webrtc'
             ? { runnerUrl: agentLocator, apiKey }
@@ -594,7 +600,7 @@ export default function NewExperiment() {
               ? { runnerUrl: agentLocator, apiKey }
               : { agentId: agentLocator, apiKey };
       const credentials: Record<string, string> =
-        stubMode
+        stubMode || roomNoKeyMode || realPhoneMode
           ? {}
           : agentType === 'vapi'
           ? vapiBotToBotPhone
@@ -614,7 +620,7 @@ export default function NewExperiment() {
               ? { apiKey, agentId: agentLocator, agentPhoneNumberId: elevenLabsPhoneNumberId, customerNumber: vapiCustomerNumber }
               : { apiKey };
 
-      const connection = stubMode || roomNoKeyMode
+      const connection = stubMode || roomNoKeyMode || realPhoneMode
         ? null
         : await createAgentConnection({
             provider: agentType,
@@ -636,6 +642,8 @@ export default function NewExperiment() {
             ? 'agent-replica://low-cost-testing'
             : roomNoKeyMode
               ? 'livekit://lightcurve-hosted-room'
+              : realPhoneMode
+                ? `phone:${agentLocator}`
               : `${agentType}:${agentLocator}`,
           scenarioIds: selectedIds,
           promotedFromExperimentId,
@@ -858,7 +866,7 @@ export default function NewExperiment() {
                       onClick={() => setLiveProviderPath('lightcurve_room')}
                       className={`rounded-md px-3 py-1.5 ${liveProviderPath === 'lightcurve_room' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
                     >
-                      Lightcurve room
+                      LiveKit room
                     </button>
                     <button
                       type="button"
@@ -883,44 +891,12 @@ export default function NewExperiment() {
               </div>
             )}
 
-            {agentType === 'vapi' && liveProviderPath === 'phone_realism' && (
+            {realPhoneMode && (
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Call mode</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {vapiBotToBotPhone
-                        ? 'Lightcurve acts as the caller and dials your agent.'
-                        : 'A consented tester receives the call while Lightcurve scores it.'}
-                    </p>
-                  </div>
-                  <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => setVapiMode('bot_to_bot_phone')}
-                      className={`rounded-md px-3 py-1.5 ${vapiBotToBotPhone ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
-                    >
-                      Bot-to-bot phone
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVapiMode('human_pilot')}
-                      className={`rounded-md px-3 py-1.5 ${vapiMode === 'human_pilot' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
-                    >
-                      Human pilot
-                    </button>
-                  </div>
-                </div>
-                {vapiBotToBotPhone && (
-                  <details className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600">
-                    <summary className="cursor-pointer font-medium text-slate-900">Required Vapi values</summary>
-                    <div className="mt-2 grid gap-1.5">
-                      <p>1. Your Vapi API key.</p>
-                      <p>2. The inbound phone number your agent answers.</p>
-                      <p>3. The Vapi Phone Number UUID for a different outbound caller number.</p>
-                    </div>
-                  </details>
-                )}
+                <p className="text-sm font-medium text-slate-950">Managed phone verification</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  Add only the phone number or SIP URI your agent answers. Lightcurve places the verification call through its managed phone bridge and scores the result.
+                </p>
               </div>
             )}
 
@@ -997,7 +973,7 @@ export default function NewExperiment() {
               </div>
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-4">
-                <div>
+                <div className={realPhoneMode ? 'col-span-2' : ''}>
                   <label className="mb-1.5 block text-xs font-medium text-slate-600">
                     {locatorLabel}
                   </label>
@@ -1007,12 +983,12 @@ export default function NewExperiment() {
                     onChange={(event) => setAgentLocator(event.target.value)}
                     placeholder={locatorPlaceholder}
                   />
-                  {vapiBotToBotPhone && (
+                  {realPhoneMode && (
                     <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                      Put the phone number your voice agent answers. This must be different from the Vapi outbound caller number.
+                      Put the phone number or SIP URI your customer-facing voice agent answers. Do not paste provider UUIDs here.
                     </p>
                   )}
-                  {botToBotProvider && (
+                  {botToBotProvider && !realPhoneMode && (
                     <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                       This is the HTTPS endpoint your team exposes for Lightcurve to send synthetic caller turns and receive agent replies. It is not a public app URL.
                     </p>
@@ -1036,7 +1012,7 @@ export default function NewExperiment() {
               </div>
             )}
 
-            {liveProvider && liveProviderPath === 'phone_realism' && (
+            {liveProvider && liveProviderPath === 'phone_realism' && !realPhoneMode && (
               <div className="mt-4 space-y-3">
                 {agentType !== 'vapi' && (
                   <p className="rounded-md border border-[#e6cf93] bg-[#fffaf0] px-3 py-2 text-xs leading-relaxed text-[#765b1f]">
@@ -1184,7 +1160,7 @@ export default function NewExperiment() {
                 <h2 className="text-base font-medium text-slate-950">Generated test suite</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {providerPhoneMode
-                    ? 'Pick the scenario your human tester will act out on the phone call.'
+                    ? 'Pick the risky scenarios Lightcurve should verify against your agent phone or SIP endpoint.'
                     : suiteGenerated
                       ? `${selectedIds.length} callers selected from the ${selectedUseCase.label.toLowerCase()} use case. Remove any that do not fit, or add nearby suggestions.`
                       : 'Select the calls that should run before this voice-agent release ships.'}
@@ -1358,10 +1334,10 @@ export default function NewExperiment() {
                     ? 'Create Lightcurve room test'
                     : replayMode
                     ? 'Create replay sandbox'
-                    : vapiBotToBotPhone
-                      ? 'Run bot-to-bot phone test'
+                    : realPhoneMode
+                      ? 'Run real phone verification'
                     : liveProvider
-                      ? 'Dial human pilot call'
+                      ? 'Create room test'
                       : 'Run bot-to-bot sandbox'}
               </button>
             </div>

@@ -51,7 +51,7 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'stub_agent',
     name: 'Agent Replica',
-    tagline: 'Low-cost testing with prompt, policy, and tool behavior before spending provider minutes.',
+    tagline: 'Test prompt, policy, tool-call, RAG, and knowledge-base behavior before real phone verification.',
     env: [],
     locatorLabel: 'Prompt and policy',
     locatorPlaceholder: 'Paste system prompt, policy, or expected call flow',
@@ -60,7 +60,7 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'vapi',
     name: 'Vapi',
-    tagline: 'Bot-to-bot phone tests, hosted assistant calls, and production imports.',
+    tagline: 'Bring the agent into a Lightcurve test room, then promote risky cases to phone verification.',
     env: ['VAPI_API_KEY', 'VAPI_PHONE_NUMBER_ID'],
     locatorLabel: 'Assistant ID',
     locatorPlaceholder: 'asst_...',
@@ -69,7 +69,7 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'retell',
     name: 'Retell',
-    tagline: 'Agent calls, phone logs, and failure replay.',
+    tagline: 'Bring the agent into a Lightcurve test room, then replay or verify failures.',
     env: ['RETELL_API_KEY', 'RETELL_AGENT_ID'],
     locatorLabel: 'Agent ID',
     locatorPlaceholder: 'agent_...',
@@ -78,7 +78,7 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'elevenlabs',
     name: 'ElevenLabs',
-    tagline: 'Conversational AI calls plus low-cost replay imports.',
+    tagline: 'Run room-based checks first, then import or verify only risky calls.',
     env: ['ELEVENLABS_API_KEY', 'ELEVENLABS_AGENT_ID'],
     locatorLabel: 'Agent ID',
     locatorPlaceholder: 'agent_...',
@@ -87,7 +87,7 @@ export const providerDefinitions: ProviderDefinition[] = [
   {
     id: 'livekit',
     name: 'LiveKit',
-    tagline: 'Realtime rooms, recordings, and runner bridges.',
+    tagline: 'A short-lived test room where the customer agent talks to Lightcurve synthetic callers.',
     env: ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'],
     locatorLabel: 'Agent runner endpoint',
     locatorPlaceholder: 'https://agent.example.com/lightcurve/run',

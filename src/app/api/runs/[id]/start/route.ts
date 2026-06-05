@@ -9,6 +9,7 @@ import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/ac
 import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 import { validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
 import { createLiveKitSandboxSession, isLightcurveHostedLiveKit } from '@/lib/livekitSandbox';
+import { isVobizPhoneExperiment, startVobizPhoneCall } from '@/lib/vobiz';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,6 +37,46 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       status: result.run?.status ?? 'complete',
       externalStatus: result.run?.externalStatus ?? 'stub_completed',
     });
+  }
+
+  if (isVobizPhoneExperiment(experiment)) {
+    try {
+      const call = await startVobizPhoneCall(id, experiment, scenario);
+      await db
+        .update(runs)
+        .set({
+          status: call.runStatus,
+          provider: call.provider,
+          externalCallId: call.id,
+          externalStatus: call.status,
+          startedAt: new Date(),
+        })
+        .where(eq(runs.id, id));
+      await db.update(experiments).set({ status: 'running' }).where(eq(experiments.id, experiment.id));
+
+      return NextResponse.json({
+        success: true,
+        provider: call.provider,
+        status: call.runStatus,
+        externalCallId: call.id,
+        externalStatus: call.status,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Vobiz real phone call could not be started';
+      await db
+        .update(runs)
+        .set({
+          status: 'failed',
+          provider: 'vobiz',
+          externalStatus: 'vobiz_start_failed',
+          failureSummary: message,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        })
+        .where(eq(runs.id, id));
+
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   if (isProviderBackedSandbox(experiment)) {

@@ -102,20 +102,20 @@ export function releaseWorkflowForExperiment(
       : 'The promoted real-call verification suite still has failures. Do not ship until the failed scenarios are fixed.';
   } else if (sourceLane === 'low_cost_testing' && riskyScenarioIds.length > 0) {
     releaseStage = 'needs_real_verification';
-    releaseLabel = 'Low-cost suite found risky cases';
+    releaseLabel = 'Simulation found risky cases';
     releaseMessage =
-      'Broad low-cost testing found failed scenarios. Promote only these failures to provider-backed or phone-realism testing before making a final release decision.';
+      'Broad simulated testing found failed scenarios. Promote only these failures to real phone verification before making a final release decision.';
   } else if (sourceLane === 'low_cost_testing') {
     releaseStage = 'low_cost_screen';
-    releaseLabel = 'Low-cost suite passed';
+    releaseLabel = 'Simulation suite passed';
     releaseMessage =
-      'Broad low-cost testing passed. Run a small provider-backed smoke check before production if this is a customer-facing release.';
+      'Broad simulated testing passed. Run a small real phone verification only if this release needs carrier-level realism.';
   } else {
     releaseStage = gatePassed ? 'final_pass' : 'final_block';
     releaseLabel = gatePassed ? 'Final release signal: ship' : 'Final release signal: block';
     releaseMessage = gatePassed
-      ? 'The provider-backed verification suite passed the release gate.'
-      : 'The provider-backed verification suite failed the release gate.';
+      ? 'The verification suite passed the release gate.'
+      : 'The verification suite failed the release gate.';
   }
 
   return {
@@ -140,5 +140,5 @@ export function releaseWorkflowForExperiment(
 }
 
 export function preferredVerificationProvider(sourceLane: CostLaneId) {
-  return sourceLane === 'low_cost_testing' ? 'vapi' : 'custom_webrtc';
+  return sourceLane === 'low_cost_testing' ? 'livekit' : 'custom_webrtc';
 }

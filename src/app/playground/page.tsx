@@ -22,7 +22,7 @@ const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES', 'ar-SA', 'fr-FR', 
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar'];
-type PlaygroundConnectionMode = 'lightcurve_room' | 'vapi_phone' | 'https_runner';
+type PlaygroundConnectionMode = 'lightcurve_room' | 'phone_verification' | 'https_runner';
 type LiveKitJoinOption = {
   id: string;
   label: string;
@@ -125,8 +125,18 @@ function looksLikePhoneNumber(value: string) {
   return /^\+\d{8,15}$/.test(value.trim().replace(/[\s().-]/g, ''));
 }
 
+function looksLikePhoneOrSip(value: string) {
+  const trimmed = value.trim();
+  return trimmed.startsWith('sip:') || looksLikePhoneNumber(trimmed);
+}
+
 function normalizePhone(value: string) {
   return value.trim().replace(/[\s().-]/g, '');
+}
+
+function normalizePhoneOrSip(value: string) {
+  const trimmed = value.trim();
+  return trimmed.startsWith('sip:') ? trimmed : normalizePhone(trimmed);
 }
 
 async function createPlaygroundConnection(endpoint: string) {
@@ -386,9 +396,6 @@ export default function PlaygroundPage() {
   const [agent, setAgent] = useState('');
   const [connectionMode, setConnectionMode] = useState<PlaygroundConnectionMode>('lightcurve_room');
   const [vapiAgentNumber, setVapiAgentNumber] = useState('');
-  const [vapiApiKey, setVapiApiKey] = useState('');
-  const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
-  const [vapiCallerAssistantId, setVapiCallerAssistantId] = useState('');
   const [providerTurns, setProviderTurns] = useState<LiveTraceTurn[]>([]);
   const [providerScores, setProviderScores] = useState<Array<{ metricName: string; value: number }>>([]);
   const [pollingRun, setPollingRun] = useState(false);
@@ -726,7 +733,7 @@ export default function PlaygroundPage() {
     if (!activeScenario) return;
     const selectedConnectionMode = modeOverride ?? connectionMode;
     const usesHttpsRunner = selectedConnectionMode === 'https_runner';
-    const usesVapiPhone = selectedConnectionMode === 'vapi_phone';
+    const usesPhoneVerification = selectedConnectionMode === 'phone_verification';
     if (usesHttpsRunner && !agent.trim()) {
       setRunError('Enter your compatible HTTPS runner URL, or switch back to the Lightcurve room for a no-endpoint Playground test.');
       return;
@@ -741,21 +748,9 @@ export default function PlaygroundPage() {
         return;
       }
     }
-    if (usesVapiPhone) {
-      if (!vapiApiKey.trim()) {
-        setRunError('Add your Vapi API key for this one-call Playground test, or use the Lightcurve room to avoid provider credentials.');
-        return;
-      }
-      if (!looksLikePhoneNumber(vapiAgentNumber)) {
-        setRunError('Add the inbound phone number your Vapi agent answers, formatted like +12164748341. This is not a Vapi UUID.');
-        return;
-      }
-      if (!looksLikeUuid(vapiPhoneNumberId)) {
-        setRunError('Add the outbound caller phone-number UUID from Vapi Phone Numbers. Use the UUID, not the formatted +1 number.');
-        return;
-      }
-      if (vapiCallerAssistantId.trim() && !looksLikeUuid(vapiCallerAssistantId)) {
-        setRunError('The optional synthetic caller assistant must be a Vapi assistant UUID. Leave it blank to let Lightcurve create the caller from the scenario.');
+    if (usesPhoneVerification) {
+      if (!looksLikePhoneOrSip(vapiAgentNumber)) {
+        setRunError('Enter the phone number or SIP URI your agent answers, for example +12164748341 or sip:agent@example.com.');
         return;
       }
     }
@@ -776,16 +771,16 @@ export default function PlaygroundPage() {
       const connection = usesHttpsRunner ? await createPlaygroundConnection(agent.trim()) : null;
       const scenarioForRun = activeScenario.pronunciation ? activeScenario : baseScenario ?? activeScenario;
       const scenarioOverrides = activeScenario.pronunciation ? [activeScenario] : [];
-      const agentType = usesVapiPhone ? 'vapi' : usesHttpsRunner ? 'custom_webrtc' : 'livekit';
-      const agentConfig = usesVapiPhone
+      const phoneTarget = normalizePhoneOrSip(vapiAgentNumber);
+      const agentType = usesPhoneVerification ? 'vapi' : usesHttpsRunner ? 'custom_webrtc' : 'livekit';
+      const agentConfig = usesPhoneVerification
         ? {
-            callMode: 'bot_to_bot_phone',
-            targetAgentNumber: normalizePhone(vapiAgentNumber),
-            apiKey: vapiApiKey.trim(),
-            phoneNumberId: vapiPhoneNumberId.trim(),
-            callerAssistantId: vapiCallerAssistantId.trim() || undefined,
+            mode: 'vobiz_phone_verification',
+            bridge: 'vobiz_phone',
+            targetAgentNumber: phoneTarget,
+            endpointType: phoneTarget.startsWith('sip:') ? 'sip' : 'phone',
+            declaredProvider: 'playground_phone',
             costMode: 'phone_realism',
-            bridge: 'vapi_phone',
             pronunciation: activeScenario.pronunciation ?? null,
             sandboxEnvironment: environmentType,
             sandboxSourceId: sandboxSourceId || undefined,
@@ -808,7 +803,7 @@ export default function PlaygroundPage() {
           agentType,
           agentConnectionId: connection?.id ?? null,
           agentConfig,
-          webrtcEndpoint: usesVapiPhone ? normalizePhone(vapiAgentNumber) : usesHttpsRunner ? agent.trim() : 'lightcurve://hosted-room',
+          webrtcEndpoint: usesPhoneVerification ? `phone:${phoneTarget}` : usesHttpsRunner ? agent.trim() : 'lightcurve://hosted-room',
           scenarioIds: [scenarioForRun.id],
           scenarioOverrides,
           gitSha: 'playground',
@@ -843,7 +838,7 @@ export default function PlaygroundPage() {
         status: startPayload?.status,
       });
       let liveKitSession = startPayload?.liveKit;
-      if (!usesVapiPhone && liveKitSession) {
+      if (!usesPhoneVerification && liveKitSession) {
         try {
           const sessionResponse = await fetch(`/api/runs/${run.id}/livekit-session`, { cache: 'no-store' });
           const sessionPayload = await sessionResponse.json().catch(() => null);
@@ -866,7 +861,7 @@ export default function PlaygroundPage() {
         sandboxEnvironmentId: environmentPayload?.environment?.environmentId,
       };
       setActiveSandboxRun(nextRun);
-      if (usesVapiPhone) {
+      if (usesPhoneVerification) {
         window.setTimeout(() => {
           void pollActiveRun(nextRun);
         }, 2500);
@@ -966,8 +961,8 @@ export default function PlaygroundPage() {
                   <p className="mt-1 text-xs leading-5 text-slate-500">
                     {connectionMode === 'lightcurve_room'
                       ? 'Connect your agent to a Lightcurve room for a low-friction one-call test.'
-                      : connectionMode === 'vapi_phone'
-                        ? 'Dial your Vapi agent for a one-call phone realism check.'
+                      : connectionMode === 'phone_verification'
+                        ? 'Call the phone or SIP endpoint your agent answers for a real verification check.'
                         : 'Advanced HTTPS runner connected for this Playground call.'}
                   </p>
                 </div>
@@ -1202,7 +1197,7 @@ export default function PlaygroundPage() {
                           <div className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-[#2f5ae0]" />
                             <h3 className="text-sm font-medium text-slate-950">
-                              {activeSandboxRun.provider === 'vapi' ? 'Provider phone call' : 'Lightcurve room'}
+                              {activeSandboxRun.provider === 'vobiz' ? 'Managed phone verification' : 'Lightcurve room'}
                             </h3>
                             <span className="rounded-full border border-[#cfd8ff] bg-[#f6f8ff] px-2 py-0.5 text-[11px] text-[#2448bb]">
                               {activeSandboxRun.status ?? 'ready'}
@@ -1220,7 +1215,7 @@ export default function PlaygroundPage() {
                           >
                             Connection
                           </button>
-                          {activeSandboxRun.provider === 'vapi' && (
+                          {(activeSandboxRun.provider === 'vobiz' || activeSandboxRun.externalCallId) && (
                             <button
                               type="button"
                               className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
@@ -1468,13 +1463,13 @@ export default function PlaygroundPage() {
                 </button>
                 <button
                   type="button"
-                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'vapi_phone' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
+                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'phone_verification' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
                   onClick={() => {
-                    setConnectionMode('vapi_phone');
+                    setConnectionMode('phone_verification');
                     setRunError('');
                   }}
                 >
-                  Provider phone
+                  Real phone
                 </button>
                 <button
                   type="button"
@@ -1618,57 +1613,28 @@ export default function PlaygroundPage() {
                     </div>
                   )}
                 </div>
-              ) : connectionMode === 'vapi_phone' ? (
+              ) : connectionMode === 'phone_verification' ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-medium text-slate-950">Provider phone realism check</p>
+                  <p className="text-sm font-medium text-slate-950">Managed phone verification</p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Use this only when the agent can be tested through a provider phone call.
+                    Lightcurve calls the phone number or SIP URI your agent answers. No provider API key or provider phone UUID is needed for this path.
                   </p>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="mt-4 grid gap-3">
                     <label className="block text-xs text-slate-500">
-                      Your agent phone number
+                      Agent phone number or SIP URI
                       <input
                         className="input-field mt-1"
                         value={vapiAgentNumber}
                         onChange={(event) => setVapiAgentNumber(event.target.value)}
-                        placeholder="+12164748341"
+                        placeholder="+12164748341 or sip:agent@example.com"
                       />
-                      <span className="mt-1 block leading-5 text-slate-500">The inbound number your agent answers. This is not the caller number.</span>
-                    </label>
-                    <label className="block text-xs text-slate-500">
-                      Vapi API key
-                      <input
-                        className="input-field mt-1"
-                        type="password"
-                        value={vapiApiKey}
-                        onChange={(event) => setVapiApiKey(event.target.value)}
-                        placeholder="Required for provider phone calls"
-                      />
-                      <span className="mt-1 block leading-5 text-slate-500">Only used to start this provider-backed call.</span>
-                    </label>
-                    <label className="block text-xs text-slate-500">
-                      Vapi outbound phone-number UUID
-                      <input
-                        className="input-field mt-1"
-                        value={vapiPhoneNumberId}
-                        onChange={(event) => setVapiPhoneNumberId(event.target.value)}
-                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      />
-                      <span className="mt-1 block leading-5 text-slate-500">Paste the UUID from your provider phone-number page, not the formatted +1 number.</span>
-                    </label>
-                    <label className="block text-xs text-slate-500">
-                      Dedicated caller assistant UUID
-                      <input
-                        className="input-field mt-1"
-                        value={vapiCallerAssistantId}
-                        onChange={(event) => setVapiCallerAssistantId(event.target.value)}
-                        placeholder="Optional"
-                      />
-                      <span className="mt-1 block leading-5 text-slate-500">Optional. Leave blank for the generated Lightcurve caller.</span>
+                      <span className="mt-1 block leading-5 text-slate-500">
+                        Put the endpoint your customer-facing voice agent answers. Lightcurve uses its managed caller line under the hood.
+                      </span>
                     </label>
                   </div>
-                  <div className="mt-4 rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">
-                    Use different numbers for the agent and caller. Provider phone calls can bill the provider account.
+                  <div className="mt-4 rounded-lg border border-[#cfd8ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-[#526894]">
+                    This is for a small real-call verification after low-cost sandbox checks. Broad suites should use the Lightcurve room or Agent Replica path first.
                   </div>
                 </div>
               ) : (

@@ -53,6 +53,10 @@ function providerOf(experiment: ExperimentRow): ProviderId {
 }
 
 export function isProviderBackedSandbox(experiment: ExperimentRow) {
+  const agentConfig = getAgentConfig(experiment);
+  if (stringValue(agentConfig.bridge) === 'vobiz_phone' || stringValue(agentConfig.mode) === 'vobiz_phone_verification') {
+    return false;
+  }
   const provider = providerOf(experiment);
   return LIVE_PHONE_PROVIDERS.has(provider);
 }
