@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ProviderLogo } from '@/components/ProviderLogo';
 import { providerDefinitions } from '@/lib/integrations';
-import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
+import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary, scenarioPatternKey } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
 type StoredScenario = typeof REAL_SCENARIO_LIBRARY[number];
@@ -182,16 +182,49 @@ function generateSuiteName(useCaseId: string, goalText: string) {
 }
 
 function selectScenariosForUseCase(scenarios: StoredScenario[], useCaseId: string, goalText: string, language: string) {
+  const useCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
+  const preferredDomains = new Set(useCase.domains.map((domain) => domain.toLowerCase()));
+  const domainScoped =
+    preferredDomains.size > 0
+      ? scenarios.filter((scenario) => preferredDomains.has((scenario.domain ?? '').toLowerCase()))
+      : scenarios;
+  const candidatePool = domainScoped.length >= 8 ? domainScoped : scenarios;
   const ranked = scenarios
+    .filter((scenario) => candidatePool.includes(scenario))
     .map((scenario, index) => ({
       scenario,
       index,
       score: scoreScenarioForUseCase(scenario, useCaseId, goalText, language),
+      pattern: scenarioPatternKey(scenario),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
 
-  const positive = ranked.filter((item) => item.score > 0).slice(0, 12).map((item) => item.scenario);
-  return positive.length >= 4 ? positive : scenarios.slice(0, 12);
+  const selected: StoredScenario[] = [];
+  const usedPatterns = new Set<string>();
+  const usedNames = new Set<string>();
+  const addScenario = (item: (typeof ranked)[number]) => {
+    if (selected.some((scenario) => scenario.id === item.scenario.id)) return;
+    selected.push(item.scenario);
+    usedPatterns.add(item.pattern);
+    usedNames.add(item.scenario.name);
+  };
+
+  ranked.filter((item) => item.score > 0).forEach((item) => {
+    if (selected.length >= 12) return;
+    if (!usedPatterns.has(item.pattern)) addScenario(item);
+  });
+
+  ranked.filter((item) => item.score > 0).forEach((item) => {
+    if (selected.length >= 12) return;
+    if (!usedNames.has(item.scenario.name)) addScenario(item);
+  });
+
+  ranked.forEach((item) => {
+    if (selected.length >= 12) return;
+    addScenario(item);
+  });
+
+  return selected.length >= 4 ? selected : scenarios.slice(0, 12);
 }
 
 async function createAgentConnection(params: {
