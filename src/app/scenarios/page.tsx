@@ -14,6 +14,11 @@ const languageFlags: Record<string, string> = {
   'en-GB': 'UK',
   'hi-IN': 'IN',
   'es-ES': 'ES',
+  'ar-SA': 'SA',
+  'fr-FR': 'FR',
+  'pt-BR': 'BR',
+  'de-DE': 'DE',
+  'pl-PL': 'PL',
 };
 
 const domainStyles: Record<string, string> = {
@@ -455,7 +460,12 @@ export default function ScenariosPage() {
                   onChange={(event) => setCustomScenario((current) => ({ ...current, personaName: event.target.value }))}
                 />
               </label>
-              <FilterSelect label="Language" value={customScenario.language} options={['en-US', 'hi-IN', 'es-ES', 'en-GB']} onChange={(value) => setCustomScenario((current) => ({ ...current, language: value }))} />
+              <FilterSelect
+                label="Language"
+                value={customScenario.language}
+                options={['en-US', 'hi-IN', 'es-ES', 'ar-SA', 'fr-FR', 'pt-BR', 'de-DE', 'pl-PL', 'en-GB']}
+                onChange={(value) => setCustomScenario((current) => ({ ...current, language: value }))}
+              />
               <FilterSelect label="Domain" value={customScenario.domain} options={['ecommerce', 'banking', 'telecom', 'healthcare', 'general']} onChange={(value) => setCustomScenario((current) => ({ ...current, domain: value }))} />
               <FilterSelect label="Emotion" value={customScenario.emotion} options={['angry', 'frustrated', 'urgent', 'nervous', 'confused', 'neutral']} onChange={(value) => setCustomScenario((current) => ({ ...current, emotion: value }))} />
               <div />

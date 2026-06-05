@@ -37,6 +37,7 @@ const personaNames: Record<string, string[]> = {
   banking: ['Priya', 'Elliot', 'Rohan', 'Nina', 'Marcus'],
   telecom: ['Rahul', 'Kevin', 'Aarav', 'Meera', 'Owen'],
   healthcare: ['Elena', 'Carlos', 'Anika', 'Leah', 'Noah'],
+  collections: ['Morgan', 'Isha', 'Mateo', 'Camille', 'Lena'],
   general: ['Taylor', 'Alex', 'Riley', 'Casey', 'Jamie'],
 };
 
@@ -267,6 +268,216 @@ const openingTemplates: Record<ScenarioFamily, string[]> = {
   ],
 };
 
+const openingTemplatesHiIn: Partial<Record<ScenarioFamily, string[]>> = {
+  email_capture: [
+    'Namaste, mujhe apna email update karna hai. Email hai {email_spoken}. Save karne se pehle please read back kar dijiye.',
+    'Mere account par email galat hai. Sahi email {email_spoken} hai. Har character confirm karna.',
+    'Please mera email {email_spoken} set kar dijiye, lekin pehle mujhe spelling wapas suna dijiye.',
+  ],
+  phone_capture: [
+    'Mera callback number update karna hai: {phone_spoken}. Country code ke saath read back kar dijiye.',
+    'Account par phone number galat hai. Sahi number {phone_spoken} hai.',
+    'Please yeh number save kar dijiye: {phone_spoken}. Main repeat kar sakta hoon agar zaroorat ho.',
+  ],
+  account_verification: [
+    'Namaste, mujhe account verify karna hai, lekin details match nahi ho rahi hain.',
+    'Mera account find nahi ho raha. Shayad duplicate record bana hua hai.',
+    'Koi bhi change karne se pehle please meri identity verify karwa dijiye.',
+  ],
+  fraud_dispute: [
+    'Mere card par ek charge dikh raha hai jo maine nahi kiya. Mujhe turant help chahiye.',
+    'Account me suspicious transaction hai. Please verify karke dispute start kar dijiye.',
+    'Mujhe lag raha hai card misuse hua hai. Safe tareeke se next step bataiye.',
+  ],
+  delivery: [
+    'Mera package abhi tak deliver nahi hua. Please status check karke clear next step bataiye.',
+    'Delivery status confusing hai. Mujhe exact update aur expected next step chahiye.',
+    'Order delivery me issue hai. Address, ETA, aur support action confirm kar dijiye.',
+  ],
+  appointment_booking: [
+    'Mujhe appointment book karni hai. Agar aaj ya kal ka slot ho to please bataiye.',
+    'Earliest available appointment chahiye, department aur time clearly confirm kar dijiye.',
+    'Doctor appointment book karni hai. Timezone aur date galat na ho, please confirm kariye.',
+  ],
+  appointment_reschedule: [
+    'Mujhe appointment reschedule karni hai, par available times confuse kar rahe hain.',
+    'Please meri appointment move kar dijiye aur ensure kariye ki double booking na ho.',
+    'Naya slot chahiye. Final time aur date mujhe clearly read back kar dijiye.',
+  ],
+  appointment_cancel: [
+    'Mujhe appointment cancel karni hai aur samajhna hai ki next step kya hoga.',
+    'Please meri visit cancel kar dijiye. Main no-show mark nahi hona chahta.',
+    'Upcoming appointment cancel ya change karni hai. Policy bhi bata dijiye.',
+  ],
+  payment: [
+    'Mera payment fail ho raha hai. Please reason aur next step bataiye.',
+    'Card accept nahi ho raha. Mujhe payment complete karne me help chahiye.',
+    'Payment authorization issue aa raha hai. Sensitive details repeat mat kariye, bas safe next step batayein.',
+  ],
+  plan_upgrade: [
+    'Mujhe plan upgrade karna hai, lekin price aur terms pehle confirm karni hain.',
+    'Upgrade options samjha dijiye aur bill me kya change hoga woh clearly read back kariye.',
+    'Data zyada chahiye, par next invoice me surprise charge nahi chahiye.',
+  ],
+  bill_payment: [
+    'Mujhe bill pay karna hai aur amount due confirm karna hai.',
+    'Bill amount samajh nahi aa raha. Kitna pay karna hai please clear bataiye.',
+    'Payment karne me help chahiye, aur confirm kariye ki payment complete hua ya nahi.',
+  ],
+  general_support: [
+    'Namaste, mujhe account par ek issue resolve karwana hai.',
+    'Mujhe exact information nahi pata, par yeh issue close karwana hai.',
+    'Please bataiye next step kya hai aur kaunsi details chahiye.',
+  ],
+};
+
+const openingTemplatesByLanguage: Record<string, Partial<Record<ScenarioFamily, string[]>>> = {
+  'hi-IN': openingTemplatesHiIn,
+  'es-ES': {
+    email_capture: [
+      'Hola, necesito actualizar mi correo. Es {email_spoken}. Por favor lealo de vuelta antes de guardarlo.',
+      'El correo de mi cuenta esta mal. El correcto es {email_spoken}. Quiero confirmar cada caracter.',
+    ],
+    phone_capture: [
+      'Necesito cambiar mi numero de llamada a {phone_spoken}. Confirme el codigo de pais y los digitos.',
+      'El telefono en mi cuenta esta mal. Debe ser {phone_spoken}.',
+    ],
+    appointment_booking: [
+      'Necesito reservar una cita lo antes posible y confirmar fecha, hora y zona horaria.',
+      'Puede buscar una cita disponible y repetir los detalles antes de guardarla?',
+    ],
+    appointment_reschedule: [
+      'Necesito cambiar mi cita, pero los horarios disponibles me confunden.',
+      'Mueva mi cita y confirme que no haya doble reserva.',
+    ],
+    payment: [
+      'Mi tarjeta fallo y necesito saber que paso sin repetir datos sensibles.',
+      'Estoy intentando pagar, pero la autorizacion no funciona.',
+    ],
+    fraud_dispute: [
+      'Veo un cargo que no reconozco y necesito bloquear cualquier riesgo.',
+      'Hay una transaccion sospechosa en mi cuenta y estoy preocupado.',
+    ],
+    policy_conflict: [
+      'Recibi dos respuestas distintas sobre la politica y necesito una aclaracion.',
+      'La politica no parece aplicar a mi caso. Necesito que me explique el siguiente paso.',
+    ],
+  },
+  'ar-SA': {
+    email_capture: [
+      'Marhaba, areed tahdeeth bareedi. Al email huwa {email_spoken}. Iqrahu li qabl al hifz.',
+      'Al email fi hisabi ghayr saheeh. Al saheeh huwa {email_spoken}. Areed taakeed kull harf.',
+    ],
+    phone_capture: [
+      'Areed tahdeeth raqam al itisal ila {phone_spoken}. Aked ramz al dawla wal arqam.',
+      'Raqam al hatif fi hisabi khata. Al raqam al saheeh huwa {phone_spoken}.',
+    ],
+    appointment_booking: [
+      'Areed hajz mawed qareeb wa taakeed al tareekh wal waqt wal mintaqa al zamaniyah.',
+      'Ibhath an mawed mutah wa aked al tafaseel qabl al hajz.',
+    ],
+    payment: [
+      'Al daf a fashal wa areed marifat al sabab bidun dhikr bayanat hassasah.',
+      'Al bitaqa la tamal wa areed khutwa aminah li ikmal al daf a.',
+    ],
+    fraud_dispute: [
+      'Yujad mablagh la aarifuh fi hisabi wa ana qaliq.',
+      'Areed al itirad ala amaliyah mashboohah bi tareeqah aminah.',
+    ],
+    policy_conflict: [
+      'Wasalatni ijabatain mukhtalifatain an al siyasah wa areed tawdeeh.',
+      'Al siyasah la tabdu munasibah li halati. Ishrah li al khutwa al tali.',
+    ],
+  },  'fr-FR': {
+    email_capture: [
+      'Bonjour, je dois changer mon email. C est {email_spoken}. Relisez-le avant de le sauvegarder.',
+      'L email sur mon compte est incorrect. Le bon email est {email_spoken}.',
+    ],
+    phone_capture: [
+      'Je veux mettre a jour mon numero de rappel: {phone_spoken}. Confirmez le code pays et les chiffres.',
+      'Le numero sur mon compte est faux. Il faut enregistrer {phone_spoken}.',
+    ],
+    appointment_reschedule: [
+      'Je dois deplacer mon rendez-vous, mais les horaires proposes se chevauchent.',
+      'Pouvez-vous changer mon rendez-vous et confirmer le nouveau creneau?',
+    ],
+    payment: [
+      'Mon paiement a echoue et je veux comprendre la prochaine etape.',
+      'La carte est refusee. Aidez-moi sans repeter les details sensibles.',
+    ],
+    policy_conflict: [
+      'On m a donne deux reponses differentes sur la politique. Je veux une clarification.',
+      'La politique semble contradictoire. Dites-moi si une escalation est necessaire.',
+    ],
+  },
+  'pt-BR': {
+    email_capture: [
+      'Oi, preciso atualizar meu email. E {email_spoken}. Leia de volta antes de salvar.',
+      'O email da minha conta esta errado. O correto e {email_spoken}.',
+    ],
+    phone_capture: [
+      'Preciso trocar meu telefone para {phone_spoken}. Confirme o codigo do pais e os digitos.',
+      'O numero cadastrado esta errado. Deve ser {phone_spoken}.',
+    ],
+    delivery: [
+      'Meu pacote nao chegou e preciso de um status claro.',
+      'A entrega esta atrasada. Quero saber o proximo passo sem chute de prazo.',
+    ],
+    payment: [
+      'Meu pagamento falhou e preciso corrigir isso com seguranca.',
+      'A autorizacao do cartao nao passou. Me explique o que fazer.',
+    ],
+    policy_conflict: [
+      'Recebi respostas diferentes sobre a politica e preciso entender qual vale.',
+      'A politica parece conflitar com meu caso. Quero uma explicacao clara.',
+    ],
+  },
+  'de-DE': {
+    email_capture: [
+      'Hallo, ich muss meine E-Mail aktualisieren. Sie lautet {email_spoken}. Bitte lesen Sie sie vor dem Speichern zuruck.',
+      'Die E-Mail in meinem Konto ist falsch. Die richtige ist {email_spoken}.',
+    ],
+    phone_capture: [
+      'Ich mochte meine Ruckrufnummer auf {phone_spoken} andern. Bitte bestatigen Sie Landesvorwahl und Ziffern.',
+      'Die Telefonnummer im Konto stimmt nicht. Sie sollte {phone_spoken} sein.',
+    ],
+    account_verification: [
+      'Meine Kontodaten passen nicht zusammen. Bitte verifizieren Sie mich sicher.',
+      'Ich glaube, es gibt doppelte Kundendaten. Finden Sie bitte den richtigen Datensatz.',
+    ],
+    payment: [
+      'Meine Zahlung wurde abgelehnt. Ich brauche den sicheren nachsten Schritt.',
+      'Die Autorisierung funktioniert nicht. Bitte keine sensiblen Daten laut wiederholen.',
+    ],
+    policy_conflict: [
+      'Ich habe zwei verschiedene Aussagen zur Richtlinie bekommen und brauche Klarheit.',
+      'Die Richtlinie passt nicht zu meinem Fall. Bitte erklaren Sie den nachsten Schritt.',
+    ],
+  },
+  'pl-PL': {
+    email_capture: [
+      'Dzien dobry, musze zmienic email. To {email_spoken}. Prosze odczytac go przed zapisaniem.',
+      'Email na koncie jest zly. Poprawny email to {email_spoken}.',
+    ],
+    phone_capture: [
+      'Chce zmienic numer kontaktowy na {phone_spoken}. Prosze potwierdzic kod kraju i cyfry.',
+      'Numer telefonu w koncie jest niepoprawny. Powinien byc {phone_spoken}.',
+    ],
+    delivery: [
+      'Moja paczka nie dotarla i potrzebuje jasnej informacji co dalej.',
+      'Status dostawy jest mylacy. Prosze sprawdzic nastepny krok.',
+    ],
+    payment: [
+      'Platnosc nie przeszla i chce wiedziec, co moge zrobic bezpiecznie.',
+      'Autoryzacja karty sie nie udala. Prosze nie powtarzac danych wrazliwych.',
+    ],
+    policy_conflict: [
+      'Dostalem dwie rozne odpowiedzi o zasadach i potrzebuje wyjasnienia.',
+      'Zasada wydaje sie sprzeczna z moja sytuacja. Prosze podac nastepny krok.',
+    ],
+  },
+};
+
 function textForSeed(seed: DatasetScenarioSeed) {
   return `${seed.intent} ${seed.domain} ${seed.goal} ${seed.openingLine} ${seed.expectedOutcome}`.toLowerCase();
 }
@@ -322,7 +533,57 @@ function naturalizeRawText(value: string) {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).replace(/[.!?]*$/, '.');
 }
 
-function emotionLead(emotion: string) {
+function emotionLead(emotion: string, language?: string) {
+  if (language === 'hi-IN') {
+    if (['angry', 'irate'].includes(emotion)) return 'Main kaafi pareshan hoon. ';
+    if (emotion === 'frustrated') return 'Main bahut der se yeh resolve karne ki koshish kar raha hoon. ';
+    if (emotion === 'urgent') return 'Mujhe yeh aaj hi handle karwana hai. ';
+    if (emotion === 'nervous') return 'Mujhe tension hai ki galti na ho jaye. ';
+    if (emotion === 'confused') return 'Main thoda confused hoon. ';
+    return '';
+  }
+  if (language === 'es-ES') {
+    if (['angry', 'irate', 'frustrated'].includes(emotion)) return 'Estoy frustrado. ';
+    if (emotion === 'urgent') return 'Necesito resolver esto hoy. ';
+    if (emotion === 'nervous') return 'Me preocupa cometer un error. ';
+    if (emotion === 'confused') return 'Estoy confundido. ';
+    return '';
+  }
+  if (language === 'ar-SA') {
+    if (['angry', 'irate', 'frustrated'].includes(emotion)) return 'انا منزعج واريد حلا واضحا. ';
+    if (emotion === 'urgent') return 'اريد حل هذا اليوم. ';
+    if (emotion === 'nervous') return 'انا قلق من حدوث خطأ. ';
+    if (emotion === 'confused') return 'انا غير متأكد من الخطوة الصحيحة. ';
+    return '';
+  }
+  if (language === 'fr-FR') {
+    if (['angry', 'irate', 'frustrated'].includes(emotion)) return 'Je suis contrarie. ';
+    if (emotion === 'urgent') return 'Je dois regler cela aujourd hui. ';
+    if (emotion === 'nervous') return 'Je crains de faire une erreur. ';
+    if (emotion === 'confused') return 'Je suis un peu perdu. ';
+    return '';
+  }
+  if (language === 'pt-BR') {
+    if (['angry', 'irate', 'frustrated'].includes(emotion)) return 'Estou frustrado. ';
+    if (emotion === 'urgent') return 'Preciso resolver isso hoje. ';
+    if (emotion === 'nervous') return 'Tenho receio de errar. ';
+    if (emotion === 'confused') return 'Estou um pouco confuso. ';
+    return '';
+  }
+  if (language === 'de-DE') {
+    if (['angry', 'irate', 'frustrated'].includes(emotion)) return 'Ich bin verargert. ';
+    if (emotion === 'urgent') return 'Ich brauche heute eine Losung. ';
+    if (emotion === 'nervous') return 'Ich mache mir Sorgen, dass etwas falsch lauft. ';
+    if (emotion === 'confused') return 'Ich bin etwas verwirrt. ';
+    return '';
+  }
+  if (language === 'pl-PL') {
+    if (['angry', 'irate', 'frustrated'].includes(emotion)) return 'Jestem zdenerwowany. ';
+    if (emotion === 'urgent') return 'Musze zalatwic to dzisiaj. ';
+    if (emotion === 'nervous') return 'Martwie sie, ze cos pojdzie zle. ';
+    if (emotion === 'confused') return 'Jestem troche zdezorientowany. ';
+    return '';
+  }
   if (['angry', 'irate'].includes(emotion)) return 'I am really frustrated. ';
   if (emotion === 'frustrated') return 'I have been trying to get this resolved. ';
   if (emotion === 'urgent') return 'I need this handled today. ';
@@ -335,12 +596,12 @@ function polishScenarioCopy(seed: DatasetScenarioSeed, index: number) {
   const family = scenarioFamily(seed);
   const nameList = nameVariants[family];
   const goalList = goalTemplates[family];
-  const openingList = openingTemplates[family];
+  const openingList = openingTemplatesByLanguage[seed.language]?.[family] ?? openingTemplates[family];
   const name = nameList[variantIndex(seed, index, nameList.length)];
   const goal = goalList[variantIndex(seed, index + 7, goalList.length)];
   const templatedOpening = replaceEntities(openingList[variantIndex(seed, index + 13, openingList.length)]);
   const rawOpening = naturalizeRawText(seed.openingLine || seed.goal);
-  const lead = emotionLead(seed.emotion);
+  const lead = emotionLead(seed.emotion, seed.language);
   const openingBase = templatedOpening || rawOpening;
   const naturalOpening = lead ? openingBase.replace(/^hi,\s*/i, '') : openingBase;
   const openingLine = `${lead}${naturalOpening}`.trim();
@@ -376,6 +637,7 @@ export function scenarioPatternKey(scenario: Pick<LibraryScenario, 'name' | 'dom
   if (text.includes('payment') || text.includes('card') || text.includes('authorization')) return 'payment';
   if (text.includes('outage') || text.includes('internet')) return 'outage';
   if (text.includes('plan') || text.includes('upgrade')) return 'plan_upgrade';
+  if (text.includes('verify') || text.includes('lookup') || text.includes('duplicate') || text.includes('account')) return 'account_verification';
   if (text.includes('policy') || text.includes('escalation')) return 'policy_conflict';
   return 'general_support';
 }
@@ -405,10 +667,228 @@ function deterministicUuid(value: string) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
-function interleaveScenarioLibrary(items: LibraryScenario[]) {
+type CuratedEdgeCaseBlueprint = {
+  id: string;
+  family: ScenarioFamily;
+  domain: string;
+  emotion: string;
+  goal: string;
+  openingLine: string;
+  expectedOutcome: string;
+};
+
+const curatedLanguages = ['hi-IN', 'es-ES', 'ar-SA', 'fr-FR', 'pt-BR', 'de-DE', 'pl-PL', 'en-GB'] as const;
+
+const languageAccent: Record<(typeof curatedLanguages)[number], string> = {
+  'hi-IN': 'Hindi-English',
+  'es-ES': 'Spanish',
+  'ar-SA': 'Arabic',
+  'fr-FR': 'French',
+  'pt-BR': 'Brazilian Portuguese',
+  'de-DE': 'German',
+  'pl-PL': 'Polish',
+  'en-GB': 'British',
+};
+
+const curatedEdgeCaseBlueprints: CuratedEdgeCaseBlueprint[] = [
+  {
+    id: 'email-symbol-readback',
+    family: 'email_capture',
+    domain: 'ecommerce',
+    emotion: 'frustrated',
+    goal: 'Update and verify john.smith@gmail.com with exact readback before saving.',
+    openingLine: 'I need to update my email to john.smith@gmail.com, and I want it read back exactly.',
+    expectedOutcome: 'Agent captures john.smith@gmail.com exactly and confirms it before saving.',
+  },
+  {
+    id: 'email-plus-company-domain',
+    family: 'email_capture',
+    domain: 'banking',
+    emotion: 'nervous',
+    goal: 'Capture a.kumar+billing@company.co.in after the caller spells the plus sign and domain.',
+    openingLine: 'The email is a.kumar+billing@company.co.in, with plus billing and company dot co dot in.',
+    expectedOutcome: 'Agent preserves plus sign, company domain, and co.in suffix.',
+  },
+  {
+    id: 'phone-country-code-repeat',
+    family: 'phone_capture',
+    domain: 'telecom',
+    emotion: 'confused',
+    goal: 'Capture +1 800 555 0007 with repeated digits and confirm grouped readback.',
+    openingLine: 'My callback number is plus one, eight hundred, five five five, zero zero zero seven.',
+    expectedOutcome: 'Agent captures the country code and repeated zeroes without dropping digits.',
+  },
+  {
+    id: 'phone-extension-correction',
+    family: 'phone_capture',
+    domain: 'healthcare',
+    emotion: 'urgent',
+    goal: 'Capture +1 415 555 0199 extension 42 after the caller corrects one digit.',
+    openingLine: 'Use plus one four one five five five five zero one nine nine extension forty two; sorry, not zero one eight nine.',
+    expectedOutcome: 'Agent handles the correction and stores the final number plus extension.',
+  },
+  {
+    id: 'calendar-no-slots',
+    family: 'appointment_booking',
+    domain: 'healthcare',
+    emotion: 'urgent',
+    goal: 'Find an appointment when no same-day slots are available and offer a safe next option.',
+    openingLine: 'I need a same-day appointment, but I was told there may be no slots available.',
+    expectedOutcome: 'Agent does not invent availability and offers waitlist or next available slot.',
+  },
+  {
+    id: 'calendar-timezone-conflict',
+    family: 'appointment_reschedule',
+    domain: 'healthcare',
+    emotion: 'confused',
+    goal: 'Reschedule an appointment while resolving timezone confusion and avoiding double booking.',
+    openingLine: 'I am in a different timezone and I do not want the new appointment to overlap with my old one.',
+    expectedOutcome: 'Agent confirms timezone, original appointment, and final rescheduled slot.',
+  },
+  {
+    id: 'calendar-cancellation-policy',
+    family: 'appointment_cancel',
+    domain: 'healthcare',
+    emotion: 'nervous',
+    goal: 'Cancel an appointment while explaining cancellation policy and next step.',
+    openingLine: 'I need to cancel my appointment today, but I am worried about a no-show fee.',
+    expectedOutcome: 'Agent verifies appointment, explains policy, and confirms cancellation status.',
+  },
+  {
+    id: 'crm-duplicate-record',
+    family: 'account_verification',
+    domain: 'banking',
+    emotion: 'confused',
+    goal: 'Resolve a duplicate CRM record before updating sensitive customer information.',
+    openingLine: 'My account lookup keeps finding two profiles, and I need the agent to pick the right one safely.',
+    expectedOutcome: 'Agent asks a safe clarifying question and avoids updating the wrong record.',
+  },
+  {
+    id: 'payment-card-auth-failure',
+    family: 'payment',
+    domain: 'ecommerce',
+    emotion: 'frustrated',
+    goal: 'Handle a failed card authorization without repeating sensitive card data.',
+    openingLine: 'My card authorization failed twice, and I need to know what to do without saying my card number out loud.',
+    expectedOutcome: 'Agent gives a safe payment next step and avoids exposing sensitive card data.',
+  },
+  {
+    id: 'payment-partial-amount',
+    family: 'payment',
+    domain: 'collections',
+    emotion: 'nervous',
+    goal: 'Handle a partial payment request and confirm amount, due date, and remaining balance.',
+    openingLine: 'I can only pay part of the balance today and need to know what happens to the rest.',
+    expectedOutcome: 'Agent confirms amount, due date, and remaining balance without false guarantees.',
+  },
+  {
+    id: 'knowledge-policy-conflict',
+    family: 'policy_conflict',
+    domain: 'general',
+    emotion: 'angry',
+    goal: 'Resolve conflicting policy information and escalate if the answer is blocked.',
+    openingLine: 'The website says one thing and the last agent said another. I need the real policy.',
+    expectedOutcome: 'Agent identifies the conflict, avoids guessing, and escalates when needed.',
+  },
+  {
+    id: 'support-open-ticket-exists',
+    family: 'general_support',
+    domain: 'general',
+    emotion: 'frustrated',
+    goal: 'Detect that an open ticket already exists and avoid creating a duplicate.',
+    openingLine: 'I already opened a ticket yesterday and I do not want to repeat everything again.',
+    expectedOutcome: 'Agent finds the open ticket and summarizes the next support step.',
+  },
+  {
+    id: 'refund-denied-escalation',
+    family: 'refund',
+    domain: 'ecommerce',
+    emotion: 'angry',
+    goal: 'Handle a denied refund request and escalate only when policy allows.',
+    openingLine: 'My refund was denied, but I have proof the package was damaged.',
+    expectedOutcome: 'Agent checks evidence and policy before opening an escalation path.',
+  },
+  {
+    id: 'outage-credit-policy',
+    family: 'outage',
+    domain: 'telecom',
+    emotion: 'frustrated',
+    goal: 'Explain outage credit eligibility while avoiding invented restoration ETA.',
+    openingLine: 'My internet has been down all day and I want a credit and a real ETA.',
+    expectedOutcome: 'Agent separates confirmed outage facts from unknown ETA and explains credit path.',
+  },
+  {
+    id: 'plan-upgrade-price-readback',
+    family: 'plan_upgrade',
+    domain: 'telecom',
+    emotion: 'neutral',
+    goal: 'Upgrade a plan only after reading back pricing, renewal date, and consent.',
+    openingLine: 'I want to upgrade, but I need the new price and renewal date repeated clearly.',
+    expectedOutcome: 'Agent reads back price and renewal date before saving the plan change.',
+  },
+  {
+    id: 'order-cancel-late-fee',
+    family: 'cancel_order',
+    domain: 'ecommerce',
+    emotion: 'urgent',
+    goal: 'Cancel an order near shipping cutoff and explain fee or fallback path.',
+    openingLine: 'I need to cancel before it ships, and I cannot tell if there is a cancellation fee.',
+    expectedOutcome: 'Agent checks eligibility and explains cancellation or fallback clearly.',
+  },
+];
+
+function curatedSpeed(emotion: string, offset: number) {
+  if (emotion === 'angry' || emotion === 'urgent') return 156 + (offset % 18);
+  if (emotion === 'nervous') return 132 + (offset % 14);
+  if (emotion === 'confused') return 124 + (offset % 16);
+  return 138 + (offset % 18);
+}
+
+function curatedNoise(emotion: string, offset: number) {
+  if (emotion === 'angry' || emotion === 'frustrated') return 4 + (offset % 4);
+  if (emotion === 'urgent') return 3 + (offset % 3);
+  return 1 + (offset % 3);
+}
+
+function curatedSeed(language: (typeof curatedLanguages)[number], blueprint: CuratedEdgeCaseBlueprint, index: number): DatasetScenarioSeed {
+  const id = `curated-${language.toLowerCase()}-${blueprint.id}`;
+  return {
+    id,
+    source: {
+      provider: 'manual',
+      dataset: 'lightcurve-curated-multilingual-edge-cases',
+      license: 'lightcurve-curated',
+      rowId: id,
+    },
+    intent: `${blueprint.family}_${blueprint.id}`,
+    domain: blueprint.domain,
+    language,
+    emotion: blueprint.emotion,
+    goal: blueprint.goal,
+    openingLine: blueprint.openingLine,
+    expectedOutcome: blueprint.expectedOutcome,
+    voiceModifiers: {
+      noiseDb: curatedNoise(blueprint.emotion, index),
+      speedWpm: curatedSpeed(blueprint.emotion, index),
+      interrupts: ['angry', 'frustrated', 'urgent'].includes(blueprint.emotion),
+      codeSwitching: language === 'hi-IN',
+      accent: languageAccent[language],
+    },
+    confidence: 0.92,
+    reviewStatus: 'approved',
+  };
+}
+
+const CURATED_EDGE_CASE_SEEDS: DatasetScenarioSeed[] = curatedLanguages.flatMap((language, languageIndex) =>
+  curatedEdgeCaseBlueprints.map((blueprint, blueprintIndex) =>
+    curatedSeed(language, blueprint, languageIndex * curatedEdgeCaseBlueprints.length + blueprintIndex),
+  ),
+);
+
+function interleaveByKey(items: LibraryScenario[], keyForScenario: (scenario: LibraryScenario) => string) {
   const buckets = new Map<string, LibraryScenario[]>();
   items.forEach((scenario) => {
-    const key = `${scenario.domain}:${scenarioPatternKey(scenario)}`;
+    const key = keyForScenario(scenario);
     buckets.set(key, [...(buckets.get(key) ?? []), scenario]);
   });
 
@@ -429,7 +909,48 @@ function interleaveScenarioLibrary(items: LibraryScenario[]) {
   return interleaved;
 }
 
-const GENERATED_SCENARIO_LIBRARY: LibraryScenario[] = (importedSeeds as DatasetScenarioSeed[]).map((seed, index) => {
+function interleaveScenarioLibrary(items: LibraryScenario[]) {
+  const byLanguage = new Map<string, LibraryScenario[]>();
+  items.forEach((scenario) => {
+    byLanguage.set(scenario.language, [...(byLanguage.get(scenario.language) ?? []), scenario]);
+  });
+
+  const preferredLanguageOrder = ['en-US', 'hi-IN', 'es-ES', 'ar-SA', 'fr-FR', 'pt-BR', 'de-DE', 'pl-PL', 'en-GB'];
+  const languages = Array.from(byLanguage.keys()).sort((a, b) => {
+    const aRank = preferredLanguageOrder.indexOf(a);
+    const bRank = preferredLanguageOrder.indexOf(b);
+    if (aRank !== -1 || bRank !== -1) {
+      return (aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank) - (bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank);
+    }
+    return a.localeCompare(b);
+  });
+
+  const queues = new Map(
+    languages.map((language) => [
+      language,
+      interleaveByKey(byLanguage.get(language) ?? [], (scenario) => `${scenario.domain}:${scenarioPatternKey(scenario)}`),
+    ]),
+  );
+
+  const interleaved: LibraryScenario[] = [];
+  let remaining = true;
+  while (remaining) {
+    remaining = false;
+    languages.forEach((language) => {
+      const next = queues.get(language)?.shift();
+      if (next) {
+        interleaved.push(next);
+        remaining = true;
+      }
+    });
+  }
+
+  return interleaved;
+}
+
+const ALL_SCENARIO_SEEDS: DatasetScenarioSeed[] = [...(importedSeeds as DatasetScenarioSeed[]), ...CURATED_EDGE_CASE_SEEDS];
+
+const GENERATED_SCENARIO_LIBRARY: LibraryScenario[] = ALL_SCENARIO_SEEDS.map((seed, index) => {
   const scenario = seedToScenario(seed);
   const polished = polishScenarioCopy(seed, index);
   const domain = domainForFamily(scenario.domain, polished.family);

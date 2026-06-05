@@ -780,6 +780,11 @@ export default function NewExperiment() {
                   <option value="en-GB">en-GB</option>
                   <option value="hi-IN">hi-IN</option>
                   <option value="es-ES">es-ES</option>
+                  <option value="ar-SA">ar-SA</option>
+                  <option value="fr-FR">fr-FR</option>
+                  <option value="pt-BR">pt-BR</option>
+                  <option value="de-DE">de-DE</option>
+                  <option value="pl-PL">pl-PL</option>
                 </select>
                 <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
                   The suite includes normal callers plus edge cases like interruptions, missing info, urgency, email or phone capture, and policy conflicts.

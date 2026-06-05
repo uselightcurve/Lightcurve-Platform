@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { experiments, runs, scenarios } from '@/db/schema';
 import { db } from '@/db';
 import { scores, traces, runs as runsTable, usageEvents } from '@/db/schema';
-import { VOICE_MAP } from '@/lib/constants';
+import { TTS_LANGUAGE_CODE_MAP, VOICE_MAP } from '@/lib/constants';
 import {
   describeLightcurveModel,
   generateWithLightcurveModel,
@@ -185,9 +185,10 @@ async function synthesizeOptionalAudio(runId: string, scenario: ScenarioRow, spe
   if (process.env.BOT_TO_BOT_TTS_ENABLED !== '1' || !process.env.GCS_BUCKET) return undefined;
   const { storage, ttsClient } = await import('./gcp');
   const voiceName = VOICE_MAP[scenario.language] || 'en-US-Neural2-F';
+  const languageCode = TTS_LANGUAGE_CODE_MAP[scenario.language] || scenario.language;
   const [response] = await ttsClient.synthesizeSpeech({
     input: { text },
-    voice: { languageCode: scenario.language, name: voiceName },
+    voice: { languageCode, name: voiceName },
     audioConfig: { audioEncoding: 'MP3' },
   });
   if (!response.audioContent) return undefined;

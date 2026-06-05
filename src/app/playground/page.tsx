@@ -18,7 +18,7 @@ import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realS
 import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
-const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES'];
+const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES', 'ar-SA', 'fr-FR', 'pt-BR', 'de-DE', 'pl-PL'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar'];
@@ -103,6 +103,11 @@ function speechLang(accent: string) {
   if (accent === 'en-IN') return 'en-IN';
   if (accent === 'en-GB') return 'en-GB';
   if (accent === 'es-ES') return 'es-ES';
+  if (accent === 'ar-SA') return 'ar-SA';
+  if (accent === 'fr-FR') return 'fr-FR';
+  if (accent === 'pt-BR') return 'pt-BR';
+  if (accent === 'de-DE') return 'de-DE';
+  if (accent === 'pl-PL') return 'pl-PL';
   return 'en-US';
 }
 
