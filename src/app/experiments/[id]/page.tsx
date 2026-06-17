@@ -46,6 +46,13 @@ function StatusPill({ status }: { status: string }) {
   return <span className={map[status] ?? 'status-pill-pending'}>{label}</span>;
 }
 
+function metricLabel(value: string) {
+  return value
+    .replace(/^booking_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function ExperimentDetail() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<any>(null);
@@ -157,6 +164,12 @@ export default function ExperimentDetail() {
 
   const captureScores = scores.filter((score) => score.metricName === 'capture_overall').map((score) => score.value);
   const paceScores = scores.filter((score) => score.metricName === 'pace_stability').map((score) => score.value);
+  const bookingScores = scores.filter((score) => String(score.metricName ?? '').startsWith('booking_'));
+  const bookingFailures = bookingScores.filter((score) => Number(score.value) < 0.8);
+  const bookingPassRate = bookingScores.length
+    ? bookingScores.filter((score) => Number(score.value) >= 0.8).length / bookingScores.length
+    : null;
+  const bookingWorstFailure = bookingFailures.find((score) => score.rationale);
   const capturePassRate = captureScores.length
     ? captureScores.filter((value) => value >= 0.8).length / captureScores.length
     : null;
@@ -317,6 +330,35 @@ export default function ExperimentDetail() {
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
               Worst failures are now visible at run level with expected value, captured value, readback, and pacing drift.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bookingScores.length > 0 && (
+        <div className="card mb-6 p-5">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-medium text-gray-800">Booking eval coverage</h2>
+              <p className="mt-1 text-xs text-gray-400">Strict checks for brand language, tool sequence, pricing contract, occupancy, and grounding.</p>
+            </div>
+            <span className={bookingFailures.length ? 'status-pill-failed' : 'status-pill-complete'}>
+              {bookingFailures.length ? `${bookingFailures.length} failed` : 'Pass'}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-gray-400">Rule pass rate</p>
+              <div className="mt-2"><ScoreBar value={bookingPassRate ?? 0} /></div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Critical blockers</p>
+              <p className="mt-2 text-2xl font-medium text-gray-900">{bookingFailures.length}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+              {bookingWorstFailure
+                ? `${metricLabel(bookingWorstFailure.metricName)}: ${bookingWorstFailure.rationale}`
+                : 'No booking blockers detected in this experiment.'}
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import importedSeeds from '@/data/real-scenario-seeds.json';
+import { BOOKING_AGENT_EVAL_PACK_SCENARIOS } from './bookingEval';
 import { seedToScenario, type DatasetScenarioSeed } from './datasetScenarios';
 import type { PronunciationSpec } from './pronunciation';
 
@@ -37,6 +38,7 @@ const personaNames: Record<string, string[]> = {
   banking: ['Priya', 'Elliot', 'Rohan', 'Nina', 'Marcus'],
   telecom: ['Rahul', 'Kevin', 'Aarav', 'Meera', 'Owen'],
   healthcare: ['Elena', 'Carlos', 'Anika', 'Leah', 'Noah'],
+  hospitality: ['Aarav', 'Maya', 'Noah', 'Elena', 'Priya', 'Dev', 'Nora', 'Sam'],
   collections: ['Morgan', 'Isha', 'Mateo', 'Camille', 'Lena'],
   general: ['Taylor', 'Alex', 'Riley', 'Casey', 'Jamie'],
 };
@@ -626,6 +628,7 @@ function domainForFamily(domain: string, family: ScenarioFamily) {
 
 export function scenarioPatternKey(scenario: Pick<LibraryScenario, 'name' | 'domain' | 'persona'>) {
   const text = `${scenario.name} ${scenario.domain} ${scenario.persona?.goal ?? ''} ${scenario.persona?.opening_line ?? ''}`.toLowerCase();
+  if (text.includes('booking') || text.includes('reservation') || text.includes('room') || text.includes('occupancy') || text.includes('quote')) return 'booking';
   if (text.includes('email')) return 'email_capture';
   if (text.includes('phone') || text.includes('callback')) return 'phone_capture';
   if (text.includes('reschedule') || text.includes('timezone')) return 'appointment_reschedule';
@@ -1241,7 +1244,10 @@ const GENERATED_SCENARIO_LIBRARY: LibraryScenario[] = ALL_SCENARIO_SEEDS.map((se
   };
 });
 
-export const REAL_SCENARIO_LIBRARY: LibraryScenario[] = interleaveScenarioLibrary(GENERATED_SCENARIO_LIBRARY);
+export const REAL_SCENARIO_LIBRARY: LibraryScenario[] = interleaveScenarioLibrary([
+  ...BOOKING_AGENT_EVAL_PACK_SCENARIOS,
+  ...GENERATED_SCENARIO_LIBRARY,
+]);
 
 export function mergeWithRealScenarioLibrary(stored: LibraryScenario[] | undefined | null) {
   const storedItems = stored ?? [];

@@ -64,6 +64,14 @@ const USE_CASES = [
     goal: 'Book or update an appointment safely while handling urgency and scheduling constraints.',
   },
   {
+    id: 'hospitality',
+    label: 'Hotel / booking agent',
+    detail: 'Rooms, occupancy, quotes, packages, transfers, and brand-language compliance.',
+    domains: ['hospitality'],
+    keywords: ['booking', 'reservation', 'room', 'occupancy', 'quote', 'pricing', 'package', 'transfer', 'bedding', 'tax', 'guest', 'availability'],
+    goal: 'Book rooms safely, follow occupancy rules, use approved brand language, and quote only after the room setup is confirmed.',
+  },
+  {
     id: 'banking',
     label: 'Banking / fintech',
     detail: 'Fraud, card issues, account verification, and payment failures.',
@@ -319,6 +327,15 @@ export default function NewExperiment() {
   const [stubEscalationPolicy, setStubEscalationPolicy] = useState(
     'Escalate when a customer disputes account data, policy conflicts, or the requested action is blocked.',
   );
+  const [stubBrandLanguage, setStubBrandLanguage] = useState(
+    'Use approved brand wording. Do not mention backend tools, JSON, internal systems, or unverified availability/pricing.',
+  );
+  const [stubRequiredBrandPhrases, setStubRequiredBrandPhrases] = useState(
+    'Let me check availability\nI will confirm the room setup before pricing',
+  );
+  const [stubForbiddenBrandPhrases, setStubForbiddenBrandPhrases] = useState(
+    'backend\nJSON\ntool call\ndatabase\nprobably\nguaranteed upgrade',
+  );
   const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState('');
   const [vapiCustomerNumber, setVapiCustomerNumber] = useState('');
   const [vapiMode, setVapiMode] = useState<'bot_to_bot_phone' | 'human_pilot'>('bot_to_bot_phone');
@@ -543,6 +560,9 @@ export default function NewExperiment() {
               toolMocks: stubTools,
               confirmationRules: stubConfirmationRules,
               escalationPolicy: stubEscalationPolicy,
+              brandLanguage: stubBrandLanguage,
+              requiredBrandPhrases: stubRequiredBrandPhrases,
+              forbiddenBrandPhrases: stubForbiddenBrandPhrases,
               costMode: 'low_cost_testing',
             }
           : roomNoKeyMode
@@ -948,6 +968,35 @@ export default function NewExperiment() {
                       value={stubEscalationPolicy}
                       onChange={(event) => setStubEscalationPolicy(event.target.value)}
                       placeholder="When to escalate, when to refuse, when to ask for clarification..."
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Brand language</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubBrandLanguage}
+                      onChange={(event) => setStubBrandLanguage(event.target.value)}
+                      placeholder="Approved wording, tone, and phrases the agent must use..."
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Required phrases</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubRequiredBrandPhrases}
+                      onChange={(event) => setStubRequiredBrandPhrases(event.target.value)}
+                      placeholder="One required phrase per line..."
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Forbidden phrases</label>
+                    <textarea
+                      className="input-field min-h-20 resize-y"
+                      value={stubForbiddenBrandPhrases}
+                      onChange={(event) => setStubForbiddenBrandPhrases(event.target.value)}
+                      placeholder="Backend, probably, guaranteed upgrade..."
                     />
                   </div>
                 </div>

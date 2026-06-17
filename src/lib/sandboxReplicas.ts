@@ -7,7 +7,7 @@ import {
   sandboxToolEvents,
 } from '@/db/schema';
 
-export type SandboxType = 'crm' | 'calendar';
+export type SandboxType = 'crm' | 'calendar' | 'reservation';
 
 export type SandboxPanel = {
   environmentId: string;
@@ -43,6 +43,7 @@ export function normalizeSandboxType(value: unknown): SandboxType | null {
   const text = String(value ?? '').toLowerCase().replace(/\s+/g, '_');
   if (text === 'crm') return 'crm';
   if (text === 'calendar') return 'calendar';
+  if (text === 'reservation' || text === 'booking' || text === 'hotel') return 'reservation';
   return null;
 }
 
@@ -95,6 +96,38 @@ export function buildStarterRows(type: SandboxType, scenario?: ScenarioLike | nu
     ];
   }
 
+  if (type === 'reservation') {
+    return [
+      {
+        property: 'Lightcurve Retreat',
+        date_range: '2026-07-04 to 2026-07-06',
+        timezone: scenario?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
+        adults: 4,
+        children: 0,
+        child_ages: '',
+        room_type: 'Garden Villa',
+        valid_room_types: 'Garden Villa, River Suite, Family Cottage, Courtyard Room, Mountain View Suite, Pool Villa',
+        availability: 'available',
+        room_inventory: 'Garden Villa: 3, River Suite: 1, Family Cottage: 2',
+        occupancy_rule: 'For 4 guests ask: one room with extra bedding or two rooms before pricing.',
+        inclusions: 'Breakfast plan, taxes shown separately, optional airport transfer',
+        base_price: '12000',
+        tax_rate: '0.18',
+        quote_status: 'not_quoted',
+        notes: stringValue(scenario?.persona?.goal, 'Create a safe booking quote.'),
+      },
+      {
+        property: 'Lightcurve Retreat',
+        date_range: '2026-07-04 to 2026-07-06',
+        room_type: 'Presidential Cave',
+        availability: 'invalid_room_type',
+        room_inventory: 'Invalid room guard row',
+        occupancy_rule: 'Reject invalid room names and offer valid alternatives.',
+        quote_status: 'blocked',
+      },
+    ];
+  }
+
   return [
     {
       customer_name: customerName,
@@ -118,11 +151,13 @@ export function buildStarterRows(type: SandboxType, scenario?: ScenarioLike | nu
 }
 
 function recordKind(type: SandboxType) {
+  if (type === 'reservation') return 'reservation_record';
   return type === 'calendar' ? 'calendar_slot' : 'customer';
 }
 
 function rowRef(type: SandboxType, row: SourceRow, index: number) {
   if (type === 'calendar') return stringValue(row.id) || `${row.date ?? 'date'}-${row.slot ?? index}`;
+  if (type === 'reservation') return stringValue(row.id) || `${row.property ?? 'property'}-${row.room_type ?? index}`;
   return stringValue(row.id) || stringValue(row.customer_id) || stringValue(row.email) || `customer-${index + 1}`;
 }
 
@@ -155,14 +190,21 @@ export async function createSandboxSource(params: {
   sourceKind?: string;
 }) {
   const rows = toRows(params.rows);
-  if (!rows.length) throw new Error('Upload at least one CRM or calendar row.');
+  if (!rows.length) throw new Error('Upload at least one CRM, calendar, or reservation row.');
 
   const [source] = await db
     .insert(sandboxSources)
     .values({
       ownerUserId: params.ownerUserId,
       type: params.type,
-      name: stringValue(params.name, params.type === 'calendar' ? 'Calendar sandbox source' : 'CRM sandbox source'),
+      name: stringValue(
+        params.name,
+        params.type === 'calendar'
+          ? 'Calendar sandbox source'
+          : params.type === 'reservation'
+            ? 'Reservation sandbox source'
+            : 'CRM sandbox source',
+      ),
       sourceKind: stringValue(params.sourceKind, 'upload'),
       schemaMapping: params.schemaMapping ?? null,
       sampleRows: rows,
@@ -270,6 +312,28 @@ export async function buildSandboxPanel(environmentId: string, ownerUserId: stri
     };
   }
 
+  if (type === 'reservation') {
+    return {
+      environmentId: environment.id,
+      sourceId: environment.sourceId,
+      title: 'Reservation',
+      endpoint: `/api/sandbox/reservation/availability`,
+      status: stringValue(first?.quote_status, stringValue(first?.availability, 'Ready')),
+      rows: [
+        { label: 'Property', value: stringValue(first?.property, 'Property') },
+        { label: 'Room', value: stringValue(first?.room_type, 'Not selected') },
+        { label: 'Guests', value: `${stringValue(first?.adults, '0')} adults, ${stringValue(first?.children, '0')} children` },
+        { label: 'Status', value: stringValue(first?.quote_status, stringValue(first?.availability, 'Ready')) },
+      ],
+      timeline: events.length ? events.map(eventToTimeline) : [
+        { tool: 'reservation.availability', detail: `${records.length} booking records copied`, status: 'queued' },
+        { tool: 'reservation.inventory', detail: 'Room inventory ready', status: 'queued' },
+        { tool: 'reservation.quote_price', detail: 'Quote writes only to this run copy', status: 'queued' },
+        { tool: 'reservation.escalate', detail: 'Escalation path available for blocked cases', status: 'queued' },
+      ],
+    };
+  }
+
   return {
     environmentId: environment.id,
     sourceId: environment.sourceId,
@@ -325,7 +389,9 @@ export async function applySandboxAction(params: {
   const current = first.data as SourceRow;
   const output = params.tool === 'calendar'
     ? calendarActionOutput(params.action, current, params.input)
-    : crmActionOutput(params.action, current, params.input);
+    : params.tool === 'reservation'
+      ? reservationActionOutput(params.action, current, params.input)
+      : crmActionOutput(params.action, current, params.input);
 
   if (output.patch && output.status !== 'blocked') {
     await db
@@ -405,4 +471,77 @@ function calendarActionOutput(action: string, row: SourceRow, input: SourceRow) 
     };
   }
   return { status: '200 OK', output: { detail: 'Calendar sandbox action recorded' } };
+}
+
+function reservationActionOutput(action: string, row: SourceRow, input: SourceRow) {
+  if (action === 'availability' || action === 'lookup_availability') {
+    const availability = stringValue(row.availability, 'available');
+    return {
+      status: availability.includes('invalid') ? 'blocked' : '200 OK',
+      output: {
+        detail: availability.includes('invalid')
+          ? `Invalid room type ${stringValue(row.room_type, 'room')}; offer valid alternatives`
+          : `Availability is ${availability} for ${stringValue(row.room_type, 'room')}`,
+      },
+    };
+  }
+  if (action === 'inventory' || action === 'room_inventory') {
+    return {
+      status: '200 OK',
+      output: { detail: stringValue(row.room_inventory, 'Room inventory copied into the run sandbox') },
+    };
+  }
+  if (action === 'quote_price' || action === 'pricing' || action === 'quote') {
+    const adults = Number(input.adults ?? row.adults ?? 2);
+    const children = Number(input.children ?? row.children ?? 0);
+    const nights = Number(input.nights ?? 2);
+    const base = Number(row.base_price ?? 12000);
+    const taxRate = Number(row.tax_rate ?? 0.18);
+    const roomChoice = stringValue(input.roomChoice, stringValue(input.room_configuration));
+    const mustChoose = adults + children >= 4 && !roomChoice;
+    if (mustChoose) {
+      return {
+        status: 'blocked',
+        output: { detail: 'Room configuration must be chosen before pricing for this occupancy.' },
+      };
+    }
+    const rooms = Number(input.rooms ?? (adults + children >= 5 ? 2 : 1));
+    const subtotal = base * nights * rooms;
+    const taxes = Math.round(subtotal * taxRate);
+    const total = subtotal + taxes;
+    return {
+      status: '200 OK',
+      output: { detail: `Quoted ${rooms} room(s), ${nights} night(s), taxes ${taxes}, total ${total}` },
+      patch: {
+        quote_status: 'quoted_in_run_copy',
+        adults,
+        children,
+        rooms,
+        nights,
+        taxes,
+        total,
+        room_configuration: roomChoice || `${rooms} room(s)`,
+      },
+    };
+  }
+  if (action === 'package' || action === 'package_lookup' || action === 'experience') {
+    const packageName = stringValue(input.package, stringValue(input.name, 'package'));
+    const allowed = stringValue(row.inclusions).toLowerCase().includes(packageName.toLowerCase()) || !packageName;
+    return {
+      status: allowed ? '200 OK' : 'blocked',
+      output: {
+        detail: allowed
+          ? `${packageName || 'Package'} is grounded in copied reservation data`
+          : `${packageName} is not in approved package data; escalate or clarify`,
+      },
+    };
+  }
+  if (action === 'transfer' || action === 'escalate') {
+    return {
+      status: '200 OK',
+      output: { detail: 'Escalation path recorded for booking specialist review' },
+      patch: { quote_status: 'escalated_in_run_copy' },
+    };
+  }
+  return { status: '200 OK', output: { detail: 'Reservation sandbox action recorded' } };
 }

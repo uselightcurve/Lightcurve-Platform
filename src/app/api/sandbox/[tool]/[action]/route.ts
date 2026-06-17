@@ -8,7 +8,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ tool: s
     const { tool, action } = await params;
     const normalizedTool = normalizeSandboxType(tool);
     if (!normalizedTool) {
-      return NextResponse.json({ error: 'Only CRM and Calendar sandbox tools are available in this release.' }, { status: 400 });
+      return NextResponse.json({ error: 'Only CRM, Calendar, and Reservation sandbox tools are available in this release.' }, { status: 400 });
     }
     const body = await req.json().catch(() => ({}));
     const environmentId = typeof body.environmentId === 'string' ? body.environmentId : '';

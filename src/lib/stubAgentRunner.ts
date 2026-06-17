@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { experiments, runs, scenarios, scores, traces, usageEvents } from '@/db/schema';
+import { experiments, runs, sandboxToolEvents, scenarios, scores, traces, usageEvents } from '@/db/schema';
+import { evaluateBookingTranscript, isBookingScenario } from '@/lib/bookingEval';
 import { describeLightcurveModel, generateWithLightcurveModelResult } from '@/lib/vertex';
 
 type ExperimentRow = typeof experiments.$inferSelect;
@@ -53,6 +54,16 @@ function parseJsonObject(text: string | null): Record<string, unknown> | null {
   }
 }
 
+function listFromConfig(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '').trim()).filter(Boolean);
+  }
+  return String(value ?? '')
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function personaOf(scenario: ScenarioRow) {
   return asRecord(scenario.persona);
 }
@@ -83,6 +94,20 @@ async function generateStubReply(experiment: ExperimentRow, scenario: ScenarioRo
   const toolMocks = stringValue(config.toolMocks, 'CRM, calendar, payments, ticketing, and knowledge-base tools may be unavailable or conflicting.');
   const confirmationRules = stringValue(config.confirmationRules, 'Confirm critical values such as email, phone number, appointment time, amount, and next action.');
   const escalationPolicy = stringValue(config.escalationPolicy, 'Escalate when policy is unclear, the caller disputes account facts, or a tool result conflicts with the caller.');
+  const brandLanguage = stringValue(
+    config.brandLanguage,
+    'Use the client-approved brand voice. Do not improvise unsupported promises, package names, room names, internal tooling language, or casual filler.',
+  );
+  const bookingRules = isBookingScenario(scenario)
+    ? [
+        'Booking-specific rules:',
+        '- Follow the approved brand language exactly; do not invent property, room, package, or service names.',
+        '- Ask the room configuration choice before pricing when occupancy requires it.',
+        '- Use availability and inventory facts before giving a quote.',
+        '- Pricing must include accommodation, nights, adults/children, child ages, rooms, bedding, inclusions, taxes, and total.',
+        '- Never mention backend, JSON, tool calls, API payloads, internal systems, or debug reasons to the caller.',
+      ].join('\n')
+    : '';
   const prompt = [
     'You are a low-cost hosted agent replica for a customer voice AI agent.',
     'Respond as the target agent would, using the supplied instructions. Do not mention that you are a replica or test harness.',
@@ -92,7 +117,9 @@ async function generateStubReply(experiment: ExperimentRow, scenario: ScenarioRo
     `Knowledge/policy notes: ${knowledge}`,
     `Confirmation rules: ${confirmationRules}`,
     `Escalation policy: ${escalationPolicy}`,
+    `Brand language/script guardrail: ${brandLanguage}`,
     `Sandbox tool conditions: ${toolMocks}`,
+    bookingRules,
     `Scenario: ${scenario.name}`,
     `Domain: ${scenario.domain ?? 'general'}`,
     `Caller goal: ${stringValue(personaOf(scenario).goal, 'Resolve the caller issue.')}`,
@@ -234,26 +261,48 @@ export async function executeStubAgentRun(
 
   const latencyP95 = percentile(latencies, 95);
   const judged = await judgeStubRun(experiment, scenario, transcript, latencyP95);
-  const passed = judged.mos >= 3.8 && judged.taskCompletion >= 0.8;
+  const toolEvents = await db
+    .select({
+      tool: sandboxToolEvents.tool,
+      action: sandboxToolEvents.action,
+      status: sandboxToolEvents.status,
+    })
+    .from(sandboxToolEvents)
+    .where(eq(sandboxToolEvents.runId, runId));
+  const config = asRecord(experiment.agentConfig);
+  const bookingEval = evaluateBookingTranscript(scenario, transcript, {
+    brandLanguage: stringValue(config.brandLanguage),
+    requiredPhrases: listFromConfig(config.requiredBrandPhrases),
+    forbiddenPhrases: listFromConfig(config.forbiddenBrandPhrases),
+    toolEvents,
+  });
+  const effectiveTaskCompletion = bookingEval.applicable
+    ? Math.min(judged.taskCompletion, bookingEval.overall)
+    : judged.taskCompletion;
+  const effectiveMos = bookingEval.blocked ? Math.min(judged.mos, 3.2) : judged.mos;
+  const passed = effectiveMos >= 3.8 && effectiveTaskCompletion >= 0.8 && !bookingEval.blocked;
   const endedAt = new Date();
   const simulatedMinutes = Number(Math.max(0.35, transcript.length * 0.16).toFixed(3));
   const durationMs = Math.max(1, Math.round(simulatedMinutes * 60_000));
-  const failureSummary = passed ? null : `Agent replica gate failed: MOS ${judged.mos.toFixed(1)}, task ${Math.round(judged.taskCompletion * 100)}%. ${judged.recommendation}`;
+  const failureSummary = passed
+    ? null
+    : bookingEval.failureSummary ??
+      `Agent replica gate failed: MOS ${effectiveMos.toFixed(1)}, task ${Math.round(effectiveTaskCompletion * 100)}%. ${judged.recommendation}`;
 
   await db.insert(scores).values([
     {
       runId,
       metricName: 'mos',
-      value: Number(judged.mos.toFixed(2)),
+      value: Number(effectiveMos.toFixed(2)),
       method: `agent-replica:${judged.method}:audio-proxy`,
       rationale: judged.rationale,
     },
     {
       runId,
       metricName: 'task_completed',
-      value: Number(judged.taskCompletion.toFixed(3)),
+      value: Number(effectiveTaskCompletion.toFixed(3)),
       method: `agent-replica:${judged.method}`,
-      rationale: judged.recommendation,
+      rationale: bookingEval.failureSummary ?? judged.recommendation,
     },
     {
       runId,
@@ -269,6 +318,13 @@ export async function executeStubAgentRun(
       method: 'agent-replica-simulated-latency',
       rationale: 'Proxy latency for low-cost testing before provider-backed realtime runs.',
     },
+    ...bookingEval.checks.map((check) => ({
+      runId,
+      metricName: check.metricName,
+      value: Number(check.value.toFixed(3)),
+      method: 'booking-rule-engine',
+      rationale: check.rationale,
+    })),
   ]);
 
   const updatedRun = await db

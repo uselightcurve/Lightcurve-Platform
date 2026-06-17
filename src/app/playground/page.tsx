@@ -21,7 +21,7 @@ import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES', 'ar-SA', 'fr-FR', 'pt-BR', 'de-DE', 'pl-PL'];
 const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
 const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
-const ENVIRONMENT_TYPES = ['CRM', 'Calendar'];
+const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Reservation'];
 type PlaygroundConnectionMode = 'lightcurve_room' | 'phone_verification' | 'https_runner';
 type LiveKitJoinOption = {
   id: string;

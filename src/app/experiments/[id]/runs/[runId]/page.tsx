@@ -22,6 +22,13 @@ function ScoreBar({ value, max = 1 }: { value: number; max?: number }) {
   );
 }
 
+function metricLabel(value: string) {
+  return value
+    .replace(/^booking_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function RunDetail() {
   const { id, runId } = useParams<{ id: string; runId: string }>();
   const [data, setData] = useState<any>(null);
@@ -120,7 +127,12 @@ export default function RunDetail() {
     'pace_stability',
     'capture_overall',
   ]);
-  const criterionScores = scores.filter((s) => s.metricName !== 'mos' && !pronunciationMetricNames.has(s.metricName));
+  const bookingScores = scores.filter((s) => String(s.metricName ?? '').startsWith('booking_'));
+  const bookingFailures = bookingScores.filter((s) => Number(s.value) < 0.8);
+  const bookingMetricNames = new Set(bookingScores.map((s) => s.metricName));
+  const criterionScores = scores.filter(
+    (s) => s.metricName !== 'mos' && !pronunciationMetricNames.has(s.metricName) && !bookingMetricNames.has(s.metricName),
+  );
   const suggestion = criterionScores.find((s) => s.rationale)?.rationale;
 
   const importReplay = async () => {
@@ -528,6 +540,33 @@ export default function RunDetail() {
                     <ScoreBar value={s.value} />
                     {s.rationale && (
                       <p className="text-xs text-gray-400 mt-1 leading-snug">{s.rationale}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {bookingScores.length > 0 && (
+            <div className="card p-5">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-800">Booking eval</h3>
+                  <p className="mt-1 text-xs text-gray-400">Brand language, tool order, pricing, occupancy, and grounding.</p>
+                </div>
+                <span className={bookingFailures.length ? 'status-pill-failed' : 'status-pill-complete'}>
+                  {bookingFailures.length ? `${bookingFailures.length} failed` : 'Pass'}
+                </span>
+              </div>
+              <div className="space-y-4">
+                {bookingScores.slice(0, 6).map((s: any) => (
+                  <div key={s.id}>
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-gray-600">{metricLabel(s.metricName)}</span>
+                    </div>
+                    <ScoreBar value={Number(s.value) || 0} />
+                    {s.rationale && (
+                      <p className="mt-1 text-xs leading-snug text-gray-400">{s.rationale}</p>
                     )}
                   </div>
                 ))}
