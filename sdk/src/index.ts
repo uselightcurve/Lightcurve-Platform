@@ -53,7 +53,28 @@ export interface LightcurveRoomTestOptions {
   scenarios?: string[];
   scenarioOverrides?: unknown[];
   agentConfig?: JsonRecord;
+  agentConnectionId?: string;
   gitSha?: string;
+}
+
+export interface AgentConnectionRecord {
+  id: string;
+  provider?: string;
+  displayName?: string;
+  endpoint?: string | null;
+  healthStatus?: string;
+  healthMessage?: string | null;
+  [key: string]: unknown;
+}
+
+export interface CreateAgentConnectionResponse {
+  agentConnection: AgentConnectionRecord;
+}
+
+export interface TestAgentConnectionResponse {
+  ok: boolean;
+  message?: string;
+  agentConnection?: AgentConnectionRecord;
 }
 
 export interface ExperimentRecord {
@@ -88,13 +109,25 @@ export interface LightcurveRoomSession {
   roomName: string;
   liveKitUrl: string;
   agentToken: string;
-  instructions?: string[];
+  callerToken?: string;
+  instructions?: string;
   joinOptions?: Array<{
-    title: string;
-    description: string;
+    id: string;
+    label: string;
+    summary: string;
     steps: string[];
     code?: string;
   }>;
+}
+
+export interface StartRunResponse {
+  success?: boolean;
+  provider?: string;
+  status?: string;
+  externalCallId?: string;
+  externalStatus?: string;
+  liveKit?: LightcurveRoomSession;
+  [key: string]: unknown;
 }
 
 export interface LightcurveRoomTestResponse extends CreateExperimentResponse {
@@ -270,6 +303,7 @@ export class Lightcurve {
       ...roomConfig,
       scenarioIds: scenarioIdsFrom(options),
       scenarioOverrides: options.scenarioOverrides,
+      agentConnectionId: options.agentConnectionId,
       gitSha: options.gitSha,
     });
 
@@ -286,8 +320,8 @@ export class Lightcurve {
     };
   }
 
-  async startRun(runId: string): Promise<unknown> {
-    return this.request(`/api/runs/${encodeURIComponent(runId)}/start`, {
+  async startRun(runId: string): Promise<StartRunResponse> {
+    return this.request<StartRunResponse>(`/api/runs/${encodeURIComponent(runId)}/start`, {
       method: 'POST',
     });
   }
@@ -347,15 +381,15 @@ export class Lightcurve {
     return this.request('/api/agent-connections');
   }
 
-  async createAgentConnection(payload: JsonRecord): Promise<unknown> {
-    return this.request('/api/agent-connections', {
+  async createAgentConnection(payload: JsonRecord): Promise<CreateAgentConnectionResponse> {
+    return this.request<CreateAgentConnectionResponse>('/api/agent-connections', {
       method: 'POST',
       body: payload,
     });
   }
 
-  async testAgentConnection(connectionId: string): Promise<unknown> {
-    return this.request(`/api/agent-connections/${encodeURIComponent(connectionId)}/test`, {
+  async testAgentConnection(connectionId: string): Promise<TestAgentConnectionResponse> {
+    return this.request<TestAgentConnectionResponse>(`/api/agent-connections/${encodeURIComponent(connectionId)}/test`, {
       method: 'POST',
     });
   }
