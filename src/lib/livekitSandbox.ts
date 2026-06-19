@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
 import type { experiments, scenarios } from '@/db/schema';
+import { getRunnerAuthToken, validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
 
 type ExperimentRow = typeof experiments.$inferSelect;
 type ScenarioRow = typeof scenarios.$inferSelect;
@@ -174,4 +175,46 @@ await room.connect(process.env.LIGHTCURVE_ROOM_URL!, process.env.LIGHTCURVE_AGEN
 # If it only answers phone numbers, switch the experiment to Phone realism.`,
     },
   ];
+}
+
+export async function requestAgentRunnerJoin(
+  session: LiveKitSandboxSession,
+  experiment: ExperimentRow,
+) {
+  const config = experiment.agentConfig && typeof experiment.agentConfig === 'object'
+    ? experiment.agentConfig as Record<string, unknown>
+    : {};
+  const endpoint = typeof config.endpoint === 'string' ? config.endpoint.trim() : '';
+  if (!endpoint) return false;
+
+  const endpointProblem = validateNativeRunnerEndpoint('livekit', endpoint);
+  if (endpointProblem) throw new Error(endpointProblem);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const authToken = getRunnerAuthToken(config);
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: JSON.stringify({
+        type: 'lightcurve.room.connect',
+        room: {
+          roomName: session.roomName,
+          liveKitUrl: session.liveKitUrl,
+          agentToken: session.tokens.agent,
+        },
+        scenario: session.scenario,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Agent SDK runner rejected the room connection with ${response.status}.`);
+    }
+    return true;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
