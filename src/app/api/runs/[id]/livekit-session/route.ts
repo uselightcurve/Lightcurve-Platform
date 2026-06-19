@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       ? await db.select().from(experiments).where(and(eq(experiments.id, run.experimentId), eq(experiments.ownerUserId, account.userId))).limit(1)
       : [];
     if (!experiment || !isLightcurveHostedLiveKit(experiment)) {
-      return NextResponse.json({ error: 'Run is not a Lightcurve-hosted LiveKit sandbox.' }, { status: 400 });
+      return NextResponse.json({ error: 'Run is not a Lightcurve test-room sandbox.' }, { status: 400 });
     }
 
     const [scenario] = run.scenarioId
@@ -29,13 +29,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       roomName: session.roomName,
       liveKitUrl: session.liveKitUrl,
       agentToken: session.tokens.agent,
+      callerToken: session.tokens.caller,
       instructions: session.instructions,
       joinOptions: createLiveKitJoinOptions(session),
     });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
-    const message = error instanceof Error ? error.message : 'LiveKit session unavailable';
+    const message = error instanceof Error ? error.message : 'Lightcurve room session unavailable';
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

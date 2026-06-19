@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     if (livePhoneMode && scenarioIds.length > phoneScenarioLimit) {
       return NextResponse.json(
         {
-          error: `Real phone sandboxes are capped at ${phoneScenarioLimit} scenarios per batch. Select a smaller pilot suite, then batch the rest.`,
+          error: `Phone realism runs are capped at ${phoneScenarioLimit} scenarios per batch. Select a smaller pilot suite, then batch the rest.`,
         },
         { status: 400 },
       );

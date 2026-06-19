@@ -9,17 +9,17 @@ export type CostLane = {
 export const COST_LANES: Record<CostLaneId, CostLane> = {
   low_cost_testing: {
     id: 'low_cost_testing',
-    label: 'Low-cost simulation',
-    description: 'Prompt, tool-call, RAG, and knowledge-base coverage before real phone verification.',
+    label: 'Low-cost testing',
+    description: 'Prompt, tool-call, RAG, and knowledge-base coverage before phone realism checks.',
   },
   provider_backed: {
     id: 'provider_backed',
-    label: 'Room verification',
-    description: 'The customer agent joins a Lightcurve room or compatible runner for isolated media tests.',
+    label: 'Lightcurve test room',
+    description: 'The customer agent joins an isolated Lightcurve room or compatible runner for media tests.',
   },
   phone_realism: {
     id: 'phone_realism',
-    label: 'Real phone verification',
+    label: 'Phone realism',
     description: 'Only failed or risky scenarios are escalated to phone/SIP realism checks.',
   },
 };

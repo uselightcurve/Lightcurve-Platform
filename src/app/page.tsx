@@ -74,7 +74,7 @@ export default function Home() {
     {
       title: 'Avg MOS',
       value: overview.panels.mos.value ? overview.panels.mos.value.toFixed(1) : '-',
-      href: '/monitor?metric=mos',
+      href: '/logs?metric=mos',
       icon: 'target',
       variant: 'line' as const,
       series: overview.panels.mos.series,
@@ -83,7 +83,7 @@ export default function Home() {
     {
       title: 'Task completion',
       value: overview.panels.task.value ? `${Math.round(overview.panels.task.value)}%` : '-',
-      href: '/monitor?metric=task',
+      href: '/experiments',
       icon: 'check',
       variant: 'line' as const,
       series: overview.panels.task.series,
@@ -92,7 +92,7 @@ export default function Home() {
     {
       title: 'Latency p95',
       value: overview.panels.latency.value ? `${(overview.panels.latency.value / 1000).toFixed(1)}s` : '-',
-      href: '/monitor?metric=latency',
+      href: '/logs?metric=latency',
       icon: 'clock',
       variant: 'line' as const,
       series: overview.panels.latency.series,
@@ -130,7 +130,7 @@ export default function Home() {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Link href="/monitor" className="btn-primary">View charts</Link>
+        <Link href="/logs" className="btn-primary">Inspect calls</Link>
         <Link href="/logs" className="btn-secondary">Calls</Link>
         <Link href="/experiments/new" className="btn-secondary">Create experiment</Link>
       </div>

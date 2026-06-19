@@ -16,7 +16,7 @@ function isLocalHttp(url: URL) {
 }
 
 export function nativeRunnerLabel(provider: string) {
-  if (provider === 'livekit') return 'LiveKit runner endpoint';
+  if (provider === 'livekit') return 'Lightcurve room runner endpoint';
   if (provider === 'pipecat') return 'Pipecat runner endpoint';
   if (provider === 'custom_webrtc') return 'Custom WebRTC runner endpoint';
   return 'agent runner endpoint';
@@ -27,14 +27,14 @@ export function validateNativeRunnerEndpoint(provider: string, endpoint: string 
   if (!isNativeRunnerProvider(provider)) return '';
   if (!value) return `${nativeRunnerLabel(provider)} is required for bot-to-bot sandbox mode.`;
   if (value.startsWith('sip:') || value.startsWith('wss:')) {
-    return 'Native SIP/WebRTC media bridging is the next hardening layer. For production today, connect a compatible HTTPS runner endpoint.';
+    return 'Use a compatible advanced runner endpoint for this path, or switch to Lightcurve room.';
   }
 
   let parsed: URL;
   try {
     parsed = new URL(value);
   } catch {
-    return 'Enter a real HTTPS runner URL. Random text cannot be used as an agent endpoint.';
+    return 'Enter a compatible advanced runner URL. Random text cannot be used as an agent endpoint.';
   }
 
   if (parsed.protocol === 'https:') return '';

@@ -104,12 +104,12 @@ export function releaseWorkflowForExperiment(
     releaseStage = 'needs_real_verification';
     releaseLabel = 'Simulation found risky cases';
     releaseMessage =
-      'Broad simulated testing found failed scenarios. Promote only these failures to real phone verification before making a final release decision.';
+      'Broad simulated testing found failed scenarios. Promote only these failures to phone realism before making a final release decision.';
   } else if (sourceLane === 'low_cost_testing') {
     releaseStage = 'low_cost_screen';
     releaseLabel = 'Simulation suite passed';
     releaseMessage =
-      'Broad simulated testing passed. Run a small real phone verification only if this release needs carrier-level realism.';
+      'Broad simulated testing passed. Run a small phone-realism check only if this release needs carrier-level realism.';
   } else {
     releaseStage = gatePassed ? 'final_pass' : 'final_block';
     releaseLabel = gatePassed ? 'Final release signal: ship' : 'Final release signal: block';

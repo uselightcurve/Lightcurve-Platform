@@ -119,7 +119,7 @@ async function callAgentRunner(
   }
 
   if (!runnerUrl) {
-    throw new Error('A real agent runner endpoint is required. Add a WebRTC/SIP/Pipecat/LiveKit endpoint or use a provider-backed call.');
+    throw new Error('A real agent runner endpoint is required. Add a compatible advanced runner endpoint or use a phone-realism call.');
   }
 
   const endpointProblem = validateNativeRunnerEndpoint(experiment.agentType, runnerUrl);

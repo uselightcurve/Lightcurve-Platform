@@ -70,14 +70,14 @@ export default function RunDetail() {
       .then(({ ok, body }) => {
         if (cancelled) return;
         if (!ok) {
-          setLiveKitError(body.error ?? 'LiveKit session unavailable');
+          setLiveKitError(body.error ?? 'Lightcurve room session unavailable');
           return;
         }
         setLiveKitSession(body);
         setLiveKitError('');
       })
       .catch(() => {
-        if (!cancelled) setLiveKitError('LiveKit session unavailable');
+        if (!cancelled) setLiveKitError('Lightcurve room session unavailable');
       });
     return () => {
       cancelled = true;
@@ -296,10 +296,10 @@ export default function RunDetail() {
 
               {connectionModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
-                  <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl">
                     <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
                       <div>
-                        <h2 className="text-base font-medium text-slate-950">Connect agent to Lightcurve room</h2>
+                        <h2 className="text-base font-medium text-slate-950">Connect agent to test room</h2>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
                           Paste these one-time details into your agent runtime. Lightcurve joins as the caller and judge.
                         </p>
@@ -313,7 +313,7 @@ export default function RunDetail() {
                       </button>
                     </div>
 
-                    <div className="max-h-[72vh] space-y-4 overflow-auto p-5">
+                    <div className="max-h-[calc(100vh-120px)] space-y-3 overflow-auto p-4">
                       {liveKitError ? (
                         <div className="rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] p-3 text-xs leading-relaxed text-[#8f3d3b]">
                           {liveKitError}
@@ -373,7 +373,7 @@ export default function RunDetail() {
                           </div>
                           {Array.isArray(liveKitSession.joinOptions) && (
                             <div className="space-y-3">
-                              <h3 className="text-sm font-medium text-gray-800">Choose your agent runtime</h3>
+                              <h3 className="text-sm font-medium text-gray-800">SDK examples</h3>
                               {liveKitSession.joinOptions.map((option: any) => (
                                 <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-3">
                                   <summary className="cursor-pointer text-sm font-medium text-slate-900">
@@ -409,7 +409,7 @@ export default function RunDetail() {
                         </>
                       ) : (
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                          Preparing Lightcurve room details...
+                          Preparing test-room details...
                         </div>
                       )}
                     </div>

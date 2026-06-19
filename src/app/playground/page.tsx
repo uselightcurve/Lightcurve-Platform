@@ -1,26 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ScoreBar } from '@/components/PageActions';
 import {
-  PRONUNCIATION_PRESETS,
   buildPronunciationReport,
-  buildPronunciationScenario,
-  createPronunciationSpec,
   entityLabel,
   spokenFormForValue,
-  type PronunciationEntityType,
-  type PronunciationMode,
-  type PronunciationPace,
 } from '@/lib/pronunciation';
 import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
 
-const ACCENTS = ['en-US', 'en-IN', 'hi-IN', 'en-GB', 'es-ES', 'ar-SA', 'fr-FR', 'pt-BR', 'de-DE', 'pl-PL'];
-const PACES: PronunciationPace[] = ['slow', 'normal', 'fast'];
-const MODES: PronunciationMode[] = ['normal', 'spell_out', 'grouped', 'correction'];
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Reservation'];
 type PlaygroundConnectionMode = 'lightcurve_room' | 'phone_verification' | 'https_runner';
 type LiveKitJoinOption = {
@@ -42,6 +33,7 @@ type ActiveSandboxRun = {
     roomName: string;
     liveKitUrl: string;
     agentToken: string;
+    callerToken?: string;
     instructions: string;
     joinOptions?: LiveKitJoinOption[];
   };
@@ -88,35 +80,6 @@ function Waveform({ active = false }: { active?: boolean }) {
   );
 }
 
-function modeLabel(mode: PronunciationMode) {
-  const labels: Record<PronunciationMode, string> = {
-    normal: 'Normal',
-    spell_out: 'Spell out',
-    grouped: 'Grouped',
-    correction: 'Correction',
-  };
-  return labels[mode];
-}
-
-function speechLang(accent: string) {
-  if (accent === 'hi-IN') return 'hi-IN';
-  if (accent === 'en-IN') return 'en-IN';
-  if (accent === 'en-GB') return 'en-GB';
-  if (accent === 'es-ES') return 'es-ES';
-  if (accent === 'ar-SA') return 'ar-SA';
-  if (accent === 'fr-FR') return 'fr-FR';
-  if (accent === 'pt-BR') return 'pt-BR';
-  if (accent === 'de-DE') return 'de-DE';
-  if (accent === 'pl-PL') return 'pl-PL';
-  return 'en-US';
-}
-
-function speechRate(pace: PronunciationPace) {
-  if (pace === 'slow') return 0.72;
-  if (pace === 'fast') return 1.18;
-  return 0.92;
-}
-
 function looksLikeUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
 }
@@ -145,7 +108,7 @@ async function createPlaygroundConnection(endpoint: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       provider: 'custom_webrtc',
-      displayName: 'Playground HTTPS runner',
+      displayName: 'Playground advanced runner',
       endpointType: 'webrtc',
       endpoint,
       credentials: {},
@@ -401,16 +364,13 @@ export default function PlaygroundPage() {
   const [pollingRun, setPollingRun] = useState(false);
   const [scenarios, setScenarios] = useState<StoredScenario[]>(dedupeScenarios(REAL_SCENARIO_LIBRARY as StoredScenario[]));
   const [visibleTurns, setVisibleTurns] = useState(0);
-  const [pronunciationEnabled, setPronunciationEnabled] = useState(true);
-  const [entityType, setEntityType] = useState<PronunciationEntityType>('email');
-  const [targetValue, setTargetValue] = useState(PRONUNCIATION_PRESETS.email[0]);
-  const [accent, setAccent] = useState('en-US');
-  const [pace, setPace] = useState<PronunciationPace>('normal');
-  const [mode, setMode] = useState<PronunciationMode>('spell_out');
   const [environmentType, setEnvironmentType] = useState('CRM');
   const [runError, setRunError] = useState('');
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveSandboxRun | null>(null);
+  const [micState, setMicState] = useState<'idle' | 'connecting' | 'live'>('idle');
+  const liveKitRoomRef = useRef<{ disconnect: () => void } | null>(null);
+  const micTrackRef = useRef<{ stop: () => void } | null>(null);
   const [copiedJoinValue, setCopiedJoinValue] = useState('');
   const [sandboxSources, setSandboxSources] = useState<SandboxSource[]>([]);
   const [sandboxSourceId, setSandboxSourceId] = useState('');
@@ -477,6 +437,13 @@ export default function PlaygroundPage() {
     };
   }, [environmentType]);
 
+  useEffect(() => {
+    return () => {
+      micTrackRef.current?.stop();
+      liveKitRoomRef.current?.disconnect();
+    };
+  }, []);
+
   const baseScenario = useMemo(() => {
     return scenarios.find((scenario) => scenario.id === scenarioId) ?? scenarios[0];
   }, [scenarioId, scenarios]);
@@ -485,20 +452,9 @@ export default function PlaygroundPage() {
     return sandboxSources.find((source) => source.id === sandboxSourceId) ?? null;
   }, [sandboxSourceId, sandboxSources]);
 
-  const pronunciationSpec = useMemo(() => {
-    return createPronunciationSpec({
-      entityType,
-      targetValue,
-      accent,
-      pace,
-      mode,
-    });
-  }, [accent, entityType, mode, pace, targetValue]);
-
   const activeScenario = useMemo(() => {
-    if (!baseScenario || !pronunciationEnabled) return baseScenario;
-    return buildPronunciationScenario(baseScenario, pronunciationSpec);
-  }, [baseScenario, pronunciationEnabled, pronunciationSpec]);
+    return baseScenario;
+  }, [baseScenario]);
 
   const transcript = useMemo(() => {
     if (!activeScenario) return [];
@@ -510,6 +466,7 @@ export default function PlaygroundPage() {
         spec.entityType === 'email'
           ? spec.targetValue.replace(/@/g, ' at ').replace(/\./g, ' dot ').replace(/\+/g, ' plus ').replace(/-/g, ' dash ').replace(/_/g, ' underscore ')
           : spokenFormForValue(spec.entityType, spec.targetValue, 'grouped');
+      const pronunciationPace = spec.pace ?? 'normal';
 
       return [
         {
@@ -520,12 +477,12 @@ export default function PlaygroundPage() {
         {
           speaker: 'agent' as const,
           text: `I heard ${spec.targetValue}. I will read it back slowly before I save it.`,
-          latencyMs: pace === 'slow' ? 1380 : pace === 'fast' ? 820 : 1040,
+          latencyMs: pronunciationPace === 'slow' ? 1380 : pronunciationPace === 'fast' ? 820 : 1040,
         },
         {
           speaker: 'agent' as const,
           text: `Confirming ${spec.entityType === 'email' ? 'email' : 'phone number'}: ${spec.targetValue}. Spoken back as ${slowReadback}. Is that correct?`,
-          latencyMs: pace === 'slow' ? 1740 : pace === 'fast' ? 980 : 1320,
+          latencyMs: pronunciationPace === 'slow' ? 1740 : pronunciationPace === 'fast' ? 980 : 1320,
         },
         {
           speaker: 'caller' as const,
@@ -559,7 +516,7 @@ export default function PlaygroundPage() {
         latencyMs: 1020,
       },
     ];
-  }, [activeScenario, pace]);
+  }, [activeScenario]);
 
   const pronunciationReport = useMemo(() => {
     if (!activeScenario?.pronunciation) return null;
@@ -589,33 +546,6 @@ export default function PlaygroundPage() {
     }, 850);
     return () => window.clearInterval(interval);
   }, [callState, providerBackedLiveCall, transcript.length]);
-
-  function selectPreset(value: string) {
-    setTargetValue(value);
-    setCallState('idle');
-    setVisibleTurns(0);
-    trackLightcurveEvent('Pronunciation Preset Selected', {
-      entity_type: entityType,
-      mode,
-      accent,
-      pace,
-    });
-  }
-
-  function listenToPronunciation() {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    trackLightcurveEvent('Pronunciation Listen Clicked', {
-      entity_type: entityType,
-      mode,
-      accent,
-      pace,
-    });
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(pronunciationSpec.spokenForms[0]);
-    utterance.lang = speechLang(accent);
-    utterance.rate = speechRate(pace);
-    window.speechSynthesis.speak(utterance);
-  }
 
   function openSandboxSetup() {
     const template = sandboxTemplate(environmentType);
@@ -735,16 +665,16 @@ export default function PlaygroundPage() {
     const usesHttpsRunner = selectedConnectionMode === 'https_runner';
     const usesPhoneVerification = selectedConnectionMode === 'phone_verification';
     if (usesHttpsRunner && !agent.trim()) {
-      setRunError('Enter your compatible HTTPS runner URL, or switch back to the Lightcurve room for a no-endpoint Playground test.');
+      setRunError('Enter a compatible advanced runner URL, or switch back to Lightcurve room for a no-endpoint Playground test.');
       return;
     }
     if (usesHttpsRunner) {
       if (agent.trim().startsWith('sip:') || agent.trim().startsWith('wss:')) {
-        setRunError('Native SIP/WebRTC bridge endpoints belong in Experiments. Playground accepts a Lightcurve room or a compatible HTTPS runner URL.');
+        setRunError('Advanced runner endpoints belong in Experiments. Playground accepts Lightcurve room or a compatible advanced runner URL.');
         return;
       }
       if (!agent.trim().startsWith('https://')) {
-        setRunError('Use a compatible HTTPS runner URL here. Random text, raw phone numbers, and provider phone IDs cannot start a Playground call.');
+        setRunError('Use a compatible advanced runner URL here. Random text or phone-number IDs cannot start a Playground call.');
         return;
       }
     }
@@ -763,8 +693,6 @@ export default function PlaygroundPage() {
     trackLightcurveEvent('Playground Sandbox Started', {
       scenario_id: baseScenario?.id ?? activeScenario.id,
       environment_type: environmentType,
-      pronunciation_enabled: pronunciationEnabled,
-      entity_type: pronunciationEnabled ? entityType : undefined,
       connection_mode: selectedConnectionMode,
     });
     try {
@@ -915,6 +843,54 @@ export default function PlaygroundPage() {
     }
   }
 
+  async function toggleDeveloperMic() {
+    if (micState === 'live') {
+      micTrackRef.current?.stop();
+      liveKitRoomRef.current?.disconnect();
+      micTrackRef.current = null;
+      liveKitRoomRef.current = null;
+      setMicState('idle');
+      trackLightcurveEvent('Playground Mic Disconnected', {
+        run_id: activeSandboxRun?.runId,
+      });
+      return;
+    }
+
+    const liveKit = activeSandboxRun?.liveKit;
+    if (!liveKit?.liveKitUrl || !liveKit.callerToken) {
+      setRunError('Start a Lightcurve room first, then connect your mic to speak as the caller.');
+      return;
+    }
+
+    setMicState('connecting');
+    setRunError('');
+    try {
+      const { Room, createLocalAudioTrack } = await import('livekit-client');
+      const room = new Room();
+      await room.connect(liveKit.liveKitUrl, liveKit.callerToken);
+      const track = await createLocalAudioTrack({
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      });
+      await room.localParticipant.publishTrack(track);
+      liveKitRoomRef.current = room;
+      micTrackRef.current = track;
+      setMicState('live');
+      trackLightcurveEvent('Playground Mic Connected', {
+        run_id: activeSandboxRun?.runId,
+        room_name: liveKit.roomName,
+      });
+    } catch (error) {
+      micTrackRef.current?.stop();
+      liveKitRoomRef.current?.disconnect();
+      micTrackRef.current = null;
+      liveKitRoomRef.current = null;
+      setMicState('idle');
+      setRunError(error instanceof Error ? error.message : 'Microphone could not connect to the Lightcurve room.');
+    }
+  }
+
   if (!activeScenario) {
     return (
       <div className="card p-8 text-center">
@@ -928,7 +904,7 @@ export default function PlaygroundPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">Playground</h1>
-        <p className="page-subtitle">Run one sandbox call, test pronunciation capture, then save it into experiments.</p>
+        <p className="page-subtitle">Run one sandbox call against a connected agent, inspect tools, then save it into experiments.</p>
       </div>
 
       <div className="grid grid-cols-[0.38fr_0.62fr] gap-5">
@@ -960,10 +936,10 @@ export default function PlaygroundPage() {
                   <p className="text-sm font-medium text-slate-950">Agent under test</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
                     {connectionMode === 'lightcurve_room'
-                      ? 'Connect your agent to a Lightcurve room for a low-friction one-call test.'
+                      ? 'Connect your agent to a Lightcurve room for a one-call test.'
                       : connectionMode === 'phone_verification'
-                        ? 'Call the phone or SIP endpoint your agent answers for a real verification check.'
-                        : 'Advanced HTTPS runner connected for this Playground call.'}
+                        ? 'Call the phone or SIP endpoint your agent answers for a phone check.'
+                        : 'Advanced runner connected for this Playground call.'}
                   </p>
                 </div>
                 <button
@@ -1042,98 +1018,6 @@ export default function PlaygroundPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-950">Pronunciation action</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Reusable capture test. v1 focuses on emails and phone numbers.</p>
-                </div>
-                <button
-                  type="button"
-                  className={pronunciationEnabled ? 'btn-primary min-h-8 px-3 py-1.5 text-xs' : 'btn-secondary min-h-8 px-3 py-1.5 text-xs'}
-                  onClick={() => {
-                    setPronunciationEnabled((current) => !current);
-                    setCallState('idle');
-                  }}
-                >
-                  {pronunciationEnabled ? 'On' : 'Off'}
-                </button>
-              </div>
-
-              {pronunciationEnabled && (
-                <div className="mt-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block text-xs text-slate-500">
-                      Entity
-                      <select
-                        className="select-field mt-1"
-                        value={entityType}
-                        onChange={(event) => {
-                          const next = event.target.value as PronunciationEntityType;
-                          setEntityType(next);
-                          setTargetValue(PRONUNCIATION_PRESETS[next][0]);
-                          setMode(next === 'email' ? 'spell_out' : 'grouped');
-                          setCallState('idle');
-                        }}
-                      >
-                        <option value="email">Email</option>
-                        <option value="phone_number">Phone number</option>
-                      </select>
-                    </label>
-                    <label className="block text-xs text-slate-500">
-                      Mode
-                      <select className="select-field mt-1" value={mode} onChange={(event) => setMode(event.target.value as PronunciationMode)}>
-                        {MODES.map((item) => (
-                          <option key={item} value={item}>{modeLabel(item)}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <label className="block text-xs text-slate-500">
-                    Target value
-                    <input className="input-field mt-1" value={targetValue} onChange={(event) => setTargetValue(event.target.value)} />
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    {PRONUNCIATION_PRESETS[entityType].map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        className={`rounded-md border px-2.5 py-1.5 text-xs ${preset === targetValue ? 'border-[#2f5ae0] bg-[#eef2ff] text-[#2448bb]' : 'border-slate-200 bg-white text-slate-600'}`}
-                        onClick={() => selectPreset(preset)}
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block text-xs text-slate-500">
-                      Accent
-                      <select className="select-field mt-1" value={accent} onChange={(event) => setAccent(event.target.value)}>
-                        {ACCENTS.map((item) => <option key={item} value={item}>{item}</option>)}
-                      </select>
-                    </label>
-                    <label className="block text-xs text-slate-500">
-                      Pace
-                      <select className="select-field mt-1" value={pace} onChange={(event) => setPace(event.target.value as PronunciationPace)}>
-                        {PACES.map((item) => <option key={item} value={item}>{item}</option>)}
-                      </select>
-                    </label>
-                  </div>
-
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">Caller pronunciation</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">{pronunciationSpec.spokenForms[0]}</p>
-                    <button type="button" className="btn-secondary mt-3 min-h-8 px-3 py-1.5 text-xs" onClick={listenToPronunciation}>
-                      Listen
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <details className="rounded-lg border border-slate-200 bg-white p-3">
               <summary className="cursor-pointer text-sm text-slate-700">Advanced</summary>
               <div className="mt-4 space-y-3">
@@ -1173,7 +1057,7 @@ export default function PlaygroundPage() {
                   <Waveform />
                 </div>
                 <p className="mt-5 text-sm text-slate-500">
-                  {pronunciationEnabled ? 'Listen to the caller value, then start the sandbox call.' : 'Pick a scenario and start the sandbox call.'}
+                  Connect an agent and start the sandbox call.
                 </p>
               </div>
             ) : (
@@ -1197,7 +1081,7 @@ export default function PlaygroundPage() {
                           <div className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-[#2f5ae0]" />
                             <h3 className="text-sm font-medium text-slate-950">
-                              {activeSandboxRun.provider === 'vobiz' ? 'Managed phone verification' : 'Lightcurve room'}
+                              {activeSandboxRun.provider === 'vobiz' ? 'Phone check' : 'Lightcurve room'}
                             </h3>
                             <span className="rounded-full border border-[#cfd8ff] bg-[#f6f8ff] px-2 py-0.5 text-[11px] text-[#2448bb]">
                               {activeSandboxRun.status ?? 'ready'}
@@ -1215,6 +1099,16 @@ export default function PlaygroundPage() {
                           >
                             Connection
                           </button>
+                          {activeSandboxRun.liveKit && (
+                            <button
+                              type="button"
+                              className={micState === 'live' ? 'btn-primary min-h-8 px-3 py-1.5 text-xs' : 'btn-secondary min-h-8 px-3 py-1.5 text-xs'}
+                              onClick={() => void toggleDeveloperMic()}
+                              disabled={micState === 'connecting'}
+                            >
+                              {micState === 'live' ? 'Stop mic' : micState === 'connecting' ? 'Connecting...' : 'Use mic'}
+                            </button>
+                          )}
                           {(activeSandboxRun.provider === 'vobiz' || activeSandboxRun.externalCallId) && (
                             <button
                               type="button"
@@ -1314,12 +1208,12 @@ export default function PlaygroundPage() {
             <div className="border-t border-slate-100 bg-white px-5 py-4">
               <div className="flex flex-wrap items-center gap-3">
                 <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs">Play</button>
-                <div className="min-w-52 flex-1"><Waveform /></div>
+                <div className="min-w-32 flex-1"><Waveform /></div>
                 <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={downloadTranscript}>Download</button>
                 <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>Re-run</button>
-                <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork Scenario</button>
+                <button className="btn-secondary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => router.push(`/scenarios?fork=${baseScenario?.id ?? activeScenario.id}`)}>Fork</button>
                 <button className="btn-primary min-h-8 shrink-0 px-3 py-1.5 text-xs" onClick={() => void startOrEndCall()}>
-                  Start new call
+                  New call
                 </button>
               </div>
             </div>
@@ -1435,13 +1329,13 @@ export default function PlaygroundPage() {
       )}
 
       {agentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/30 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/30 px-4 py-5 backdrop-blur-sm">
+          <div className="flex max-h-[calc(100vh-80px)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3">
               <div>
-                <h2 className="text-base font-medium text-slate-950">Connect your agent</h2>
+                <h2 className="text-base font-medium text-slate-950">Connect to Lightcurve room</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Use the Lightcurve room details below to join the agent you want to test.
+                  Copy these one-time details into the agent runtime. The call stays on this Playground page.
                 </p>
               </div>
               <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
@@ -1449,48 +1343,15 @@ export default function PlaygroundPage() {
               </button>
             </div>
 
-            <div className="max-h-[calc(100vh-150px)] space-y-3 overflow-y-auto p-4">
-              <div className="grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
-                <button
-                  type="button"
-                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'lightcurve_room' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
-                  onClick={() => {
-                    setConnectionMode('lightcurve_room');
-                    setRunError('');
-                  }}
-                >
-                  Lightcurve room
-                </button>
-                <button
-                  type="button"
-                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'phone_verification' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
-                  onClick={() => {
-                    setConnectionMode('phone_verification');
-                    setRunError('');
-                  }}
-                >
-                  Real phone
-                </button>
-                <button
-                  type="button"
-                  className={`min-h-9 rounded-md px-3 text-xs ${connectionMode === 'https_runner' ? 'bg-white text-[#2448bb] shadow-sm' : 'text-slate-600'}`}
-                  onClick={() => {
-                    setConnectionMode('https_runner');
-                    setRunError('');
-                  }}
-                >
-                  HTTPS runner
-                </button>
-              </div>
-
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
               {connectionMode === 'lightcurve_room' ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-3">
                   {activeSandboxRun?.liveKit ? (
                     <div className="space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
                       <div>
-                        <p className="text-sm font-medium text-slate-950">Lightcurve room details</p>
+                        <p className="text-sm font-medium text-slate-950">Room details</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Paste these one-time values into your agent runtime. Lightcurve joins this room as the synthetic caller and judge.
+                          One-time values for this Playground call.
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -1538,13 +1399,13 @@ export default function PlaygroundPage() {
                         </p>
                       </div>
 
-                      <div className="rounded-lg border border-[#cfd8ff] bg-white p-2.5 text-xs leading-relaxed text-[#526894]">
-                        {activeSandboxRun.liveKit.instructions}
-                      </div>
-
                       {Array.isArray(activeSandboxRun.liveKit.joinOptions) && (
-                        <div className="space-y-3">
-                          <h3 className="text-xs font-medium uppercase tracking-wide text-gray-500">Agent runtime</h3>
+                        <details className="rounded-lg border border-slate-200 bg-white p-2.5">
+                          <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                            Agent runtime snippets
+                            <span className="ml-2 text-xs font-normal text-slate-400">optional</span>
+                          </summary>
+                          <div className="mt-2 space-y-2">
                           {activeSandboxRun.liveKit.joinOptions.map((option) => (
                             <details key={option.id} className="rounded-lg border border-slate-200 bg-white p-2.5">
                               <summary className="cursor-pointer text-sm font-medium text-slate-900">
@@ -1577,7 +1438,8 @@ export default function PlaygroundPage() {
                               </div>
                             </details>
                           ))}
-                        </div>
+                          </div>
+                        </details>
                       )}
 
                       <button type="button" className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
@@ -1585,11 +1447,11 @@ export default function PlaygroundPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-4">
+                    <div className="space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
                       <div>
-                        <p className="text-sm font-medium text-slate-950">Creating Lightcurve room...</p>
+                        <p className="text-sm font-medium text-slate-950">Create room details</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Room URL, room name, and join token will appear here. No provider API key is needed for this path.
+                          Press Start Call to generate a room URL, room name, and agent token.
                         </p>
                       </div>
                       {runError ? (
@@ -1615,9 +1477,9 @@ export default function PlaygroundPage() {
                 </div>
               ) : connectionMode === 'phone_verification' ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-medium text-slate-950">Managed phone verification</p>
+                  <p className="text-sm font-medium text-slate-950">Phone check</p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Lightcurve calls the phone number or SIP URI your agent answers. No provider API key or provider phone UUID is needed for this path.
+                    Lightcurve calls the phone number or SIP URI your agent answers. Use this for a small realism check.
                   </p>
                   <div className="mt-4 grid gap-3">
                     <label className="block text-xs text-slate-500">
@@ -1629,17 +1491,17 @@ export default function PlaygroundPage() {
                         placeholder="+12164748341 or sip:agent@example.com"
                       />
                       <span className="mt-1 block leading-5 text-slate-500">
-                        Put the endpoint your customer-facing voice agent answers. Lightcurve uses its managed caller line under the hood.
+                        Put the endpoint your customer-facing voice agent answers.
                       </span>
                     </label>
                   </div>
                   <div className="mt-4 rounded-lg border border-[#cfd8ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-[#526894]">
-                    This is for a small real-call verification after low-cost sandbox checks. Broad suites should use the Lightcurve room or Agent Replica path first.
+                    Broad suites should use Lightcurve room or Agent Replica first; promote only risky cases to phone checks.
                   </div>
                 </div>
               ) : (
                 <label className="block text-xs text-slate-500">
-                  Compatible HTTPS runner URL
+                  Advanced runner URL
                   <input
                     className="input-field mt-1"
                     value={agent}

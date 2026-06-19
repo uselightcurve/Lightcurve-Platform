@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   REAL_SCENARIO_LIBRARY,
@@ -60,6 +60,16 @@ function formatName(name: string) {
   return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function getHumanAudioUrl(scenario: StoredScenario) {
+  const audioScenario = scenario as StoredScenario & {
+    humanAudioUrl?: string;
+    audioUrl?: string;
+    audio?: { url?: string };
+    audioAsset?: { url?: string };
+  };
+  return audioScenario.humanAudioUrl || audioScenario.audioUrl || audioScenario.audio?.url || audioScenario.audioAsset?.url || '';
+}
+
 function Pill({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${className}`}>{children}</span>;
 }
@@ -108,6 +118,7 @@ export default function ScenariosPage() {
   const [forking, setForking] = useState<StoredScenario | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [customScenario, setCustomScenario] = useState(defaultCustomScenario);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [loadError, setLoadError] = useState('');
@@ -183,10 +194,15 @@ export default function ScenariosPage() {
   }
 
   function listenScenario(scenario: StoredScenario) {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+    if (typeof window === 'undefined') return;
+    audioRef.current?.pause();
     if (speakingId === scenario.id) {
       setSpeakingId(null);
+      return;
+    }
+    const audioUrl = getHumanAudioUrl(scenario);
+    if (!audioUrl) {
+      setLoadError('Human audio is not attached for this scenario yet. Use scenarios with Golden audio for playback.');
       return;
     }
     trackLightcurveEvent('Scenario Listen Clicked', {
@@ -195,13 +211,18 @@ export default function ScenariosPage() {
       domain: scenario.domain,
       emotion: scenario.persona.emotional_state,
     });
-    const utterance = new SpeechSynthesisUtterance(scenario.persona.opening_line || scenario.persona.goal);
-    utterance.lang = scenario.language;
-    utterance.rate = Math.min(1.2, Math.max(0.75, (scenario.persona.speed_wpm || 140) / 150));
-    utterance.onend = () => setSpeakingId(null);
-    utterance.onerror = () => setSpeakingId(null);
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    audio.onended = () => setSpeakingId(null);
+    audio.onerror = () => {
+      setSpeakingId(null);
+      setLoadError('This human audio file could not be played. Try another scenario or re-upload the asset.');
+    };
     setSpeakingId(scenario.id);
-    window.speechSynthesis.speak(utterance);
+    void audio.play().catch(() => {
+      setSpeakingId(null);
+      setLoadError('This human audio file could not be played. Try another scenario or re-upload the asset.');
+    });
   }
 
   async function saveFork() {
@@ -356,6 +377,7 @@ export default function ScenariosPage() {
         {visibleScenarios.map((scenario, index) => {
           const isSelected = selected.includes(scenario.id);
           const emotionKey = scenario.persona.emotional_state;
+          const audioUrl = getHumanAudioUrl(scenario);
 
           return (
             <article
@@ -395,8 +417,13 @@ export default function ScenariosPage() {
               </div>
 
               <div className="mt-auto flex items-center justify-end gap-2 pt-4">
-                <button onClick={() => listenScenario(scenario)} className="btn-secondary min-h-8 px-3 py-1.5 text-xs">
-                  {speakingId === scenario.id ? 'Stop' : 'Listen'}
+                <button
+                  onClick={() => listenScenario(scenario)}
+                  disabled={!audioUrl}
+                  title={!audioUrl ? 'Human audio is not attached yet' : undefined}
+                  className={`btn-secondary min-h-8 px-3 py-1.5 text-xs ${!audioUrl ? 'cursor-not-allowed opacity-50' : ''}`}
+                >
+                  {speakingId === scenario.id ? 'Stop' : audioUrl ? 'Listen' : 'Audio pending'}
                 </button>
                 <button onClick={() => setForking(scenario)} className="btn-secondary min-h-8 px-3 py-1.5 text-xs">
                   Fork

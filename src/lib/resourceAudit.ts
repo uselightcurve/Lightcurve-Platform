@@ -161,7 +161,7 @@ export function buildResourceAudit(args: {
 
   if (isProviderPhone) {
     resources.push({
-      label: 'Provider phone path',
+      label: 'Phone realism path',
       status: 'external',
       detail: `${run.provider} call ${run.externalCallId} was used. Any provider/PSTN/model charge happens outside GCP credits.`,
     });
@@ -178,7 +178,7 @@ export function buildResourceAudit(args: {
   } else if (!billable) {
     verdict = 'Completed without billable Lightcurve resource evidence. Treat as a setup/proxy run, not tested minutes.';
   } else if (isProviderPhone) {
-    verdict = 'Completed through provider phone. Lightcurve resources are estimated here; provider spend is separate.';
+    verdict = 'Completed through phone realism. Lightcurve resource use is estimated here; external carrier/provider costs are outside Lightcurve tested minutes.';
   } else {
     verdict = 'Completed with billable Lightcurve tested-minute evidence.';
   }

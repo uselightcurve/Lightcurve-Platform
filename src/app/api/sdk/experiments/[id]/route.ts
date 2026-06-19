@@ -1,16 +1,24 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { experiments, runs, scores } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import { requireAccount, unauthorizedJson } from '@/lib/account';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   try {
-    const expData = await db.select().from(experiments).where(eq(experiments.id, id));
+    const account = await requireAccount();
+    const expData = await db
+      .select()
+      .from(experiments)
+      .where(and(eq(experiments.id, id), eq(experiments.ownerUserId, account.userId)));
     if (!expData.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const expRuns = await db.select().from(runs).where(eq(runs.experimentId, id));
+    const expRuns = await db
+      .select()
+      .from(runs)
+      .where(and(eq(runs.experimentId, id), eq(runs.ownerUserId, account.userId)));
 
     // Calculate average MOS and Task Completion
     let totalMos = 0, mosCount = 0;
@@ -35,7 +43,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       taskCompletion: tcCount > 0 ? totalTc / tcCount : null,
       runs: expRuns
     });
-  } catch {
+  } catch (error) {
+    const unauthorized = unauthorizedJson(error);
+    if (unauthorized) return unauthorized;
     return NextResponse.json({ error: 'Experiment store unavailable' }, { status: 503 });
   }
 }

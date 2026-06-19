@@ -62,13 +62,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         externalStatus: call.status,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Vobiz real phone call could not be started';
+      const message = error instanceof Error ? error.message : 'Phone realism call could not be started';
       await db
         .update(runs)
         .set({
           status: 'failed',
           provider: 'vobiz',
-          externalStatus: 'vobiz_start_failed',
+          externalStatus: 'phone_realism_start_failed',
           failureSummary: message,
           startedAt: new Date(),
           endedAt: new Date(),
@@ -145,11 +145,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           roomName: session.roomName,
           liveKitUrl: session.liveKitUrl,
           agentToken: session.tokens.agent,
+          callerToken: session.tokens.caller,
           instructions: session.instructions,
         },
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'LiveKit sandbox room could not be created';
+      const message = error instanceof Error ? error.message : 'Lightcurve test room could not be created';
       await db
         .update(runs)
         .set({
@@ -182,7 +183,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     if (!runnerUrl.startsWith('https://') && !(process.env.NODE_ENV !== 'production' && runnerUrl.startsWith('http://'))) {
       return NextResponse.json(
-        { error: 'Agent endpoint must be a real HTTPS runner URL. Random text cannot start a sandbox call.' },
+        { error: 'Agent endpoint must be a compatible advanced runner URL. Random text cannot start a sandbox call.' },
         { status: 400 },
       );
     }

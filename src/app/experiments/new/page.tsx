@@ -164,6 +164,54 @@ function scenarioText(scenario: StoredScenario) {
     .toLowerCase();
 }
 
+function compactScenarioTitle(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[_-]/g, ' ')
+    .replace(/\b[0-9a-f]{4,}\b/g, '')
+    .replace(/\b\d+\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function scenarioSuiteKey(scenario: StoredScenario) {
+  const goalTokens = tokenize(scenario.persona?.goal ?? '').slice(0, 8).join(' ');
+  return [
+    scenario.domain?.toLowerCase() ?? '',
+    scenario.language?.toLowerCase() ?? '',
+    scenarioPatternKey(scenario),
+    compactScenarioTitle(scenario.name),
+    goalTokens,
+    scenario.persona?.emotional_state ?? '',
+  ].join('|');
+}
+
+function uniqueScenarioCards(items: StoredScenario[], limit = Number.POSITIVE_INFINITY) {
+  const seenIds = new Set<string>();
+  const seenSuites = new Set<string>();
+  const unique: StoredScenario[] = [];
+
+  for (const scenario of items) {
+    if (seenIds.has(scenario.id)) continue;
+    const suiteKey = scenarioSuiteKey(scenario);
+    if (seenSuites.has(suiteKey)) continue;
+    seenIds.add(scenario.id);
+    seenSuites.add(suiteKey);
+    unique.push(scenario);
+    if (unique.length >= limit) break;
+  }
+
+  return unique;
+}
+
+function uniqueScenarioIds(ids: string[], scenarios: StoredScenario[], limit = Number.POSITIVE_INFINITY) {
+  const byId = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
+  return uniqueScenarioCards(
+    ids.map((id) => byId.get(id)).filter((scenario): scenario is StoredScenario => Boolean(scenario)),
+    limit,
+  ).map((scenario) => scenario.id);
+}
+
 function scoreScenarioForUseCase(scenario: StoredScenario, useCaseId: string, goalText: string, language: string) {
   const useCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
   const text = scenarioText(scenario);
@@ -209,12 +257,14 @@ function selectScenariosForUseCase(scenarios: StoredScenario[], useCaseId: strin
 
   const selected: StoredScenario[] = [];
   const usedPatterns = new Set<string>();
-  const usedNames = new Set<string>();
+  const usedSuites = new Set<string>();
   const addScenario = (item: (typeof ranked)[number]) => {
     if (selected.some((scenario) => scenario.id === item.scenario.id)) return;
+    const suiteKey = scenarioSuiteKey(item.scenario);
+    if (usedSuites.has(suiteKey)) return;
     selected.push(item.scenario);
     usedPatterns.add(item.pattern);
-    usedNames.add(item.scenario.name);
+    usedSuites.add(suiteKey);
   };
 
   ranked.filter((item) => item.score > 0).forEach((item) => {
@@ -224,7 +274,7 @@ function selectScenariosForUseCase(scenarios: StoredScenario[], useCaseId: strin
 
   ranked.filter((item) => item.score > 0).forEach((item) => {
     if (selected.length >= 12) return;
-    if (!usedNames.has(item.scenario.name)) addScenario(item);
+    addScenario(item);
   });
 
   ranked.forEach((item) => {
@@ -232,7 +282,7 @@ function selectScenariosForUseCase(scenarios: StoredScenario[], useCaseId: strin
     addScenario(item);
   });
 
-  return selected.length >= 4 ? selected : scenarios.slice(0, 12);
+  return uniqueScenarioCards(selected.length >= 4 ? selected : scenarios, 12);
 }
 
 async function createAgentConnection(params: {
@@ -395,7 +445,7 @@ export default function NewExperiment() {
       const validIds = scenarioIds.filter((id) => scenarios.some((scenario) => scenario.id === id));
       if (validIds.length) {
         const promotedRealPhone = lane === 'phone_realism' && provider !== null && LIVE_PROVIDER_IDS.includes(provider);
-        setSelectedIds(promotedRealPhone ? validIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : validIds);
+        setSelectedIds(uniqueScenarioIds(validIds, scenarios, promotedRealPhone ? MAX_REAL_PHONE_SCENARIOS : Number.POSITIVE_INFINITY));
         setStep(2);
         setSuiteGenerated(true);
       }
@@ -403,24 +453,24 @@ export default function NewExperiment() {
   }, [scenarios]);
 
   const selectedScenarios = useMemo(() => {
-    return scenarios.filter((scenario) => selectedIds.includes(scenario.id));
+    return uniqueScenarioCards(scenarios.filter((scenario) => selectedIds.includes(scenario.id)));
   }, [scenarios, selectedIds]);
 
   const visibleScenarioOptions = useMemo(() => {
-    if (!suiteGenerated) return scenarios.slice(0, 120);
+    if (!suiteGenerated) return uniqueScenarioCards(scenarios, 120);
     const selected = new Set(selectedIds);
-    const suggestions = scenarios.filter((scenario) => !selected.has(scenario.id)).slice(0, 24);
-    return [...selectedScenarios, ...suggestions];
+    const suggestions = uniqueScenarioCards(scenarios.filter((scenario) => !selected.has(scenario.id)), 24);
+    return uniqueScenarioCards([...selectedScenarios, ...suggestions], 36);
   }, [scenarios, selectedIds, selectedScenarios, suiteGenerated]);
 
   const highPressureIds = useMemo(() => {
-    return scenarios
-      .filter((scenario) => {
-        const emotion = scenario.persona?.emotional_state;
-        return scenario.persona?.interrupts || ['angry', 'irate', 'urgent', 'frustrated'].includes(emotion);
-      })
-      .map((scenario) => scenario.id);
+    const highPressure = scenarios.filter((scenario) => {
+      const emotion = scenario.persona?.emotional_state;
+      return scenario.persona?.interrupts || ['angry', 'irate', 'urgent', 'frustrated'].includes(emotion);
+    });
+    return uniqueScenarioCards(highPressure).map((scenario) => scenario.id);
   }, [scenarios]);
+  const uniqueScenarioOptionIds = useMemo(() => uniqueScenarioCards(scenarios).map((scenario) => scenario.id), [scenarios]);
 
   const activeAgent = AGENT_TYPES.find((agent) => agent.id === agentType) ?? AGENT_TYPES[0];
   const stubMode = agentType === STUB_PROVIDER_ID;
@@ -436,7 +486,7 @@ export default function NewExperiment() {
   const locatorLabel = stubMode
     ? 'Agent instructions'
     : roomNoKeyMode
-      ? 'Lightcurve room connection'
+      ? 'Lightcurve room'
     : realPhoneMode
       ? 'Agent phone number or SIP URI'
       : activeAgent.locatorLabel;
@@ -454,7 +504,7 @@ export default function NewExperiment() {
     : replayMode
       ? 'Replay import'
       : realPhoneMode
-        ? 'Real phone verification'
+        ? 'Phone check'
         : liveProvider
           ? 'Room test'
           : 'Bot-to-bot';
@@ -470,7 +520,7 @@ export default function NewExperiment() {
 
   const generateScenarioSuite = () => {
     const generated = selectScenariosForUseCase(scenarios, useCaseId, useCaseGoal, languagePreference);
-    const generatedIds = generated.map((scenario) => scenario.id);
+    const generatedIds = uniqueScenarioCards(generated).map((scenario) => scenario.id);
     const cappedIds = realPhoneMode ? generatedIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : generatedIds;
     setSelectedIds(cappedIds);
     setExpName(generateSuiteName(useCaseId, useCaseGoal));
@@ -490,11 +540,11 @@ export default function NewExperiment() {
         return current.filter((item) => item !== id);
       }
       if (realPhoneMode && current.length >= MAX_REAL_PHONE_SCENARIOS) {
-        setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Remove one scenario before adding another.`);
+        setError(`Phone checks can include up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Remove one scenario before adding another.`);
         return current;
       }
       setError('');
-      return [...current, id];
+      return uniqueScenarioIds([...current, id], scenarios, realPhoneMode ? MAX_REAL_PHONE_SCENARIOS : Number.POSITIVE_INFINITY);
     });
   };
 
@@ -516,12 +566,12 @@ export default function NewExperiment() {
     const elevenLabsReplay = agentType === 'elevenlabs' && elevenLabsMode === 'recording_replay';
     const needsHumanTester = false;
     if (usesProviderPhone && !elevenLabsReplay && selectedIds.length > MAX_REAL_PHONE_SCENARIOS) {
-      setError(`Real phone sandboxes can run up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Select a smaller pilot suite, then batch the rest.`);
+      setError(`Phone checks can include up to ${MAX_REAL_PHONE_SCENARIOS} scenarios at once. Select a smaller pilot suite, then batch the rest.`);
       return;
     }
     if (!stubMode && realPhoneMode) {
       if (looksLikeUuid(agentLocator)) {
-        setError('Enter the phone number or SIP URI your agent answers, not a provider phone-number UUID.');
+        setError('Enter the phone number or SIP URI your agent answers, not the outbound caller-number UUID.');
         return;
       }
       if (!agentLocator.trim().startsWith('sip:') && !looksLikePhoneNumber(agentLocator)) {
@@ -530,7 +580,7 @@ export default function NewExperiment() {
       }
     }
     if (!stubMode && isBotToBotProvider(agentType) && !roomNoKeyMode && !realPhoneMode && !agentLocator.trim().startsWith('https://')) {
-      setError('For LiveKit, Pipecat, or Custom WebRTC today, enter a compatible HTTPS runner endpoint. Native SIP/WebRTC media bridge is coming next.');
+      setError('Enter a compatible advanced runner endpoint, or use the Lightcurve room path.');
       return;
     }
     if (needsHumanTester && !vapiCustomerNumber.trim()) {
@@ -544,7 +594,7 @@ export default function NewExperiment() {
       agent_type: agentType,
       scenario_count: selectedIds.length,
       live_provider: usesProviderPhone,
-      connection_path: roomNoKeyMode ? 'lightcurve_room' : realPhoneMode ? 'managed_phone_bridge' : 'runner_or_replica',
+      connection_path: roomNoKeyMode ? 'lightcurve_room' : realPhoneMode ? 'phone_realism_bridge' : 'runner_or_replica',
       bot_to_bot_phone: vapiBotToBotPhone,
       elevenlabs_mode: agentType === 'elevenlabs' ? elevenLabsMode : undefined,
     });
@@ -741,7 +791,7 @@ export default function NewExperiment() {
           </p>
           {promotedFromExperimentId && (
             <div className="mt-3 inline-flex rounded-lg border border-[#cfd8ff] bg-white px-3 py-2 text-xs text-slate-600">
-              Promoted from low-cost testing. Verify only the failed or risky scenarios against a real provider path.
+              Promoted from room-based testing. Verify only failed or risky scenarios with a real agent path.
             </div>
           )}
         </div>
@@ -838,7 +888,7 @@ export default function NewExperiment() {
             <h2 className="mt-2 text-base font-medium text-slate-950">No prompt required</h2>
             <div className="mt-5 space-y-4 text-sm leading-relaxed text-slate-600">
               <p>Bring the business task first. Lightcurve turns it into a caller suite.</p>
-              <p>Next, connect by phone number or a Lightcurve test room. Advanced provider setup stays available when needed.</p>
+              <p>Next, connect the agent by room or phone number. Advanced setup stays out of the way until needed.</p>
               <p>After the run, you get transcript evidence, scoring, and a release-ready result.</p>
             </div>
           </aside>
@@ -851,7 +901,7 @@ export default function NewExperiment() {
             <div>
               <h2 className="text-base font-medium text-slate-950">Connect the agent to test</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Use a phone number for realism, a Lightcurve test room for lower-friction checks, or advanced setup for technical runners.
+                Start with a Lightcurve room. Use phone only when you need carrier-level realism.
               </p>
             </div>
 
@@ -877,8 +927,8 @@ export default function NewExperiment() {
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-950">Connection path</p>
-                    <p className="mt-1 text-xs text-slate-500">Start simple, then use phone realism for final verification.</p>
+                    <p className="text-sm font-medium text-slate-950">Test path</p>
+                    <p className="mt-1 text-xs text-slate-500">Use room-based testing for scale. Promote only failures to phone.</p>
                   </div>
                   <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm">
                     <button
@@ -886,25 +936,25 @@ export default function NewExperiment() {
                       onClick={() => setLiveProviderPath('lightcurve_room')}
                       className={`rounded-md px-3 py-1.5 ${liveProviderPath === 'lightcurve_room' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
                     >
-                      LiveKit room
+                      Lightcurve room
                     </button>
                     <button
                       type="button"
                       onClick={() => setLiveProviderPath('phone_realism')}
                       className={`rounded-md px-3 py-1.5 ${liveProviderPath === 'phone_realism' ? 'bg-[#eef2ff] text-[#2448bb]' : 'text-slate-500'}`}
                     >
-                      Phone realism
+                      Phone check
                     </button>
                   </div>
                 </div>
                 {liveProviderPath === 'lightcurve_room' && (
                   <details className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600">
-                    <summary className="cursor-pointer font-medium text-slate-900">How does my agent join?</summary>
+                    <summary className="cursor-pointer font-medium text-slate-900">Room details appear after the gate is created</summary>
                     <div className="mt-2 grid gap-1.5">
                       <p>1. Start the run. Lightcurve creates one-time room details.</p>
                       <p>2. Your agent joins as the agent being tested.</p>
                       <p>3. Lightcurve acts as the caller and scores the conversation.</p>
-                      <p className="text-slate-500">If your agent only answers a phone number, switch to Phone realism.</p>
+                      <p className="text-slate-500">If the agent only answers a phone number, switch to phone check.</p>
                     </div>
                   </details>
                 )}
@@ -913,9 +963,9 @@ export default function NewExperiment() {
 
             {realPhoneMode && (
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-medium text-slate-950">Managed phone verification</p>
+                <p className="text-sm font-medium text-slate-950">Phone check</p>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Add only the phone number or SIP URI your agent answers. Lightcurve places the verification call through its managed phone bridge and scores the result.
+                  Add only the phone number or SIP URI your agent answers. Lightcurve places a small real-call check and scores the result.
                 </p>
               </div>
             )}
@@ -1006,18 +1056,18 @@ export default function NewExperiment() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="mt-1 text-sm font-medium text-slate-950">
-                      {liveProvider ? `${activeAgent.label} via Lightcurve room` : 'Lightcurve room for real-agent testing'}
+                      {liveProvider ? `${activeAgent.label} via Lightcurve room` : 'Lightcurve room'}
                     </h3>
-                    <p className="mt-1 text-xs text-slate-500">No provider API key. No phone minutes.</p>
+                    <p className="mt-1 text-xs text-slate-500">No phone call required.</p>
                   </div>
                   <span className="rounded-full border border-[#cfd8ff] bg-white px-2.5 py-1 text-xs font-medium text-[#2448bb]">
                     Room test
                   </span>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  <MiniMetric label="Transport" value="WebRTC" />
-                  <MiniMetric label="Phone minutes" value="0" />
-                  <MiniMetric label="Provider spend" value="None" />
+                  <MiniMetric label="Transport" value="Room" />
+                  <MiniMetric label="Phone calls" value="0" />
+                  <MiniMetric label="Best for" value="Bulk checks" />
                 </div>
               </div>
             ) : (
@@ -1045,16 +1095,16 @@ export default function NewExperiment() {
                 </div>
                 {needsProviderApiKey && (
                   <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-600">API key override</label>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">Provider credential</label>
                   <input
                     type="password"
                     className="input-field"
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
-                    placeholder="Only for provider phone/import runs"
+                    placeholder="Only for phone-realism or import runs"
                   />
                   <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                    Not needed for Agent Replica or Lightcurve room. Required only when Lightcurve asks your provider to place or import calls.
+                    Not needed for Agent Replica or the Lightcurve room. Required only for phone checks or imports.
                   </p>
                 </div>
                 )}
@@ -1066,8 +1116,8 @@ export default function NewExperiment() {
                 {agentType !== 'vapi' && (
                   <p className="rounded-md border border-[#e6cf93] bg-[#fffaf0] px-3 py-2 text-xs leading-relaxed text-[#765b1f]">
                     {replayMode
-                      ? 'Low-cost replay imports an existing recording or transcript, then scores it against the selected scenario.'
-                      : `${activeAgent.label} live mode dials a consented tester and scores the call result.`}
+                      ? 'Replay import scores an existing recording or transcript against the selected scenario.'
+                      : `${activeAgent.label} phone check dials a small verification set and scores the call result.`}
                   </p>
                 )}
                 {agentType === 'elevenlabs' && (
@@ -1077,7 +1127,7 @@ export default function NewExperiment() {
                       onClick={() => setElevenLabsMode('recording_replay')}
                       className={`rounded-md px-3 py-1.5 ${elevenLabsMode === 'recording_replay' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
                     >
-                      Low-cost replay
+                      Replay import
                     </button>
                     <button
                       type="button"
@@ -1153,7 +1203,7 @@ export default function NewExperiment() {
 
             {botToBotProvider && !hostedLiveKit && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
-                Use this only when your team already has a compatible runner endpoint. Otherwise, use the Lightcurve test room or phone-number path.
+                Use this only when your team already has a compatible runner endpoint. Otherwise, use the Lightcurve room or phone-number path.
               </div>
             )}
 
@@ -1170,7 +1220,7 @@ export default function NewExperiment() {
                 Back
               </button>
               <button type="button" className="btn-primary" onClick={() => setStep(4)} disabled={!canProceedFromAgentStep}>
-                Configure gate
+                Continue to gate
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
                 </svg>
@@ -1246,16 +1296,12 @@ export default function NewExperiment() {
                   type="button"
                   className="btn-secondary text-xs"
                   onClick={() =>
-                    selectedIds.length === scenarios.length
+                    selectedIds.length === uniqueScenarioOptionIds.length
                       ? setSelectedIds([])
-                      : setSelectedIds(
-                          realPhoneMode
-                            ? scenarios.slice(0, MAX_REAL_PHONE_SCENARIOS).map((scenario) => scenario.id)
-                            : scenarios.map((scenario) => scenario.id),
-                        )
+                      : setSelectedIds(realPhoneMode ? uniqueScenarioOptionIds.slice(0, MAX_REAL_PHONE_SCENARIOS) : uniqueScenarioOptionIds)
                   }
                 >
-                  {selectedIds.length === scenarios.length ? 'Clear all' : realPhoneMode ? `Select first ${MAX_REAL_PHONE_SCENARIOS}` : 'Select all'}
+                  {selectedIds.length === uniqueScenarioOptionIds.length ? 'Clear all' : realPhoneMode ? `Select first ${MAX_REAL_PHONE_SCENARIOS}` : 'Select all'}
                 </button>
               </div>
             </div>
@@ -1263,7 +1309,7 @@ export default function NewExperiment() {
 
           {selectedTooManyPhoneScenarios && (
             <div className="rounded-lg border border-[#e6cf93] bg-[#fffaf0] px-4 py-3 text-sm text-[#765b1f]">
-              Real phone runs are capped at {MAX_REAL_PHONE_SCENARIOS} scenarios per batch so Lightcurve does not accidentally place hundreds of carrier calls. Use bot-to-bot runner mode for large-scale suites.
+              Phone checks are capped at {MAX_REAL_PHONE_SCENARIOS} scenarios per batch. Use the Lightcurve room or Agent Replica path for broad suites.
             </div>
           )}
 
@@ -1275,7 +1321,7 @@ export default function NewExperiment() {
               return (
                 <button
                   type="button"
-                  key={scenario.id}
+                  key={`${scenario.id}-${scenario.name}`}
                   onClick={() => toggleScenario(scenario.id)}
                   className={`card min-h-[188px] p-4 text-left transition-shadow hover:shadow-md ${
                     selected ? 'border-slate-300 bg-slate-50 ring-1 ring-slate-200' : ''
@@ -1348,7 +1394,7 @@ export default function NewExperiment() {
 
             {selectedTooManyPhoneScenarios && (
               <div className="mt-4 rounded-lg border border-[#e6cf93] bg-[#fffaf0] px-4 py-3 text-sm text-[#765b1f]">
-                Reduce this real phone batch to {MAX_REAL_PHONE_SCENARIOS} scenarios or fewer before creating the sandbox run.
+                Reduce this phone-check batch to {MAX_REAL_PHONE_SCENARIOS} scenarios or fewer before creating the sandbox run.
               </div>
             )}
 
@@ -1378,15 +1424,15 @@ export default function NewExperiment() {
                 {loading
                   ? 'Creating sandbox...'
                   : stubMode
-                    ? 'Run low-cost test suite'
+                    ? 'Run replica suite'
                     : roomNoKeyMode
-                    ? 'Create Lightcurve room test'
+                    ? 'Create Lightcurve room'
                     : replayMode
                     ? 'Create replay sandbox'
                     : realPhoneMode
-                      ? 'Run real phone verification'
+                      ? 'Run phone check'
                     : liveProvider
-                      ? 'Create room test'
+                      ? 'Create Lightcurve room'
                       : 'Run bot-to-bot sandbox'}
               </button>
             </div>
@@ -1396,7 +1442,7 @@ export default function NewExperiment() {
             <p className="section-label">Selected callers</p>
             <div className="mt-4 space-y-3">
               {selectedScenarios.map((scenario) => (
-                <div key={scenario.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div key={`${scenario.id}-${scenario.name}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-slate-950">{formatName(scenario.name)}</p>
@@ -1415,7 +1461,7 @@ export default function NewExperiment() {
 
       {roomModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white shadow-xl">
+          <div className="flex max-h-[calc(100vh-80px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 className="text-base font-medium text-slate-950">Connect agent to Lightcurve room</h2>
@@ -1432,7 +1478,7 @@ export default function NewExperiment() {
               </button>
             </div>
 
-            <div className="max-h-[72vh] space-y-4 overflow-auto p-5">
+            <div className="flex-1 space-y-4 overflow-auto p-5">
               {roomSessionError ? (
                 <div className="rounded-lg border border-[#e3c3c1] bg-[#fbf3f2] p-3 text-xs leading-relaxed text-[#8f3d3b]">
                   {roomSessionError}
@@ -1481,7 +1527,7 @@ export default function NewExperiment() {
                     </div>
                     <textarea className="input-field min-h-24 font-mono text-xs" readOnly value={roomSession.agentToken} />
                     <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                      Token is short-lived and scoped to this room. Refresh the run detail if the agent connects after it expires.
+                      Token is short-lived and scoped to this room. Refresh this page if the agent connects after it expires.
                     </p>
                   </div>
 
@@ -1527,7 +1573,7 @@ export default function NewExperiment() {
                 </>
               ) : (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                  Preparing Lightcurve room details...
+                  Preparing room details...
                 </div>
               )}
 

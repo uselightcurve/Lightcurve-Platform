@@ -29,7 +29,7 @@ function requireLiveKitConfig() {
   const apiSecret = process.env.LIVEKIT_API_SECRET?.trim();
   if (!url || !apiKey || !apiSecret) {
     throw new Error(
-      'LiveKit low-cost room is not configured yet. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET in Google Secret Manager, then redeploy.',
+      'Lightcurve test room is not configured yet. Add the room service secrets in Google Secret Manager, then redeploy.',
     );
   }
   return { url, apiKey, apiSecret };
@@ -106,7 +106,7 @@ export function createLiveKitSandboxSession(runId: string, experiment: Experimen
       }),
     },
     instructions:
-      'Lightcurve room is ready. Connect the agent participant with the room URL and token below. Lightcurve joins as the synthetic caller and judge.',
+      'Lightcurve test room is ready. Connect the agent participant with the room URL and token below. Lightcurve joins as the synthetic caller and judge.',
   };
 }
 
@@ -118,7 +118,7 @@ LIGHTCURVE_AGENT_TOKEN=${session.tokens.agent}`;
   return [
     {
       id: 'livekit_agents',
-      label: 'LiveKit / Pipecat agent',
+      label: 'Realtime agent SDK',
       summary: 'Use this when your agent runtime can join a realtime room.',
       steps: [
         'Copy the three environment values into your agent runner.',

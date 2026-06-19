@@ -38,7 +38,7 @@ function targetAgentNumber(experiment: Pick<ExperimentRow, 'agentConfig'>) {
     stringValue(config.to);
 
   if (!target) {
-    throw new Error('Enter the phone number or SIP URI your agent answers before starting real phone verification.');
+    throw new Error('Enter the phone number or SIP URI your agent answers before starting phone realism.');
   }
 
   return target;
@@ -75,7 +75,7 @@ export async function startVobizPhoneCall(
   } catch (error) {
     const missing = error instanceof Error ? error.message : 'VOBIZ_*';
     throw new Error(
-      `Lightcurve real-phone bridge is not configured: ${missing}. Add Vobiz platform secrets before running phone verification.`,
+      `Phone realism bridge is not configured: ${missing}. Add the platform telephony bridge secrets before running phone realism.`,
     );
   }
 
@@ -114,7 +114,7 @@ export async function startVobizPhoneCall(
   }
 
   if (!response.ok) {
-    throw new Error(`Vobiz real phone call start failed: ${extractVobizError(raw, response.statusText)}`);
+    throw new Error(`Phone realism call start failed: ${extractVobizError(raw, response.statusText)}`);
   }
 
   const body = asRecord(raw);
