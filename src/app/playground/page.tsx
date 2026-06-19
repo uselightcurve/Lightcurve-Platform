@@ -11,6 +11,7 @@ import {
 import { REAL_SCENARIO_LIBRARY, mergeWithRealScenarioLibrary } from '@/lib/realScenarioLibrary';
 import type { LibraryScenario as StoredScenario } from '@/lib/realScenarioLibrary';
 import { trackLightcurveEvent } from '@/lib/clientAnalytics';
+import { Lightcurve, type LightcurveRoomSession } from '@uselightcurve/sdk';
 
 const ENVIRONMENT_TYPES = ['CRM', 'Calendar', 'Reservation'];
 type PlaygroundConnectionMode = 'lightcurve_room' | 'phone_verification' | 'https_runner';
@@ -18,7 +19,7 @@ type LiveKitJoinOption = {
   id: string;
   label: string;
   summary: string;
-  steps?: string[];
+  steps: string[];
   code?: string;
 };
 type ActiveSandboxRun = {
@@ -34,7 +35,7 @@ type ActiveSandboxRun = {
     liveKitUrl: string;
     agentToken: string;
     callerToken?: string;
-    instructions: string;
+    instructions?: string;
     joinOptions?: LiveKitJoinOption[];
   };
 };
@@ -102,21 +103,17 @@ function normalizePhoneOrSip(value: string) {
   return trimmed.startsWith('sip:') ? trimmed : normalizePhone(trimmed);
 }
 
-async function createPlaygroundConnection(endpoint: string) {
-  const response = await fetch('/api/agent-connections', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: 'custom_webrtc',
-      displayName: 'Playground advanced runner',
-      endpointType: 'webrtc',
-      endpoint,
-      credentials: {},
-    }),
+async function createPlaygroundConnection(client: Lightcurve, endpoint: string) {
+  const created = await client.agentConnections.create({
+    provider: 'custom_webrtc',
+    displayName: 'Playground advanced runner',
+    endpointType: 'webrtc',
+    endpoint,
+    credentials: {},
   });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error ?? 'Agent connection could not be saved.');
-  return data.agentConnection as { id: string };
+  const tested = await client.agentConnections.test(created.agentConnection.id);
+  if (!tested.ok) throw new Error(tested.message ?? 'Agent SDK runner could not be reached.');
+  return created.agentConnection;
 }
 
 function parseDelimitedLine(line: string) {
@@ -355,6 +352,7 @@ function SandboxEnvironmentPanel({
 export default function PlaygroundPage() {
   const router = useRouter();
   const [callState, setCallState] = useState<'idle' | 'running' | 'complete'>('idle');
+  const [callStarting, setCallStarting] = useState(false);
   const [scenarioId, setScenarioId] = useState(REAL_SCENARIO_LIBRARY[0]?.id ?? '');
   const [agent, setAgent] = useState('');
   const [connectionMode, setConnectionMode] = useState<PlaygroundConnectionMode>('lightcurve_room');
@@ -367,10 +365,14 @@ export default function PlaygroundPage() {
   const [environmentType, setEnvironmentType] = useState('CRM');
   const [runError, setRunError] = useState('');
   const [agentModalOpen, setAgentModalOpen] = useState(false);
+  const [agentConnecting, setAgentConnecting] = useState(false);
+  const [agentConnectionStatus, setAgentConnectionStatus] = useState('');
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveSandboxRun | null>(null);
   const [micState, setMicState] = useState<'idle' | 'connecting' | 'live'>('idle');
   const liveKitRoomRef = useRef<{ disconnect: () => void } | null>(null);
   const micTrackRef = useRef<{ stop: () => void } | null>(null);
+  const remoteAudioElementsRef = useRef<HTMLMediaElement[]>([]);
+  const lightcurveSdkRef = useRef<Lightcurve | null>(null);
   const [copiedJoinValue, setCopiedJoinValue] = useState('');
   const [sandboxSources, setSandboxSources] = useState<SandboxSource[]>([]);
   const [sandboxSourceId, setSandboxSourceId] = useState('');
@@ -608,6 +610,84 @@ export default function PlaygroundPage() {
     }
   }
 
+  function lightcurveSdk() {
+    if (!lightcurveSdkRef.current) {
+      lightcurveSdkRef.current = new Lightcurve({
+        baseUrl: window.location.origin,
+        includeCredentials: true,
+      });
+    }
+    return lightcurveSdkRef.current;
+  }
+
+  async function connectLightcurveAgent(): Promise<ActiveSandboxRun> {
+    if (!activeScenario) throw new Error('Select a scenario before connecting an agent.');
+    const endpoint = agent.trim();
+    if (!endpoint) throw new Error('Enter the HTTPS endpoint exposed by your Lightcurve SDK agent runner.');
+    let parsedEndpoint: URL;
+    try {
+      parsedEndpoint = new URL(endpoint);
+    } catch {
+      throw new Error('Enter a valid SDK runner URL, for example https://agent.example.com/lightcurve.');
+    }
+    const localDevelopmentEndpoint = parsedEndpoint.protocol === 'http:' && ['localhost', '127.0.0.1', '::1'].includes(parsedEndpoint.hostname);
+    if (parsedEndpoint.protocol !== 'https:' && !localDevelopmentEndpoint) {
+      throw new Error('The SDK runner must use HTTPS outside local development.');
+    }
+
+    const scenarioForRun = activeScenario.pronunciation ? activeScenario : baseScenario ?? activeScenario;
+    const scenarioOverrides = activeScenario.pronunciation ? [activeScenario] : [];
+    setAgentConnecting(true);
+    setAgentConnectionStatus('Saving SDK connection...');
+    setRunError('');
+    try {
+      const sdk = lightcurveSdk();
+      const createdConnection = await sdk.agentConnections.create({
+        provider: 'livekit',
+        displayName: 'Playground SDK agent',
+        endpointType: 'webrtc',
+        endpoint,
+        credentials: {},
+      });
+      setAgentConnectionStatus('Validating SDK runner...');
+      const connectionTest = await sdk.agentConnections.test(createdConnection.agentConnection.id);
+      if (!connectionTest.ok) {
+        throw new Error(connectionTest.message ?? 'The SDK runner did not pass its connection check.');
+      }
+      setAgentConnectionStatus('Creating a private test room...');
+      const test = await sdk.createLightcurveRoomTest({
+        name: `${activeScenario.name} playground check`,
+        scenarioIds: [scenarioForRun.id],
+        scenarioOverrides,
+        agentConnectionId: createdConnection.agentConnection.id,
+        gitSha: 'playground',
+        agentConfig: {
+          pronunciation: activeScenario.pronunciation ?? null,
+          sandboxEnvironment: environmentType,
+          sandboxSourceId: sandboxSourceId || undefined,
+        },
+      });
+      const connectedRun: ActiveSandboxRun = {
+        experimentId: test.experiment.id,
+        runId: test.firstRun.id,
+        provider: 'livekit',
+        status: 'ready',
+        externalStatus: 'livekit_room_ready',
+        liveKit: test.room,
+      };
+      setActiveSandboxRun(connectedRun);
+      setAgentConnectionStatus('SDK agent connected');
+      trackLightcurveEvent('Playground Agent Connected', {
+        experiment_id: connectedRun.experimentId,
+        run_id: connectedRun.runId,
+        connection_method: 'sdk',
+      });
+      return connectedRun;
+    } finally {
+      setAgentConnecting(false);
+    }
+  }
+
   async function pollActiveRun(runOverride?: ActiveSandboxRun) {
     const targetRun = runOverride ?? activeSandboxRun;
     if (!targetRun?.runId || pollingRun) return;
@@ -652,6 +732,7 @@ export default function PlaygroundPage() {
         await pollActiveRun();
         return;
       }
+      disconnectDeveloperMic();
       setVisibleTurns(transcript.length);
       setCallState('complete');
       trackLightcurveEvent('Playground Call Ended', {
@@ -664,6 +745,11 @@ export default function PlaygroundPage() {
     const selectedConnectionMode = modeOverride ?? connectionMode;
     const usesHttpsRunner = selectedConnectionMode === 'https_runner';
     const usesPhoneVerification = selectedConnectionMode === 'phone_verification';
+    if (selectedConnectionMode === 'lightcurve_room' && !activeSandboxRun?.liveKit) {
+      setRunError('Connect your SDK agent runner before starting the microphone call.');
+      setAgentModalOpen(true);
+      return;
+    }
     if (usesHttpsRunner && !agent.trim()) {
       setRunError('Enter a compatible advanced runner URL, or switch back to Lightcurve room for a no-endpoint Playground test.');
       return;
@@ -688,15 +774,18 @@ export default function PlaygroundPage() {
     setVisibleTurns(0);
     setProviderTurns([]);
     setProviderScores([]);
-    setActiveSandboxRun(null);
+    const connectedRoomRun = selectedConnectionMode === 'lightcurve_room' && callState === 'idle' && activeSandboxRun?.liveKit
+      ? activeSandboxRun
+      : null;
+    if (!connectedRoomRun) setActiveSandboxRun(null);
     setCallState('running');
+    setCallStarting(true);
     trackLightcurveEvent('Playground Sandbox Started', {
       scenario_id: baseScenario?.id ?? activeScenario.id,
       environment_type: environmentType,
       connection_mode: selectedConnectionMode,
     });
     try {
-      const connection = usesHttpsRunner ? await createPlaygroundConnection(agent.trim()) : null;
       const scenarioForRun = activeScenario.pronunciation ? activeScenario : baseScenario ?? activeScenario;
       const scenarioOverrides = activeScenario.pronunciation ? [activeScenario] : [];
       const phoneTarget = normalizePhoneOrSip(vapiAgentNumber);
@@ -723,24 +812,31 @@ export default function PlaygroundPage() {
             sandboxEnvironment: environmentType,
             sandboxSourceId: sandboxSourceId || undefined,
           };
-      const experimentResponse = await fetch('/api/experiments', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+      let experimentId: string;
+      let runId: string;
+      const connectedRoom = connectedRoomRun;
+
+      if (selectedConnectionMode === 'lightcurve_room') {
+        if (!connectedRoom) throw new Error('Connect your SDK agent runner before starting the call.');
+        experimentId = connectedRoom.experimentId;
+        runId = connectedRoom.runId;
+      } else {
+        const connection = usesHttpsRunner ? await createPlaygroundConnection(lightcurveSdk(), agent.trim()) : null;
+        const experimentPayload = await lightcurveSdk().createExperiment({
           name: `${activeScenario.name} playground check`,
           agentType,
-          agentConnectionId: connection?.id ?? null,
+          agentConnectionId: connection?.id,
           agentConfig,
           webrtcEndpoint: usesPhoneVerification ? `phone:${phoneTarget}` : usesHttpsRunner ? agent.trim() : 'lightcurve://hosted-room',
           scenarioIds: [scenarioForRun.id],
           scenarioOverrides,
           gitSha: 'playground',
-        }),
-      });
-      const experimentPayload = await experimentResponse.json().catch(() => null);
-      if (!experimentResponse.ok) throw new Error(experimentPayload?.error ?? 'Unable to create sandbox run.');
-      const run = experimentPayload?.runs?.[0];
-      if (!run?.id) throw new Error('Sandbox run was not created.');
+        });
+        const run = experimentPayload.runs[0];
+        if (!run?.id) throw new Error('Sandbox run was not created.');
+        experimentId = experimentPayload.experiment.id;
+        runId = run.id;
+      }
 
       const environmentResponse = await fetch('/api/sandbox/environments', {
         method: 'POST',
@@ -748,39 +844,33 @@ export default function PlaygroundPage() {
         body: JSON.stringify({
           type: environmentType,
           sourceId: sandboxSourceId || undefined,
-          runId: run.id,
+          runId,
           scenario: activeScenario,
         }),
       });
       const environmentPayload = await environmentResponse.json().catch(() => null);
       if (!environmentResponse.ok) throw new Error(environmentPayload?.error ?? 'Sandbox data copy could not be created.');
 
-      const startResponse = await fetch(`/api/runs/${run.id}/start`, { method: 'POST' });
-      const startPayload = await startResponse.json().catch(() => null);
-      if (!startResponse.ok) throw new Error(startPayload?.error ?? 'Unable to start sandbox runner.');
+      const startPayload = await lightcurveSdk().startRun(runId);
 
       trackLightcurveEvent('Playground Sandbox Queued', {
-        experiment_id: experimentPayload.experiment.id,
-        run_id: run.id,
+        experiment_id: experimentId,
+        run_id: runId,
         provider: startPayload?.provider,
         status: startPayload?.status,
       });
       let liveKitSession = startPayload?.liveKit;
       if (!usesPhoneVerification && liveKitSession) {
         try {
-          const sessionResponse = await fetch(`/api/runs/${run.id}/livekit-session`, { cache: 'no-store' });
-          const sessionPayload = await sessionResponse.json().catch(() => null);
-          if (sessionResponse.ok && sessionPayload?.agentToken) {
-            liveKitSession = sessionPayload;
-          }
+          liveKitSession = await lightcurveSdk().getLightcurveRoom(runId);
         } catch {
           // The inline room fields from startPayload are still enough for the user to connect.
         }
       }
 
       const nextRun: ActiveSandboxRun = {
-        experimentId: experimentPayload.experiment.id,
-        runId: run.id,
+        experimentId,
+        runId,
         provider: startPayload?.provider,
         status: startPayload?.status,
         externalCallId: startPayload?.externalCallId,
@@ -789,6 +879,9 @@ export default function PlaygroundPage() {
         sandboxEnvironmentId: environmentPayload?.environment?.environmentId,
       };
       setActiveSandboxRun(nextRun);
+      if (selectedConnectionMode === 'lightcurve_room' && liveKitSession) {
+        await connectDeveloperMic(liveKitSession, runId);
+      }
       if (usesPhoneVerification) {
         window.setTimeout(() => {
           void pollActiveRun(nextRun);
@@ -802,6 +895,8 @@ export default function PlaygroundPage() {
         error: message,
       });
       setRunError(message);
+    } finally {
+      setCallStarting(false);
     }
   }
 
@@ -809,9 +904,6 @@ export default function PlaygroundPage() {
     setRunError('');
     setConnectionMode('lightcurve_room');
     setAgentModalOpen(true);
-    if (callState === 'idle' && !activeSandboxRun?.liveKit) {
-      await startOrEndCall('lightcurve_room');
-    }
   }
 
   function downloadTranscript() {
@@ -843,13 +935,65 @@ export default function PlaygroundPage() {
     }
   }
 
+  function disconnectDeveloperMic() {
+    micTrackRef.current?.stop();
+    liveKitRoomRef.current?.disconnect();
+    remoteAudioElementsRef.current.forEach((element) => element.remove());
+    remoteAudioElementsRef.current = [];
+    micTrackRef.current = null;
+    liveKitRoomRef.current = null;
+    setMicState('idle');
+  }
+
+  async function connectDeveloperMic(liveKit: LightcurveRoomSession, runId: string) {
+    if (!liveKit.liveKitUrl || !liveKit.callerToken) {
+      throw new Error('The SDK room is missing its caller token. Reconnect the agent and try again.');
+    }
+
+    disconnectDeveloperMic();
+    setMicState('connecting');
+    setRunError('');
+    try {
+      const { Room, RoomEvent, Track, createLocalAudioTrack } = await import('livekit-client');
+      const room = new Room();
+      room.on(RoomEvent.TrackSubscribed, (remoteTrack) => {
+        if (remoteTrack.kind !== Track.Kind.Audio) return;
+        const audioElement = remoteTrack.attach();
+        audioElement.autoplay = true;
+        audioElement.dataset.lightcurveAgentAudio = 'true';
+        document.body.appendChild(audioElement);
+        remoteAudioElementsRef.current.push(audioElement);
+      });
+      room.on(RoomEvent.TrackUnsubscribed, (remoteTrack) => {
+        remoteTrack.detach().forEach((element) => {
+          element.remove();
+          remoteAudioElementsRef.current = remoteAudioElementsRef.current.filter((candidate) => candidate !== element);
+        });
+      });
+      await room.connect(liveKit.liveKitUrl, liveKit.callerToken);
+      await room.startAudio();
+      const track = await createLocalAudioTrack({
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      });
+      await room.localParticipant.publishTrack(track);
+      liveKitRoomRef.current = room;
+      micTrackRef.current = track;
+      setMicState('live');
+      trackLightcurveEvent('Playground Mic Connected', {
+        run_id: runId,
+        room_name: liveKit.roomName,
+      });
+    } catch (error) {
+      disconnectDeveloperMic();
+      throw error;
+    }
+  }
+
   async function toggleDeveloperMic() {
     if (micState === 'live') {
-      micTrackRef.current?.stop();
-      liveKitRoomRef.current?.disconnect();
-      micTrackRef.current = null;
-      liveKitRoomRef.current = null;
-      setMicState('idle');
+      disconnectDeveloperMic();
       trackLightcurveEvent('Playground Mic Disconnected', {
         run_id: activeSandboxRun?.runId,
       });
@@ -862,31 +1006,9 @@ export default function PlaygroundPage() {
       return;
     }
 
-    setMicState('connecting');
-    setRunError('');
     try {
-      const { Room, createLocalAudioTrack } = await import('livekit-client');
-      const room = new Room();
-      await room.connect(liveKit.liveKitUrl, liveKit.callerToken);
-      const track = await createLocalAudioTrack({
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      });
-      await room.localParticipant.publishTrack(track);
-      liveKitRoomRef.current = room;
-      micTrackRef.current = track;
-      setMicState('live');
-      trackLightcurveEvent('Playground Mic Connected', {
-        run_id: activeSandboxRun?.runId,
-        room_name: liveKit.roomName,
-      });
+      await connectDeveloperMic(liveKit, activeSandboxRun?.runId ?? '');
     } catch (error) {
-      micTrackRef.current?.stop();
-      liveKitRoomRef.current?.disconnect();
-      micTrackRef.current = null;
-      liveKitRoomRef.current = null;
-      setMicState('idle');
       setRunError(error instanceof Error ? error.message : 'Microphone could not connect to the Lightcurve room.');
     }
   }
@@ -946,8 +1068,9 @@ export default function PlaygroundPage() {
                   type="button"
                   className="btn-secondary min-h-8 px-3 py-1.5 text-xs"
                   onClick={() => void openLightcurveRoomDetails()}
+                  disabled={agentConnecting || callStarting}
                 >
-                  Connect
+                  {agentConnecting ? 'Connecting via SDK...' : activeSandboxRun?.liveKit ? 'Connected via SDK' : 'Connect via SDK'}
                 </button>
               </div>
               <div className="mt-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] px-3 py-2 text-xs leading-5 text-slate-600">
@@ -1034,8 +1157,15 @@ export default function PlaygroundPage() {
           <button
             onClick={() => void startOrEndCall()}
             className="mt-auto flex min-h-12 items-center justify-center rounded-lg border border-[#2f5ae0] bg-[#2f5ae0] px-4 text-sm font-medium text-white hover:bg-[#2448bb]"
+            disabled={callStarting || agentConnecting || micState === 'connecting'}
           >
-            {callState === 'running' && providerBackedLiveCall ? 'Refresh status' : callState === 'running' ? 'End Call' : 'Start Call'}
+            {callStarting || micState === 'connecting'
+              ? 'Opening microphone...'
+              : callState === 'running' && providerBackedLiveCall
+                ? 'Refresh status'
+                : callState === 'running'
+                  ? 'End Call'
+                  : 'Start Call'}
           </button>
         </aside>
 
@@ -1333,9 +1463,9 @@ export default function PlaygroundPage() {
           <div className="flex max-h-[calc(100vh-80px)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3">
               <div>
-                <h2 className="text-base font-medium text-slate-950">Connect to Lightcurve room</h2>
+                <h2 className="text-base font-medium text-slate-950">Connect agent through SDK</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Copy these one-time details into the agent runtime. The call stays on this Playground page.
+                  The SDK creates the room and one-time agent credentials. Start Call opens your microphone on this page.
                 </p>
               </div>
               <button className="btn-secondary min-h-8 px-3 py-1.5 text-xs" onClick={() => setAgentModalOpen(false)}>
@@ -1351,7 +1481,7 @@ export default function PlaygroundPage() {
                       <div>
                         <p className="text-sm font-medium text-slate-950">Room details</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          One-time values for this Playground call.
+                          SDK runner validated at {agent}. Start Call will send it these room credentials, then open your mic.
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -1449,27 +1579,48 @@ export default function PlaygroundPage() {
                   ) : (
                     <div className="space-y-3 rounded-lg border border-[#d8e0ff] bg-[#f6f8ff] p-3">
                       <div>
-                        <p className="text-sm font-medium text-slate-950">Create room details</p>
+                        <p className="text-sm font-medium text-slate-950">Connect your SDK agent runner</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Press Start Call to generate a room URL, room name, and agent token.
+                          Enter the HTTPS endpoint implemented by your agent with the Lightcurve SDK. We validate it before creating a private room.
                         </p>
                       </div>
+                      <label className="block text-xs text-slate-500">
+                        SDK runner endpoint
+                        <input
+                          className="input-field mt-1"
+                          value={agent}
+                          onChange={(event) => {
+                            setAgent(event.target.value);
+                            setAgentConnectionStatus('');
+                          }}
+                          placeholder="https://your-agent.example.com/lightcurve"
+                          disabled={agentConnecting}
+                        />
+                      </label>
+                      {agentConnectionStatus && !runError && (
+                        <div className="rounded-lg border border-[#cfd8ff] bg-white px-3 py-2 text-xs leading-5 text-[#526894]">
+                          {agentConnectionStatus}
+                        </div>
+                      )}
                       {runError ? (
                         <div className="rounded-lg border border-[#efcfcc] bg-[#fbf3f2] px-3 py-2 text-xs leading-5 text-[#8f3d3b]">
                           {runError}
                         </div>
-                      ) : (
+                      ) : agentConnecting ? (
                         <div className="h-2 overflow-hidden rounded-full bg-white">
                           <div className="h-full w-1/2 animate-pulse rounded-full bg-[#2f5ae0]" />
                         </div>
-                      )}
+                      ) : null}
                       {callState === 'idle' && (
                         <button
                           type="button"
                           className="btn-primary min-h-9 px-3 py-1.5 text-xs"
-                          onClick={() => void startOrEndCall('lightcurve_room')}
+                          onClick={() => void connectLightcurveAgent().catch((error) => {
+                            setRunError(error instanceof Error ? error.message : 'Agent could not connect through the Lightcurve SDK.');
+                          })}
+                          disabled={agentConnecting || !agent.trim()}
                         >
-                          Create room details
+                          {agentConnecting ? 'Connecting through SDK...' : 'Connect agent'}
                         </button>
                       )}
                     </div>

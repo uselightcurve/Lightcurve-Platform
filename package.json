@@ -23,6 +23,7 @@
     "@google-cloud/vertexai": "^1.12.0",
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.1.0",
+    "@uselightcurve/sdk": "file:sdk",
     "dodopayments": "^2.32.0",
     "drizzle-orm": "^0.45.2",
     "livekit-client": "^2.19.2",

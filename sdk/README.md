@@ -30,6 +30,30 @@ console.log(test.room.roomName);
 console.log(test.room.agentToken);
 ```
 
+## Connect an agent runner for microphone calls
+
+The Playground connects to your agent through an HTTPS runner endpoint. Register and validate that endpoint with the SDK, then attach it to the room test:
+
+```ts
+const created = await lightcurve.agentConnections.create({
+  provider: 'livekit',
+  displayName: 'My voice agent',
+  endpointType: 'webrtc',
+  endpoint: 'https://agent.example.com/lightcurve',
+  credentials: {},
+});
+
+await lightcurve.agentConnections.test(created.agentConnection.id);
+
+const test = await lightcurve.createLightcurveRoomTest({
+  name: 'microphone smoke test',
+  scenarioIds: ['scenario-id-from-lightcurve'],
+  agentConnectionId: created.agentConnection.id,
+});
+```
+
+The runner endpoint must accept `GET` for the connection check. When the call starts, it receives a `POST` payload with `type: "lightcurve.room.connect"` and `room.liveKitUrl`, `room.roomName`, and the short-lived `room.agentToken`. Return a 2xx response after your agent has accepted the room join request.
+
 ## Run a suite
 
 ```ts

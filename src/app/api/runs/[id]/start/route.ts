@@ -8,7 +8,7 @@ import { executeStubAgentRun, isStubAgentExperiment } from '@/lib/stubAgentRunne
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { hydrateExperimentAgentConfig } from '@/lib/agentConnections';
 import { validateNativeRunnerEndpoint } from '@/lib/nativeRunner';
-import { createLiveKitSandboxSession, isLightcurveHostedLiveKit } from '@/lib/livekitSandbox';
+import { createLiveKitSandboxSession, isLightcurveHostedLiveKit, requestAgentRunnerJoin } from '@/lib/livekitSandbox';
 import { isVobizPhoneExperiment, startVobizPhoneCall } from '@/lib/vobiz';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -123,13 +123,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (isLightcurveHostedLiveKit(experiment)) {
     try {
       const session = createLiveKitSandboxSession(id, experiment, scenario);
+      const agentJoinRequested = await requestAgentRunnerJoin(session, experiment);
       await db
         .update(runs)
         .set({
           status: 'running',
           provider: 'livekit',
           externalCallId: session.roomName,
-          externalStatus: session.externalStatus,
+          externalStatus: agentJoinRequested ? 'agent_join_requested' : session.externalStatus,
           startedAt: new Date(),
         })
         .where(eq(runs.id, id));
@@ -140,7 +141,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         provider: 'livekit',
         status: 'running',
         externalCallId: session.roomName,
-        externalStatus: session.externalStatus,
+        externalStatus: agentJoinRequested ? 'agent_join_requested' : session.externalStatus,
         liveKit: {
           roomName: session.roomName,
           liveKitUrl: session.liveKitUrl,

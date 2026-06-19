@@ -32,7 +32,25 @@ export interface LightcurveRoomTestOptions {
     scenarios?: string[];
     scenarioOverrides?: unknown[];
     agentConfig?: JsonRecord;
+    agentConnectionId?: string;
     gitSha?: string;
+}
+export interface AgentConnectionRecord {
+    id: string;
+    provider?: string;
+    displayName?: string;
+    endpoint?: string | null;
+    healthStatus?: string;
+    healthMessage?: string | null;
+    [key: string]: unknown;
+}
+export interface CreateAgentConnectionResponse {
+    agentConnection: AgentConnectionRecord;
+}
+export interface TestAgentConnectionResponse {
+    ok: boolean;
+    message?: string;
+    agentConnection?: AgentConnectionRecord;
 }
 export interface ExperimentRecord {
     id: string;
@@ -62,13 +80,24 @@ export interface LightcurveRoomSession {
     roomName: string;
     liveKitUrl: string;
     agentToken: string;
-    instructions?: string[];
+    callerToken?: string;
+    instructions?: string;
     joinOptions?: Array<{
-        title: string;
-        description: string;
+        id: string;
+        label: string;
+        summary: string;
         steps: string[];
         code?: string;
     }>;
+}
+export interface StartRunResponse {
+    success?: boolean;
+    provider?: string;
+    status?: string;
+    externalCallId?: string;
+    externalStatus?: string;
+    liveKit?: LightcurveRoomSession;
+    [key: string]: unknown;
 }
 export interface LightcurveRoomTestResponse extends CreateExperimentResponse {
     firstRun: RunRecord;
@@ -215,7 +244,7 @@ export declare class Lightcurve {
         experiment: ExperimentRecord;
     }>;
     createLightcurveRoomTest(options: LightcurveRoomTestOptions): Promise<LightcurveRoomTestResponse>;
-    startRun(runId: string): Promise<unknown>;
+    startRun(runId: string): Promise<StartRunResponse>;
     getRun(runId: string): Promise<unknown>;
     getLightcurveRoom(runId: string): Promise<LightcurveRoomSession>;
     getExperiment(experimentId: string): Promise<ExperimentSummary>;
@@ -230,8 +259,8 @@ export declare class Lightcurve {
     }): Promise<unknown>;
     compareExperiments(experimentId: string, compareId: string): Promise<unknown>;
     listAgentConnections(): Promise<unknown>;
-    createAgentConnection(payload: JsonRecord): Promise<unknown>;
-    testAgentConnection(connectionId: string): Promise<unknown>;
+    createAgentConnection(payload: JsonRecord): Promise<CreateAgentConnectionResponse>;
+    testAgentConnection(connectionId: string): Promise<TestAgentConnectionResponse>;
     scenarios: {
         list: (params?: Record<string, string | number | boolean | undefined>) => Promise<unknown>;
         fork: (parentId: string, options: {
@@ -248,8 +277,8 @@ export declare class Lightcurve {
     };
     agentConnections: {
         list: () => Promise<unknown>;
-        create: (payload: JsonRecord) => Promise<unknown>;
-        test: (connectionId: string) => Promise<unknown>;
+        create: (payload: JsonRecord) => Promise<CreateAgentConnectionResponse>;
+        test: (connectionId: string) => Promise<TestAgentConnectionResponse>;
     };
     private request;
 }
