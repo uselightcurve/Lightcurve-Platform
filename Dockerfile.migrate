@@ -6,6 +6,7 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY package.json package-lock.json ./
+COPY sdk/package.json ./sdk/package.json
 RUN npm ci
 
 COPY drizzle.config.ts ./
