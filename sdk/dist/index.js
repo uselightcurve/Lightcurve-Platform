@@ -140,6 +140,7 @@ class Lightcurve {
             ...roomConfig,
             scenarioIds: scenarioIdsFrom(options),
             scenarioOverrides: options.scenarioOverrides,
+            agentConnectionId: options.agentConnectionId,
             gitSha: options.gitSha,
         });
         const firstRun = created.runs[0];
