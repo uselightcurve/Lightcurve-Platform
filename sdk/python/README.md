@@ -3,7 +3,7 @@
 Install Lightcurve in a Pipecat voice-agent project:
 
 ```bash
-pip install use-lightcurve
+pip install --upgrade https://app.uselightcurve.com/sdk/use_lightcurve-0.4.0-py3-none-any.whl
 ```
 
 Set the workspace API key:

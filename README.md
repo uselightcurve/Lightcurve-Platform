@@ -12,7 +12,7 @@ models, infrastructure, and agent versions without using the telephone network.
 Python and Pipecat are supported first:
 
 ```bash
-pip install use-lightcurve
+pip install --upgrade https://app.uselightcurve.com/sdk/use_lightcurve-0.4.0-py3-none-any.whl
 ```
 
 ```python

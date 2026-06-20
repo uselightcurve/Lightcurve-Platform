@@ -245,16 +245,27 @@ export default function PlaygroundPage() {
               </label>
             )}
 
-            <button
-              type="button"
-              className="btn-primary flex min-h-12 w-full items-center justify-center text-base"
-              disabled={state === 'connecting' || loadingRuntimes || online.length === 0}
-              onClick={() => void startCall()}
-            >
-              {state === 'connecting' ? 'Starting call…' : 'Start Call'}
-            </button>
-            {!loadingRuntimes && online.length === 0 && (
-              <p className="text-center text-xs text-slate-500">Agent runtime offline. Start your Pipecat app with Lightcurve enabled.</p>
+            {loadingRuntimes ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">Checking your SDK…</div>
+            ) : online.length ? (
+              <button
+                type="button"
+                className="btn-primary flex min-h-12 w-full items-center justify-center text-base"
+                disabled={state === 'connecting'}
+                onClick={() => void startCall()}
+              >
+                {state === 'connecting' ? 'Starting call…' : 'Start Call'}
+              </button>
+            ) : (
+              <div className="rounded-xl border border-[#cfd8ff] bg-[#f6f8ff] p-5">
+                <div className="flex items-center justify-between gap-5">
+                  <div>
+                    <p className="font-medium text-slate-900">Install the SDK once</p>
+                    <p className="mt-1 text-sm text-slate-600">Add Lightcurve to your Pipecat app and run it. The Playground becomes ready automatically.</p>
+                  </div>
+                  <Link href="/settings/sdk" className="btn-primary shrink-0">Install SDK</Link>
+                </div>
+              </div>
             )}
           </div>
         ) : state === 'live' ? (

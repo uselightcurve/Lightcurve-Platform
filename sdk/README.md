@@ -1,10 +1,7 @@
 # Lightcurve JavaScript SDK
 
-The JavaScript package provides dataset automation for CI/CD:
-
-```bash
-npm install @uselightcurve/sdk
-```
+The JavaScript client in this directory provides dataset automation for CI/CD.
+It is currently an internal package and is not published to npm.
 
 ```ts
 import { Lightcurve } from '@uselightcurve/sdk';

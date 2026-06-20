@@ -28,6 +28,11 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
     </svg>
   ),
+  sdk: (
+    <svg className="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8.5 8L4.5 12l4 4M15.5 8l4 4-4 4M13.5 5l-3 14" />
+    </svg>
+  ),
   experiments: (
     <svg className="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8 4h8M9.2 4v6.4L6 18a1.5 1.5 0 001.4 2h9.2A1.5 1.5 0 0018 18l-3.2-7.6V4" />
@@ -47,8 +52,9 @@ const navItems = [
   { label: 'Logs', href: '/logs', icon: icons.logs, active: (path: string) => path.startsWith('/logs') || path.includes('/runs/') },
   { label: 'Datasets', href: '/datasets', icon: icons.datasets, active: (path: string) => path.startsWith('/datasets') },
   { label: 'Playground', href: '/playground', icon: icons.playground, active: (path: string) => path.startsWith('/playground') },
+  { label: 'SDK', href: '/settings/sdk', icon: icons.sdk, active: (path: string) => path.startsWith('/settings/sdk') || path.startsWith('/settings/api-keys') },
   { label: 'Experiments', href: '/experiments', icon: icons.experiments, active: (path: string) => path.startsWith('/experiments') },
-  { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') },
+  { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') && !path.startsWith('/settings/sdk') && !path.startsWith('/settings/api-keys') },
 ];
 
 export function Sidebar() {
