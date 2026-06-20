@@ -4,10 +4,26 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StatusChip } from '@/components/PageActions';
 
+type RunLog = {
+  id: string;
+  experimentId?: string | null;
+  caseName: string;
+  transcript: string;
+  language: string;
+  domain: string;
+  status: string;
+  date: string;
+  agent: string;
+  duration: string;
+  mos?: number | null;
+  task?: number | null;
+  latencyP95?: number | null;
+  sttConfidence?: number | null;
+};
+
 const filters = {
   Language: ['en-US', 'hi-IN', 'es-ES', 'en-GB'],
   Domain: ['telecom', 'banking', 'ecommerce', 'healthcare'],
-  Emotion: ['angry', 'neutral', 'urgent', 'frustrated', 'nervous'],
   Status: ['pass', 'fail', 'running', 'pending'],
 };
 
@@ -67,7 +83,7 @@ function displayStatus(status: string) {
 }
 
 export default function LogsPage() {
-  const [storedRuns, setStoredRuns] = useState<any[]>([]);
+  const [storedRuns, setStoredRuns] = useState<RunLog[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filterState, setFilterState] = useState<Record<string, string[]>>({});
@@ -81,7 +97,7 @@ export default function LogsPage() {
         return;
       }
       const data = await response.json();
-      setStoredRuns(data.runs ?? []);
+      setStoredRuns(Array.isArray(data.runs) ? data.runs as RunLog[] : []);
       setError('');
     };
 
@@ -90,29 +106,28 @@ export default function LogsPage() {
 
   const rows = useMemo(() => {
     return storedRuns.filter((run) => {
-    const target = `${run.scenarioName} ${run.transcript}`.toLowerCase();
+    const target = `${run.caseName} ${run.transcript}`.toLowerCase();
       const matchesQuery = !query || target.includes(query.toLowerCase());
       const matchesLanguage = !filterState.Language?.length || filterState.Language.includes(run.language);
       const matchesDomain = !filterState.Domain?.length || filterState.Domain.includes(run.domain);
-      const matchesEmotion = !filterState.Emotion?.length || filterState.Emotion.includes(run.emotion);
       const matchesStatus = !filterState.Status?.length || filterState.Status.includes(run.status);
-      return matchesQuery && matchesLanguage && matchesDomain && matchesEmotion && matchesStatus;
+      return matchesQuery && matchesLanguage && matchesDomain && matchesStatus;
     });
   }, [filterState, query, storedRuns]);
 
   function exportCsv() {
-    const header = ['Scenario', 'Language', 'Agent', 'MOS', 'Task', 'Duration', 'Status', 'Date'];
+    const header = ['Case', 'Language', 'Agent', 'MOS', 'Task', 'Duration', 'Status', 'Date'];
     const body = rows.map((run) => [
-      run.scenarioName,
+      run.caseName,
       run.language,
       run.agent,
-      run.mos.toFixed(1),
-      Math.round(run.task * 100).toString(),
+      typeof run.mos === 'number' ? run.mos.toFixed(1) : '',
+      typeof run.task === 'number' ? Math.round(run.task * 100).toString() : '',
       run.duration,
       run.status,
       run.date,
     ]);
-    const csv = [header, ...body].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = [header, ...body].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
@@ -130,7 +145,7 @@ export default function LogsPage() {
       <div className="page-header flex items-start justify-between">
         <div>
           <h1 className="page-title">Logs</h1>
-          <p className="page-subtitle">Search, filter, and inspect every sandbox call.</p>
+          <p className="page-subtitle">Search and inspect every human capture and dataset replay.</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="toolbar-button" onClick={exportCsv}>Export CSV</button>
@@ -143,7 +158,7 @@ export default function LogsPage() {
 
       <div className="space-y-3">
         <div className="card rounded-xl px-4 py-3">
-          <div className="grid grid-cols-[repeat(4,minmax(150px,1fr))_auto] items-end gap-3">
+          <div className="grid grid-cols-[repeat(3,minmax(150px,1fr))_auto] items-end gap-3">
             {Object.entries(filters).map(([group, values]) => (
               <FilterSelect
                 key={group}
@@ -164,7 +179,7 @@ export default function LogsPage() {
               className="input-field h-9"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search scenario name or transcript text"
+              placeholder="Search case name or transcript text"
             />
           </div>
 
@@ -183,7 +198,7 @@ export default function LogsPage() {
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-3 py-2" />
                 <th className="table-header px-3 py-2 text-left">Created</th>
-                <th className="table-header px-3 py-2 text-left">Scenario</th>
+                <th className="table-header px-3 py-2 text-left">Case</th>
                 <th className="table-header px-3 py-2 text-left">Language</th>
                 <th className="table-header px-3 py-2 text-left">MOS</th>
                 <th className="table-header px-3 py-2 text-left">Task</th>
@@ -205,8 +220,8 @@ export default function LogsPage() {
                     </td>
                     <td className="px-3 py-3 text-slate-600">{run.date.replace(', 2026', '')}</td>
                     <td className="px-3 py-3">
-                      <p className="truncate text-slate-800">{run.scenarioName}</p>
-                      <p className="mt-0.5 truncate text-xs text-slate-400">{run.domain} / {run.emotion}</p>
+                      <p className="truncate text-slate-800">{run.caseName}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-400">{run.domain}</p>
                     </td>
                     <td className="px-3 py-3 text-slate-600">{run.language}</td>
                     <td className="px-3 py-3">{typeof run.mos === 'number' ? <ScoreCell value={run.mos} max={4.5} /> : <span className="text-xs text-slate-400">Pending</span>}</td>
@@ -257,7 +272,7 @@ export default function LogsPage() {
                 <tr>
                   <td colSpan={8} className="px-5 py-12 text-center">
                     <p className="text-sm font-medium text-slate-900">No real call logs yet</p>
-                    <p className="mt-1 text-sm text-slate-500">Create an experiment and start a run to populate this table.</p>
+                    <p className="mt-1 text-sm text-slate-500">Record a human call, approve it as a case, then run its dataset.</p>
                     <Link href="/experiments/new" className="btn-primary mt-4 inline-flex">Create experiment</Link>
                   </td>
                 </tr>

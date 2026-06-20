@@ -1,128 +1,47 @@
-# Google Cloud Production Deployment
+# Google Cloud production deployment
 
-Lightcurve is deployed to Google Cloud Run from GitHub Actions. The live production service is:
+Lightcurve deploys the Next.js application and a schema-push migration job to
+Cloud Run through `.github/workflows/deploy-cloud-run.yml`.
 
-- Project: `lightcurve-platform`
-- Region: `us-central1`
-- Cloud Run service: `lightcurve`
-- Public URL: `https://lightcurve-rvdvu6z2zq-uc.a.run.app`
-- Artifact Registry repo: `lightcurve`
-- Web image: `lightcurve-web`
-- Migration image: `lightcurve-migrate`
-- Migration job: `lightcurve-db-push`
-- Cloud SQL connection: `lightcurve-platform:us-central1:lightcurve-prod-database`
-- Storage bucket: `lightcurve-platform-artifacts`
-- Cloud Tasks queue: `lightcurve-evals`
+## Required configuration
 
-## CI/CD behavior
+Repository variables:
 
-- Pull requests run `npm ci`, lint advisory, and `npm run build`.
-- Pushes to `main` build the web and migration Docker images.
-- The migration image runs through the Cloud Run job before the service is updated.
-- The service deploys to Cloud Run with the Cloud SQL connector attached.
-- Public access is preserved with `gcloud run services update lightcurve --no-invoker-iam-check`.
-- `npm run smoke:production` verifies `/`, `/api/integrations/status`, `/api/scenarios`, and `/api/experiments`.
+- `GCP_PROJECT_ID`
+- `GCP_REGION`
+- `SERVICE_NAME`
+- `AR_REPOSITORY`
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `GCS_BUCKET`
+- `CLOUD_SQL_CONNECTION_NAME`
+- `LIGHTCURVE_STUN_URL`
+- `LIGHTCURVE_TURN_URL`
 
-## GitHub repository setup
+Repository secrets:
 
-The repository must be connected to GitHub before the workflow can run. Add these repository variables:
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`
+- `GCP_DEPLOYER_SERVICE_ACCOUNT`
 
-```text
-GCP_PROJECT_ID=lightcurve-platform
-GCP_REGION=us-central1
-SERVICE_NAME=lightcurve
-AR_REPOSITORY=lightcurve
-NEXT_PUBLIC_APP_URL=https://lightcurve-rvdvu6z2zq-uc.a.run.app
-GCS_BUCKET=lightcurve-platform-artifacts
-CLOUD_TASKS_QUEUE=lightcurve-evals
-CLOUD_SQL_CONNECTION_NAME=lightcurve-platform:us-central1:lightcurve-prod-database
-```
+Secret Manager:
 
-`MOS_SERVICE_URL` is optional and should only be set when that service exists.
+- `DATABASE_URL`
+- `CLERK_SECRET_KEY`
+- `DODO_PAYMENTS_API_KEY`
+- `DODO_WEBHOOK_KEY` when billing webhooks are enabled
+- `GEMINI_API_KEY` when graph enrichment is enabled
+- `KMS_KEY_NAME` when application encryption is enabled
+- `LIGHTCURVE_TURN_USERNAME`
+- `LIGHTCURVE_TURN_CREDENTIAL`
 
-Add these repository secrets after running the Workload Identity setup:
+There are no telephony-provider, hosted-room, phone-number, or SIP secrets.
 
-```text
-GCP_WORKLOAD_IDENTITY_PROVIDER=projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-actions/providers/github
-GCP_DEPLOYER_SERVICE_ACCOUNT=github-deployer@lightcurve-platform.iam.gserviceaccount.com
-```
+## Deployment sequence
 
-## One-time Workload Identity setup
+1. Build and push web and migration images.
+2. Run the destructive-approved schema push before the web deployment.
+3. Deploy the web service with Cloud SQL and private secrets attached.
+4. Run `npm run smoke:production` against the deployed URL.
 
-Use Workload Identity Federation instead of a downloaded service account key. From an authenticated Google Cloud CLI session:
-
-```bash
-PROJECT_ID=lightcurve-platform GITHUB_REPOSITORY=OWNER/REPO bash scripts/gcp-github-oidc-setup.sh
-```
-
-Replace `OWNER/REPO` with the real GitHub repository, for example `uselightcurve/lightcurve`.
-
-The script creates or reuses:
-
-- service account: `github-deployer@lightcurve-platform.iam.gserviceaccount.com`
-- Workload Identity pool: `github-actions`
-- provider: `github`
-- repository-scoped identity binding
-
-It grants the deployer:
-
-- `roles/run.admin`
-- `roles/artifactregistry.writer`
-- `roles/iam.serviceAccountUser`
-- `roles/secretmanager.viewer`
-- `roles/secretmanager.secretAccessor`
-- `roles/cloudsql.viewer`
-
-## Secret Manager
-
-`DATABASE_URL` is required. Optional provider secrets are attached only when they exist, so deploys do not fail while integrations are still being added.
-
-Required:
-
-```bash
-gcloud secrets describe DATABASE_URL --project lightcurve-platform
-```
-
-Optional:
-
-```text
-GEMINI_API_KEY
-DAILY_API_KEY
-VAPI_API_KEY
-VAPI_ASSISTANT_ID
-RETELL_API_KEY
-RETELL_AGENT_ID
-ELEVENLABS_API_KEY
-ELEVENLABS_AGENT_ID
-LIVEKIT_URL
-LIVEKIT_API_KEY
-LIVEKIT_API_SECRET
-PIPECAT_AGENT_URL
-PIPECAT_AUTH_TOKEN
-CUSTOM_WEBRTC_WSS_URL
-HUGGINGFACE_TOKEN
-```
-
-Add a secret version with:
-
-```bash
-printf "VALUE" | gcloud secrets versions add SECRET_NAME --project lightcurve-platform --data-file=-
-```
-
-## Manual production check
-
-Run this if you need to verify the live service outside GitHub Actions:
-
-```bash
-SMOKE_BASE_URL=https://lightcurve-rvdvu6z2zq-uc.a.run.app npm run smoke:production
-```
-
-## Direct local deploy fallback
-
-The GitHub workflow is the preferred production path. If GitHub Actions is unavailable, use:
-
-```powershell
-.\scripts\gcp-deploy.ps1 -ProjectId "lightcurve-platform" -Region "us-central1" -CloudSqlInstance "lightcurve-platform:us-central1:lightcurve-prod-database"
-```
-
-This local fallback builds and pushes the web image from the workstation, uploads non-empty `.env` secrets to Secret Manager, attaches Cloud SQL, and prints the smoke test command.
+The smoke test verifies the application shell, non-telephony SDK transport
+status, and authentication on Datasets and Experiments.

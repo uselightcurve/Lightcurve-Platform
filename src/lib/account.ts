@@ -113,12 +113,9 @@ export async function getBillingSummary(userId: string) {
 
 export async function assertUsageAvailable(
   userId: string,
-  required: { actions?: number; minutes?: number; imports?: boolean },
+  required: { actions?: number; minutes?: number },
 ) {
   const summary = await getBillingSummary(userId);
-  if (required.imports && !summary.plan.importsEnabled) {
-    throw new Response('Upgrade to Pro to import production calls.', { status: 402 });
-  }
   if (
     summary.plan.actionsLimit !== null &&
     !summary.plan.overageEnabled &&
@@ -151,10 +148,6 @@ export async function recordUsageEvent(params: {
     sourceRunId: params.sourceRunId,
     sourceExperimentId: params.sourceExperimentId,
   });
-}
-
-export function ownerFilter<TColumn>(column: TColumn, userId: string) {
-  return and(eq(column as any, userId));
 }
 
 export type { PlanId };

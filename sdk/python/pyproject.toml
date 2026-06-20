@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "use-lightcurve"
-version = "0.3.0"
-description = "Python SDK for Lightcurve voice-agent sandbox tests, Lightcurve rooms, and experiment suites."
+version = "0.4.0"
+description = "Human-grounded end-to-end evaluation for Pipecat voice agents."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "Proprietary" }
 authors = [
   { name = "Lightcurve", email = "admin@uselightcurve.com" }
@@ -17,15 +17,17 @@ keywords = [
   "voice-ai",
   "evals",
   "testing",
-  "sandbox",
-  "livekit"
+  "datasets",
+  "pipecat"
+]
+dependencies = [
+  "aiortc>=1.14,<2",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",

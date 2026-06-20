@@ -6,8 +6,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/dodo',
   '/api/integrations/status',
   '/api/release-gate(.*)',
-  '/api/bot-to-bot/runs/(.*)/worker',
-  '/api/runner/runs/(.*)/result',
+  '/api/sdk/(.*)',
+  '/api/datasets(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

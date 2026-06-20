@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       type,
       runId: typeof body.runId === 'string' && body.runId ? body.runId : null,
       sourceId: typeof body.sourceId === 'string' && body.sourceId ? body.sourceId : null,
-      scenario: body.scenario && typeof body.scenario === 'object' ? body.scenario : null,
+      caseData: body.caseData && typeof body.caseData === 'object' ? body.caseData : null,
     });
 
     return NextResponse.json({ environment: panel });

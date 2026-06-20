@@ -21,6 +21,9 @@ export default async function ProfileSettingsPage() {
           <Link href="/settings/billing" className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-50">
             Billing
           </Link>
+          <Link href="/settings/api-keys" className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            API keys
+          </Link>
         </aside>
 
         <section className="space-y-4">

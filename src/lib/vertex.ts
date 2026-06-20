@@ -9,9 +9,17 @@ function vertexLocation() {
   return process.env.VERTEX_AI_LOCATION || process.env.GCP_REGION || 'us-central1';
 }
 
-function extractVertexText(result: any) {
-  const parts = result?.response?.candidates?.[0]?.content?.parts ?? [];
-  return parts.map((part: any) => part.text ?? '').join('').trim();
+function extractVertexText(result: unknown) {
+  const response = result && typeof result === 'object' ? (result as { response?: unknown }).response : undefined;
+  const candidates = response && typeof response === 'object' ? (response as { candidates?: unknown }).candidates : undefined;
+  const first = Array.isArray(candidates) ? candidates[0] : undefined;
+  const content = first && typeof first === 'object' ? (first as { content?: unknown }).content : undefined;
+  const parts = content && typeof content === 'object' ? (content as { parts?: unknown }).parts : undefined;
+  return (Array.isArray(parts) ? parts : []).map((part) => {
+    return part && typeof part === 'object' && typeof (part as { text?: unknown }).text === 'string'
+      ? (part as { text: string }).text
+      : '';
+  }).join('').trim();
 }
 
 export function hasVertexAI() {

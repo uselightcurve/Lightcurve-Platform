@@ -4,20 +4,29 @@ import { db } from '@/db';
 import { billingEvents, subscriptions, users } from '@/db/schema';
 import { getDodoClient } from '@/lib/dodo';
 
-function asRecord(value: unknown): Record<string, any> {
-  return value && typeof value === 'object' ? (value as Record<string, any>) : {};
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  return value && typeof value === 'object' ? (value as JsonRecord) : {};
 }
 
-function eventId(headers: Headers, payload: Record<string, any>) {
-  return headers.get('webhook-id') ?? headers.get('svix-id') ?? payload.id ?? `${payload.type}-${payload.timestamp}`;
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value ? value : undefined;
 }
 
-async function resolveOwnerUserId(data: Record<string, any>) {
+function eventId(headers: Headers, payload: JsonRecord) {
+  return headers.get('webhook-id')
+    ?? headers.get('svix-id')
+    ?? stringValue(payload.id)
+    ?? `${String(payload.type)}-${String(payload.timestamp)}`;
+}
+
+async function resolveOwnerUserId(data: JsonRecord) {
   const metadata = asRecord(data.metadata);
   const userId = metadata.clerkUserId ?? metadata.clerk_user_id ?? metadata.ownerUserId;
   if (typeof userId === 'string' && userId) return userId;
 
-  const email = data.customer?.email ?? data.customer_email;
+  const email = asRecord(data.customer).email ?? data.customer_email;
   if (typeof email === 'string' && email) {
     const found = await db.select().from(users).where(eq(users.email, email)).limit(1);
     return found[0]?.id;
@@ -29,7 +38,7 @@ function periodDate(value: unknown) {
   return typeof value === 'string' && value ? new Date(value) : undefined;
 }
 
-async function syncSubscription(eventType: string, data: Record<string, any>, ownerUserId: string) {
+async function syncSubscription(eventType: string, data: JsonRecord, ownerUserId: string) {
   const activeTypes = new Set(['subscription.active', 'subscription.updated', 'subscription.renewed']);
   const lockedTypes = new Set(['subscription.on_hold', 'subscription.failed', 'subscription.cancelled', 'subscription.expired']);
   const plan = activeTypes.has(eventType) ? 'pro' : lockedTypes.has(eventType) ? 'starter' : undefined;
@@ -45,9 +54,9 @@ async function syncSubscription(eventType: string, data: Record<string, any>, ow
   const next = {
     ownerUserId,
     plan,
-    status: data.status ?? (plan === 'pro' ? 'active' : 'inactive'),
-    dodoCustomerId: data.customer?.customer_id ?? data.customer_id,
-    dodoSubscriptionId: data.subscription_id,
+    status: stringValue(data.status) ?? (plan === 'pro' ? 'active' : 'inactive'),
+    dodoCustomerId: stringValue(asRecord(data.customer).customer_id ?? data.customer_id),
+    dodoSubscriptionId: stringValue(data.subscription_id),
     currentPeriodStart: periodDate(data.previous_billing_date),
     currentPeriodEnd: periodDate(data.next_billing_date),
     updatedAt: now,
@@ -62,7 +71,7 @@ async function syncSubscription(eventType: string, data: Record<string, any>, ow
 
 export async function POST(req: Request) {
   const body = await req.text();
-  let event: any;
+  let event: unknown;
 
   try {
     const client = getDodoClient();

@@ -53,7 +53,7 @@ console.log(
 if (!body.pass) {
   console.error('Release gate did not pass.');
   for (const failure of body.failures ?? []) {
-    console.error(`- ${failure.scenarioName ?? failure.runId}: ${(failure.reasons ?? []).join('; ')}`);
+    console.error(`- ${failure.caseName ?? failure.runId}: ${(failure.reasons ?? []).join('; ')}`);
   }
   process.exit(1);
 }

@@ -10,7 +10,6 @@ required_env=(
   MIGRATION_JOB
   NEXT_PUBLIC_APP_URL
   GCS_BUCKET
-  CLOUD_TASKS_QUEUE
   CLOUD_SQL_CONNECTION_NAME
 )
 
@@ -52,41 +51,10 @@ done
 
 optional_secrets=(
   GEMINI_API_KEY
-  DAILY_API_KEY
-  VAPI_API_KEY
-  VAPI_ASSISTANT_ID
-  VAPI_PHONE_NUMBER_ID
-  VAPI_CALLER_PHONE_NUMBER
-  VAPI_TEST_CUSTOMER_NUMBER
-  VAPI_TARGET_AGENT_NUMBER
-  VAPI_CALLER_ASSISTANT_ID
-  VAPI_CALLER_VOICE_PROVIDER
-  VAPI_CALLER_VOICE_ID
-  RETELL_API_KEY
-  RETELL_AGENT_ID
-  RETELL_FROM_NUMBER
-  RETELL_TEST_CUSTOMER_NUMBER
-  ELEVENLABS_API_KEY
-  ELEVENLABS_AGENT_ID
-  ELEVENLABS_AGENT_PHONE_NUMBER_ID
-  ELEVENLABS_TEST_CUSTOMER_NUMBER
-  LIVEKIT_URL
-  LIVEKIT_API_KEY
-  LIVEKIT_API_SECRET
-  PIPECAT_AGENT_URL
-  PIPECAT_AUTH_TOKEN
-  CUSTOM_WEBRTC_WSS_URL
-  CUSTOM_AGENT_RUNNER_URL
-  HUGGINGFACE_TOKEN
   DODO_WEBHOOK_KEY
   KMS_KEY_NAME
-  RUNNER_INGEST_TOKEN
-  BOT_TO_BOT_CALLER_MODEL
-  BOT_TO_BOT_JUDGE_MODEL
-  BOT_TO_BOT_TTS_ENABLED
-  BOT_TO_BOT_MAX_TURNS
-  BOT_TO_BOT_TASK_DEADLINE_SECONDS
-  BOT_TO_BOT_MAX_CONCURRENT_RUNS
+  LIGHTCURVE_TURN_USERNAME
+  LIGHTCURVE_TURN_CREDENTIAL
 )
 
 for secret_name in "${optional_secrets[@]}"; do
@@ -114,20 +82,9 @@ env_vars=(
   "GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
   "GCP_REGION=$REGION"
   "VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION:-$REGION}"
-  "CLOUD_TASKS_LOCATION=$REGION"
-  "CLOUD_TASKS_QUEUE=$CLOUD_TASKS_QUEUE"
   "GCS_BUCKET=$GCS_BUCKET"
-  "ELEVENLABS_COST_MODE=${ELEVENLABS_COST_MODE:-recording_replay}"
-  "LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER=${LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER:-cheap_tts}"
-  "BOT_TO_BOT_CALLER_MODEL=${BOT_TO_BOT_CALLER_MODEL:-gemini-2.5-flash-lite}"
-  "BOT_TO_BOT_JUDGE_MODEL=${BOT_TO_BOT_JUDGE_MODEL:-gemini-2.5-flash}"
-  "BOT_TO_BOT_TTS_ENABLED=${BOT_TO_BOT_TTS_ENABLED:-1}"
-  "BOT_TO_BOT_MAX_TURNS=${BOT_TO_BOT_MAX_TURNS:-6}"
-  "BOT_TO_BOT_TASK_DEADLINE_SECONDS=${BOT_TO_BOT_TASK_DEADLINE_SECONDS:-900}"
-  "BOT_TO_BOT_MAX_CONCURRENT_RUNS=${BOT_TO_BOT_MAX_CONCURRENT_RUNS:-50}"
-  "MAX_REAL_PHONE_SCENARIOS=${MAX_REAL_PHONE_SCENARIOS:-10}"
-  "VAPI_CALLER_MODEL_PROVIDER=${VAPI_CALLER_MODEL_PROVIDER:-openai}"
-  "VAPI_CALLER_MODEL=${VAPI_CALLER_MODEL:-gpt-4o-mini}"
+  "LIGHTCURVE_STUN_URL=${LIGHTCURVE_STUN_URL:-stun:stun.uselightcurve.com:3478}"
+  "LIGHTCURVE_TURN_URL=${LIGHTCURVE_TURN_URL:-turn:turn.uselightcurve.com:3478}"
 )
 
 if [[ -n "${MOS_SERVICE_URL:-}" ]]; then
@@ -154,49 +111,6 @@ gcloud run jobs execute "$MIGRATION_JOB" \
   --region "$REGION" \
   --wait
 
-echo "Updating Cloud Tasks queue concurrency"
-if gcloud tasks queues describe "$CLOUD_TASKS_QUEUE" --project "$PROJECT_ID" --location "$REGION" >/dev/null 2>&1; then
-  gcloud tasks queues update "$CLOUD_TASKS_QUEUE" \
-    --project "$PROJECT_ID" \
-    --location "$REGION" \
-    --max-concurrent-dispatches "${BOT_TO_BOT_MAX_CONCURRENT_RUNS:-50}" \
-    --quiet
-else
-  echo "Cloud Tasks queue $CLOUD_TASKS_QUEUE was not found; skipping concurrency update."
-fi
-
-runner_service_name="${RUNNER_SERVICE_NAME:-lightcurve-runner}"
-runner_env_arg="$(join_by_comma "${env_vars[@]}")"
-
-echo "Deploying Cloud Run runner service $runner_service_name"
-gcloud run deploy "$runner_service_name" \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --image "$WEB_IMAGE" \
-  --port 8080 \
-  --cpu 1 \
-  --memory 1Gi \
-  --min-instances 0 \
-  --max-instances 10 \
-  --timeout 900 \
-  --set-env-vars "$runner_env_arg" \
-  --set-secrets "$secret_arg" \
-  --add-cloudsql-instances "$CLOUD_SQL_CONNECTION_NAME" \
-  --quiet
-
-echo "Preserving public runner access; worker routes require RUNNER_INGEST_TOKEN when configured"
-gcloud run services update "$runner_service_name" \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --no-invoker-iam-check \
-  --quiet
-
-runner_url="$(gcloud run services describe "$runner_service_name" \
-  --project "$PROJECT_ID" \
-  --region "$REGION" \
-  --format='value(status.url)')"
-
-env_vars+=("RUNNER_BASE_URL=$runner_url")
 env_arg="$(join_by_comma "${env_vars[@]}")"
 
 echo "Deploying Cloud Run service $SERVICE_NAME"

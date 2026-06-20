@@ -19,7 +19,7 @@ export type SandboxPanel = {
   timeline: Array<{ tool: string; detail: string; status?: 'queued' | 'calling' | '200 OK' | 'blocked' }>;
 };
 
-type ScenarioLike = {
+type CaseLike = {
   id?: string;
   name?: string;
   language?: string;
@@ -58,36 +58,36 @@ function toRows(value: unknown): SourceRow[] {
     .slice(0, 500);
 }
 
-function scenarioName(scenario?: ScenarioLike | null) {
-  return stringValue(scenario?.persona?.name, 'Jordan');
+function caseName(caseData?: CaseLike | null) {
+  return stringValue(caseData?.persona?.name, 'Jordan');
 }
 
-function scenarioTarget(scenario?: ScenarioLike | null) {
+function caseTarget(caseData?: CaseLike | null) {
   return (
-    stringValue(scenario?.pronunciation?.targetValue) ||
-    stringValue(scenario?.persona?.goal, 'customer request')
+    stringValue(caseData?.pronunciation?.targetValue) ||
+    stringValue(caseData?.persona?.goal, 'customer request')
   );
 }
 
-export function buildStarterRows(type: SandboxType, scenario?: ScenarioLike | null): SourceRow[] {
-  const customerName = scenarioName(scenario);
-  const target = scenarioTarget(scenario);
-  const domain = stringValue(scenario?.domain, 'general');
+export function buildStarterRows(type: SandboxType, caseData?: CaseLike | null): SourceRow[] {
+  const customerName = caseName(caseData);
+  const target = caseTarget(caseData);
+  const domain = stringValue(caseData?.domain, 'general');
   if (type === 'calendar') {
     return [
       {
         date: '2026-06-03',
         slot: domain === 'healthcare' ? '09:30' : '15:30',
-        timezone: scenario?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
+        timezone: caseData?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
         availability: domain === 'healthcare' ? 'no_slots' : 'available',
         booking_status: 'open',
         customer_name: customerName,
-        notes: stringValue(scenario?.persona?.goal, 'Find a safe appointment time.'),
+        notes: stringValue(caseData?.persona?.goal, 'Find a safe appointment time.'),
       },
       {
         date: '2026-06-03',
         slot: '15:30',
-        timezone: scenario?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
+        timezone: caseData?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
         availability: 'conflict',
         booking_status: 'held_by_another_customer',
         customer_name: 'Existing customer',
@@ -101,7 +101,7 @@ export function buildStarterRows(type: SandboxType, scenario?: ScenarioLike | nu
       {
         property: 'Lightcurve Retreat',
         date_range: '2026-07-04 to 2026-07-06',
-        timezone: scenario?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
+        timezone: caseData?.language === 'hi-IN' ? 'Asia/Kolkata' : 'America/New_York',
         adults: 4,
         children: 0,
         child_ages: '',
@@ -114,7 +114,7 @@ export function buildStarterRows(type: SandboxType, scenario?: ScenarioLike | nu
         base_price: '12000',
         tax_rate: '0.18',
         quote_status: 'not_quoted',
-        notes: stringValue(scenario?.persona?.goal, 'Create a safe booking quote.'),
+        notes: stringValue(caseData?.persona?.goal, 'Create a safe booking quote.'),
       },
       {
         property: 'Lightcurve Retreat',
@@ -135,7 +135,7 @@ export function buildStarterRows(type: SandboxType, scenario?: ScenarioLike | nu
       phone: target.startsWith('+') ? target : '+12164748341',
       account_status: 'active',
       order_status: domain === 'ecommerce' ? 'refund_review_required' : 'standard_support',
-      record_status: scenario?.persona?.interrupts ? 'duplicate_match' : 'single_match',
+      record_status: caseData?.persona?.interrupts ? 'duplicate_match' : 'single_match',
       pending_value: '',
     },
     {
@@ -220,7 +220,7 @@ export async function createSandboxEnvironment(params: {
   type: SandboxType;
   runId?: string | null;
   sourceId?: string | null;
-  scenario?: ScenarioLike | null;
+  caseData?: CaseLike | null;
 }) {
   let sourceRows: SourceRow[] = [];
   let sourceId: string | null = null;
@@ -237,7 +237,7 @@ export async function createSandboxEnvironment(params: {
     sourceId = source.id;
   }
 
-  if (!sourceRows.length) sourceRows = buildStarterRows(params.type, params.scenario);
+  if (!sourceRows.length) sourceRows = buildStarterRows(params.type, params.caseData);
 
   const [environment] = await db
     .insert(sandboxEnvironments)
@@ -249,8 +249,8 @@ export async function createSandboxEnvironment(params: {
       status: 'ready',
       seedMetadata: {
         generatedFallback: !sourceId,
-        scenarioId: params.scenario?.id,
-        scenarioName: params.scenario?.name,
+        caseId: params.caseData?.id,
+        caseName: params.caseData?.name,
       },
     })
     .returning();
@@ -388,7 +388,7 @@ export async function applySandboxAction(params: {
 
   const current = first.data as SourceRow;
   const output = params.tool === 'calendar'
-    ? calendarActionOutput(params.action, current, params.input)
+    ? calendarActionOutput(params.action, current)
     : params.tool === 'reservation'
       ? reservationActionOutput(params.action, current, params.input)
       : crmActionOutput(params.action, current, params.input);
@@ -444,7 +444,7 @@ function crmActionOutput(action: string, row: SourceRow, input: SourceRow) {
   return { status: '200 OK', output: { detail: 'CRM sandbox action recorded' } };
 }
 
-function calendarActionOutput(action: string, row: SourceRow, input: SourceRow) {
+function calendarActionOutput(action: string, row: SourceRow) {
   if (action === 'slots' || action === 'find_slots') {
     return { status: '200 OK', output: { detail: `Found ${stringValue(row.availability, 'availability')} for ${stringValue(row.slot, 'slot')}` } };
   }

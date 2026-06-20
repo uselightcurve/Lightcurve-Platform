@@ -67,24 +67,24 @@ function PlanCard({ plan, active }: { plan: Plan; active: boolean }) {
 
 const billingFaqs = [
   {
-    question: 'Will 10,000 sandbox tests run up my Vapi, Retell, or ElevenLabs bill?',
+    question: 'Do dataset replays use the telephone network?',
     answer:
-      'Not by default. Lightcurve is designed to run broad suites through low-cost testing and isolated sandbox modes first. Your provider bill is only involved when you choose a provider-backed or phone-realism check that reaches your connected production agent.',
+      'No. Lightcurve sends WebRTC audio directly to the SDK inside your running agent. There are no phone numbers, SIP calls, carriers, or hosted-room providers.',
   },
   {
     question: 'What is the lowest-cost way to test before production?',
     answer:
-      'Run the agent-replica suite first. Lightcurve uses your agent instructions, policy text, tool mocks, and scenario library to find risky failures with low-cost testing, then promotes only the highest-risk cases to real-agent verification.',
+      'Capture one real human call, approve its behavior graph as a dataset Case, and replay that case across every candidate agent version.',
   },
   {
-    question: 'When can my own agent provider still charge me?',
+    question: 'Can my own model and speech services still charge me?',
     answer:
-      'If a test calls your real agent endpoint, your agent may still consume its own model, voice, or provider credits. Lightcurve keeps that controlled by separating low-cost testing coverage from smaller real-provider smoke suites.',
+      'Yes. A replay exercises your real STT, model, tools, and TTS through the Pipecat pipeline, so those services may consume their normal usage.',
   },
   {
-    question: 'Does low-cost testing mean weaker testing?',
+    question: 'Are replay callers synthetic?',
     answer:
-      'No. The judge stays strict across low-cost testing and real-agent modes: exact email and phone capture, confirmation, tool behavior, task completion, latency, pacing drift, and failure evidence are still scored.',
+      'The speech is generated for scale, but caller behavior is constrained by a graph captured from a real human interaction. Lightcurve does not invent an unconstrained caller persona from a prompt.',
   },
 ];
 
@@ -107,6 +107,9 @@ export default async function BillingSettingsPage() {
           </Link>
           <Link href="/settings/billing" className="flex h-9 items-center rounded-md bg-slate-100 px-3 text-sm font-medium text-slate-900">
             Billing
+          </Link>
+          <Link href="/settings/api-keys" className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            API keys
           </Link>
         </aside>
 
@@ -151,7 +154,7 @@ export default async function BillingSettingsPage() {
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <p className="text-sm font-medium text-slate-900">Payment management</p>
                 <p className="mt-1 text-sm leading-5 text-slate-500">
-                  Tomorrow's pilot runs on Starter limits only. Pro checkout will be enabled after the Dodo product and webhook are verified end to end.
+                  Tomorrow&apos;s pilot runs on Starter limits only. Pro checkout will be enabled after the Dodo product and webhook are verified end to end.
                 </p>
               </div>
 

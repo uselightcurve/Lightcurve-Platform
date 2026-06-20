@@ -8,7 +8,7 @@ import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 export const metadata: Metadata = {
   title: "Lightcurve Dashboard",
   description:
-    "Run sandboxed phone-call tests for voice AI agents, score MOS and task quality, and gate releases before production.",
+    "Capture real human voice interactions, turn them into behavioral datasets, and replay them across voice-agent versions.",
 };
 
 export default function RootLayout({

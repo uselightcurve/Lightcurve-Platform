@@ -16,7 +16,7 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M4 12h3l1.8-5 4.1 11 2.2-6H20" />
     </svg>
   ),
-  scenarios: (
+  datasets: (
     <svg className="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8 5.5h8a2 2 0 012 2v8.2a2 2 0 01-2 2H9.2L6 20v-3.2a2 2 0 01-1-1.7V7.5a2 2 0 012-2z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8.5 10h7M8.5 13.5H13" />
@@ -45,7 +45,7 @@ const icons = {
 const navItems = [
   { label: 'Overview', href: '/', icon: icons.overview, active: (path: string) => path === '/' },
   { label: 'Logs', href: '/logs', icon: icons.logs, active: (path: string) => path.startsWith('/logs') || path.includes('/runs/') },
-  { label: 'Scenarios', href: '/scenarios', icon: icons.scenarios, active: (path: string) => path.startsWith('/scenarios') },
+  { label: 'Datasets', href: '/datasets', icon: icons.datasets, active: (path: string) => path.startsWith('/datasets') },
   { label: 'Playground', href: '/playground', icon: icons.playground, active: (path: string) => path.startsWith('/playground') },
   { label: 'Experiments', href: '/experiments', icon: icons.experiments, active: (path: string) => path.startsWith('/experiments') },
   { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') },

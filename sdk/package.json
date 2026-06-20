@@ -1,7 +1,7 @@
 {
   "name": "@uselightcurve/sdk",
-  "version": "0.1.0",
-  "description": "Lightcurve SDK for voice-agent sandbox tests, Lightcurve rooms, and experiment suites.",
+  "version": "0.2.0",
+  "description": "Lightcurve human-grounded voice dataset API client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -16,7 +16,7 @@
     "voice-ai",
     "evals",
     "testing",
-    "livekit"
+    "datasets"
   ],
   "license": "UNLICENSED",
   "devDependencies": {

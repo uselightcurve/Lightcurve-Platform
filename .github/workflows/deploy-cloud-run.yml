@@ -20,7 +20,8 @@ env:
   MIGRATION_JOB: lightcurve-db-push
   NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'https://app.uselightcurve.com' }}
   GCS_BUCKET: ${{ vars.GCS_BUCKET || 'lightcurve-platform-artifacts' }}
-  CLOUD_TASKS_QUEUE: ${{ vars.CLOUD_TASKS_QUEUE || 'lightcurve-evals' }}
+  LIGHTCURVE_STUN_URL: ${{ vars.LIGHTCURVE_STUN_URL || 'stun:stun.uselightcurve.com:3478' }}
+  LIGHTCURVE_TURN_URL: ${{ vars.LIGHTCURVE_TURN_URL || 'turn:turn.uselightcurve.com:3478' }}
   CLOUD_SQL_CONNECTION_NAME: ${{ vars.CLOUD_SQL_CONNECTION_NAME || 'lightcurve-platform:us-central1:lightcurve-prod-database' }}
   MOS_SERVICE_URL: ${{ vars.MOS_SERVICE_URL }}
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -54,7 +55,6 @@ jobs:
             REPOSITORY
             NEXT_PUBLIC_APP_URL
             GCS_BUCKET
-            CLOUD_TASKS_QUEUE
             CLOUD_SQL_CONNECTION_NAME
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
           )

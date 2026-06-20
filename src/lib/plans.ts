@@ -8,7 +8,6 @@ export type Plan = {
   monthlyCents: number;
   minutesLimit: number | null;
   actionsLimit: number | null;
-  importsEnabled: boolean;
   overageEnabled: boolean;
   minuteOverageCents: number;
   actionOverageCentsPerThousand: number;
@@ -24,11 +23,10 @@ export const PLANS: Record<PlanId, Plan> = {
     monthlyCents: 0,
     minutesLimit: 30,
     actionsLimit: 10000,
-    importsEnabled: false,
     overageEnabled: false,
     minuteOverageCents: 0,
     actionOverageCentsPerThousand: 0,
-    features: ['30 tested minutes', '10,000 eval actions', 'Small production import cap'],
+    features: ['30 tested minutes', '10,000 eval actions', 'Private human-grounded datasets'],
   },
   pro: {
     id: 'pro',
@@ -38,11 +36,10 @@ export const PLANS: Record<PlanId, Plan> = {
     monthlyCents: 9900,
     minutesLimit: 1000,
     actionsLimit: 50000,
-    importsEnabled: true,
     overageEnabled: true,
     minuteOverageCents: 4,
     actionOverageCentsPerThousand: 50,
-    features: ['1,000 tested minutes', '50,000 eval actions', 'Production call imports', 'Paid overage after included usage'],
+    features: ['1,000 tested minutes', '50,000 eval actions', 'Human-grounded dataset replays', 'Paid overage after included usage'],
   },
   scale: {
     id: 'scale',
@@ -52,7 +49,6 @@ export const PLANS: Record<PlanId, Plan> = {
     monthlyCents: 0,
     minutesLimit: null,
     actionsLimit: null,
-    importsEnabled: true,
     overageEnabled: false,
     minuteOverageCents: 0,
     actionOverageCentsPerThousand: 0,

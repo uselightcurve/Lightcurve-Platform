@@ -15,7 +15,7 @@ type OverviewResponse = {
     experiments: { value: number; series: number[] };
   };
   recentExperiments: Array<{ id: string; name: string; status: string | null; mos: number | null; date: string }>;
-  failingScenarios: Array<{ runId: string; experimentId: string | null; name: string; reason: string; score: number }>;
+  failingCases: Array<{ runId: string; experimentId: string | null; name: string; reason: string; score: number }>;
 };
 
 function emptyOverview(): OverviewResponse {
@@ -29,7 +29,7 @@ function emptyOverview(): OverviewResponse {
       experiments: { value: 0, series: [0] },
     },
     recentExperiments: [],
-    failingScenarios: [],
+    failingCases: [],
   };
 }
 
@@ -137,11 +137,11 @@ export default function Home() {
 
       <OverviewMetricGrid panels={panels} />
 
-      {!loading && !overview.recentExperiments.length && !overview.failingScenarios.length ? (
+      {!loading && !overview.recentExperiments.length && !overview.failingCases.length ? (
         <section className="card p-8 text-center">
           <h2 className="text-base font-medium text-slate-950">No sandbox runs yet</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-            Connect a real agent endpoint, pick scenarios, and Lightcurve will populate this dashboard with live run data.
+            Enable the SDK, record one real human call, and Lightcurve will build your first replayable dataset.
           </p>
           <Link href="/experiments/new" className="btn-primary mt-5 inline-flex">Create first experiment</Link>
         </section>
@@ -181,22 +181,22 @@ export default function Home() {
 
           <section className="card overflow-hidden">
             <div className="border-b border-slate-200 px-4 py-3">
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-900">Failing scenarios</h2>
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-900">Failing cases</h2>
             </div>
             <div className="divide-y divide-slate-100">
-              {overview.failingScenarios.length ? overview.failingScenarios.map((scenario) => (
-                <div key={scenario.runId} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3">
+              {overview.failingCases.length ? overview.failingCases.map((item) => (
+                <div key={item.runId} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3">
                   <div>
-                    <p className="text-sm text-slate-800">{scenario.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{scenario.reason}</p>
+                    <p className="text-sm text-slate-800">{item.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{item.reason}</p>
                     <div className="mt-2">
-                      <ScoreBar value={scenario.score} />
+                      <ScoreBar value={item.score} />
                     </div>
                   </div>
                   <Link href="/experiments/new" className="btn-secondary min-h-8 self-start text-xs">Re-run</Link>
                 </div>
               )) : (
-                <div className="px-4 py-8 text-sm text-slate-500">No failed scenarios yet.</div>
+                <div className="px-4 py-8 text-sm text-slate-500">No failed cases yet.</div>
               )}
             </div>
           </section>

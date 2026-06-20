@@ -60,12 +60,12 @@ try {
   });
 
   await assertOk('/api/integrations/status', (json) => {
-    if (!json || !Array.isArray(json.providers)) {
-      throw new Error('Integration status response is missing providers.');
+    if (!json || !Array.isArray(json.integrations) || json.media?.telephony !== false) {
+      throw new Error('Integration status response is missing the non-telephony SDK transport.');
     }
   });
 
-  await assertProtected('/api/scenarios');
+  await assertProtected('/api/datasets');
   await assertProtected('/api/experiments');
 
   console.log(`Production smoke test passed for ${normalizedBaseUrl}`);

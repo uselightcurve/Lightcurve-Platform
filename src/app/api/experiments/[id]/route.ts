@@ -1,35 +1,29 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { experiments, runs, scenarios, scores } from '@/db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
+import { db } from '@/db';
+import { agentRuntimes, datasetCases, datasets, experiments, runs, scores } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
-import { releaseWorkflowForExperiment } from '@/lib/releaseWorkflow';
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const account = await requireAccount();
     const { id } = await params;
-    const expData = await db.select().from(experiments).where(and(eq(experiments.id, id), eq(experiments.ownerUserId, account.userId)));
-    if (!expData.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    
-    const expRuns = await db.select().from(runs).where(and(eq(runs.experimentId, id), eq(runs.ownerUserId, account.userId)));
-    const scenarioIds = expRuns.map((run) => run.scenarioId).filter(Boolean) as string[];
-    const expScenarios = scenarioIds.length
-      ? await db.select().from(scenarios).where(inArray(scenarios.id, scenarioIds))
-      : [];
-    
-    const allScores = [];
-    for (const r of expRuns) {
-      const rScores = await db.select().from(scores).where(eq(scores.runId, r.id));
-      allScores.push(...rScores);
-    }
-
-    const workflow = releaseWorkflowForExperiment(expData[0], expRuns, allScores);
-
-    return NextResponse.json({ experiment: expData[0], runs: expRuns, scores: allScores, scenarios: expScenarios, workflow });
+    const [row] = await db.select({ experiment: experiments, dataset: datasets, runtime: agentRuntimes })
+      .from(experiments)
+      .innerJoin(datasets, eq(datasets.id, experiments.datasetId))
+      .leftJoin(agentRuntimes, eq(agentRuntimes.id, experiments.runtimeId))
+      .where(and(eq(experiments.id, id), eq(experiments.ownerUserId, account.userId)))
+      .limit(1);
+    if (!row) return NextResponse.json({ error: 'Experiment not found.' }, { status: 404 });
+    const runRows = await db.select().from(runs).where(eq(runs.experimentId, id));
+    const caseIds = runRows.flatMap((run) => run.caseId ? [run.caseId] : []);
+    const cases = caseIds.length ? await db.select().from(datasetCases).where(inArray(datasetCases.id, caseIds)) : [];
+    const runIds = runRows.map((run) => run.id);
+    const scoreRows = runIds.length ? await db.select().from(scores).where(inArray(scores.runId, runIds)) : [];
+    return NextResponse.json({ ...row, runs: runRows, cases, scores: scoreRows });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
-    return NextResponse.json({ error: 'Experiment unavailable' }, { status: 503 });
+    return NextResponse.json({ error: 'Experiment could not be loaded.' }, { status: 500 });
   }
 }

@@ -7,7 +7,6 @@ param(
   [string]$Repository = "lightcurve",
   [string]$ImageName = "lightcurve-web",
   [string]$BucketName = "",
-  [string]$TasksQueue = "lightcurve-evals",
   [string]$CloudSqlInstance = "",
   [string]$EnvFile = ".env"
 )
@@ -108,7 +107,6 @@ Write-Host "Enabling required Google Cloud services"
   sqladmin.googleapis.com `
   iamcredentials.googleapis.com `
   sts.googleapis.com `
-  cloudtasks.googleapis.com `
   storage.googleapis.com `
   --project $ProjectId | Out-Host
 
@@ -131,25 +129,10 @@ if (-not $bucketExists) {
   & gcloud.cmd storage buckets create "gs://$BucketName" --location=$Region --project $ProjectId | Out-Host
 }
 
-Write-Host "Ensuring Cloud Tasks queue $TasksQueue"
-$queueExists = & gcloud.cmd tasks queues list --location=$Region --project $ProjectId --filter="name:$TasksQueue" --format="value(name)"
-if (-not $queueExists) {
-  & gcloud.cmd tasks queues create $TasksQueue --location=$Region --project $ProjectId | Out-Host
-}
-$maxConcurrentRuns = if ($envValues["BOT_TO_BOT_MAX_CONCURRENT_RUNS"]) { $envValues["BOT_TO_BOT_MAX_CONCURRENT_RUNS"] } else { "50" }
-& gcloud.cmd tasks queues update $TasksQueue `
-  --location=$Region `
-  --project $ProjectId `
-  --max-concurrent-dispatches=$maxConcurrentRuns | Out-Host
-
 Write-Host "Granting runtime service account minimum app permissions"
 & gcloud.cmd projects add-iam-policy-binding $ProjectId `
   --member="serviceAccount:$runtimeServiceAccount" `
   --role="roles/secretmanager.secretAccessor" `
-  --condition=None | Out-Host
-& gcloud.cmd projects add-iam-policy-binding $ProjectId `
-  --member="serviceAccount:$runtimeServiceAccount" `
-  --role="roles/cloudtasks.enqueuer" `
   --condition=None | Out-Host
 & gcloud.cmd projects add-iam-policy-binding $ProjectId `
   --member="serviceAccount:$runtimeServiceAccount" `
@@ -178,39 +161,9 @@ if ($cloudSqlConnectionName) {
 $secretNames = @(
   "DATABASE_URL",
   "GEMINI_API_KEY",
-  "DAILY_API_KEY",
-  "VAPI_API_KEY",
-  "VAPI_ASSISTANT_ID",
-  "VAPI_PHONE_NUMBER_ID",
-  "VAPI_CALLER_PHONE_NUMBER",
-  "VAPI_TEST_CUSTOMER_NUMBER",
-  "VAPI_TARGET_AGENT_NUMBER",
-  "VAPI_CALLER_ASSISTANT_ID",
-  "VAPI_CALLER_VOICE_PROVIDER",
-  "VAPI_CALLER_VOICE_ID",
-  "RETELL_API_KEY",
-  "RETELL_AGENT_ID",
-  "RETELL_FROM_NUMBER",
-  "RETELL_TEST_CUSTOMER_NUMBER",
-  "ELEVENLABS_API_KEY",
-  "ELEVENLABS_AGENT_ID",
-  "ELEVENLABS_AGENT_PHONE_NUMBER_ID",
-  "ELEVENLABS_TEST_CUSTOMER_NUMBER",
-  "LIVEKIT_URL",
-  "LIVEKIT_API_KEY",
-  "LIVEKIT_API_SECRET",
-  "PIPECAT_AGENT_URL",
-  "PIPECAT_AUTH_TOKEN",
-  "CUSTOM_WEBRTC_WSS_URL",
-  "CUSTOM_AGENT_RUNNER_URL",
-  "HUGGINGFACE_TOKEN",
   "KMS_KEY_NAME",
-  "RUNNER_INGEST_TOKEN",
-  "BOT_TO_BOT_CALLER_MODEL",
-  "BOT_TO_BOT_JUDGE_MODEL",
-  "BOT_TO_BOT_TTS_ENABLED",
-  "BOT_TO_BOT_MAX_TURNS",
-  "BOT_TO_BOT_TASK_DEADLINE_SECONDS"
+  "LIGHTCURVE_TURN_USERNAME",
+  "LIGHTCURVE_TURN_CREDENTIAL"
 )
 
 $activeSecretNames = @()
@@ -236,8 +189,8 @@ $envVars = @(
   "GCP_REGION=$Region",
   "VERTEX_AI_LOCATION=$Region",
   "GCS_BUCKET=$BucketName",
-  "CLOUD_TASKS_QUEUE=$TasksQueue",
-  "CLOUD_TASKS_LOCATION=$Region"
+  "LIGHTCURVE_STUN_URL=stun:stun.uselightcurve.com:3478",
+  "LIGHTCURVE_TURN_URL=turn:turn.uselightcurve.com:3478"
 )
 
 if ($appUrl) {
@@ -246,26 +199,6 @@ if ($appUrl) {
 if ($envValues["MOS_SERVICE_URL"]) {
   $envVars += "MOS_SERVICE_URL=$($envValues["MOS_SERVICE_URL"])"
 }
-$elevenLabsCostMode = if ($envValues["ELEVENLABS_COST_MODE"]) { $envValues["ELEVENLABS_COST_MODE"] } else { "recording_replay" }
-$syntheticCallerProvider = if ($envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"]) { $envValues["LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER"] } else { "cheap_tts" }
-$botToBotCallerModel = if ($envValues["BOT_TO_BOT_CALLER_MODEL"]) { $envValues["BOT_TO_BOT_CALLER_MODEL"] } else { "gemini-2.5-flash-lite" }
-$botToBotJudgeModel = if ($envValues["BOT_TO_BOT_JUDGE_MODEL"]) { $envValues["BOT_TO_BOT_JUDGE_MODEL"] } else { "gemini-2.5-flash" }
-$botToBotTtsEnabled = if ($envValues["BOT_TO_BOT_TTS_ENABLED"]) { $envValues["BOT_TO_BOT_TTS_ENABLED"] } else { "1" }
-$botToBotMaxTurns = if ($envValues["BOT_TO_BOT_MAX_TURNS"]) { $envValues["BOT_TO_BOT_MAX_TURNS"] } else { "6" }
-$botToBotTaskDeadlineSeconds = if ($envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"]) { $envValues["BOT_TO_BOT_TASK_DEADLINE_SECONDS"] } else { "900" }
-$maxRealPhoneScenarios = if ($envValues["MAX_REAL_PHONE_SCENARIOS"]) { $envValues["MAX_REAL_PHONE_SCENARIOS"] } else { "10" }
-$vapiCallerModelProvider = if ($envValues["VAPI_CALLER_MODEL_PROVIDER"]) { $envValues["VAPI_CALLER_MODEL_PROVIDER"] } else { "openai" }
-$vapiCallerModel = if ($envValues["VAPI_CALLER_MODEL"]) { $envValues["VAPI_CALLER_MODEL"] } else { "gpt-4o-mini" }
-$envVars += "ELEVENLABS_COST_MODE=$elevenLabsCostMode"
-$envVars += "LIGHTCURVE_SYNTHETIC_CALLER_PROVIDER=$syntheticCallerProvider"
-$envVars += "BOT_TO_BOT_CALLER_MODEL=$botToBotCallerModel"
-$envVars += "BOT_TO_BOT_JUDGE_MODEL=$botToBotJudgeModel"
-$envVars += "BOT_TO_BOT_TTS_ENABLED=$botToBotTtsEnabled"
-$envVars += "BOT_TO_BOT_MAX_TURNS=$botToBotMaxTurns"
-$envVars += "BOT_TO_BOT_TASK_DEADLINE_SECONDS=$botToBotTaskDeadlineSeconds"
-$envVars += "MAX_REAL_PHONE_SCENARIOS=$maxRealPhoneScenarios"
-$envVars += "VAPI_CALLER_MODEL_PROVIDER=$vapiCallerModelProvider"
-$envVars += "VAPI_CALLER_MODEL=$vapiCallerModel"
 
 $deployArgs = @(
   "run", "deploy", $ServiceName,
