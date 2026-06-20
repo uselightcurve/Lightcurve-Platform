@@ -11,5 +11,6 @@ RUN npm ci
 COPY drizzle.config.ts ./
 COPY src ./src
 COPY scripts/reset-legacy-evaluation-data.mjs ./scripts/reset-legacy-evaluation-data.mjs
+COPY scripts/verify-human-grounded-schema.mjs ./scripts/verify-human-grounded-schema.mjs
 
 CMD ["npm", "run", "db:migrate"]
