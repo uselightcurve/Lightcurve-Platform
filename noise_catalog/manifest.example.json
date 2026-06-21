@@ -1,0 +1,14 @@
+{
+  "assets": [
+    {
+      "key": "office-example-01",
+      "category": "office_cafe",
+      "file": "office-example-01.wav",
+      "sha256": "replace-with-verified-sha256",
+      "license": "CC0-1.0",
+      "sourceUrl": "https://source.example/audio",
+      "attribution": "Creator name",
+      "provenance": { "reviewedBy": "Lightcurve", "reviewedAt": "YYYY-MM-DD" }
+    }
+  ]
+}

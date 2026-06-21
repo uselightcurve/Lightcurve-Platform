@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ScoreBar, StatusChip } from '@/components/PageActions';
 import { OverviewMetricGrid } from '@/components/OverviewMetricGrid';
+import { SdkOnboarding } from '@/components/SdkOnboarding';
 
 type OverviewResponse = {
   panels: {
@@ -44,10 +45,24 @@ export default function Home() {
   const [overview, setOverview] = useState<OverviewResponse>(() => emptyOverview());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [onboarding, setOnboarding] = useState<{ sdkEverRegistered: boolean; onlineRuntimeCount: number } | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      const onboardingResponse = await fetch('/api/onboarding', { cache: 'no-store' });
+      if (!onboardingResponse.ok) {
+        setError('Workspace setup is unavailable. Check database connectivity and retry.');
+        setLoading(false);
+        return;
+      }
+      const onboardingBody = await onboardingResponse.json();
+      setOnboarding(onboardingBody);
+      if (!onboardingBody.sdkEverRegistered) {
+        setError('');
+        setLoading(false);
+        return;
+      }
       const response = await fetch('/api/overview', { cache: 'no-store' });
       if (!response.ok) {
         setError('Workspace metrics are unavailable. Check database connectivity and retry.');
@@ -122,14 +137,23 @@ export default function Home() {
     <div className="space-y-4">
       <div className="page-header">
         <h1 className="page-title">Overview</h1>
-        <p className="page-subtitle">Health and release readiness across sandbox calls.</p>
+        <p className="page-subtitle">{onboarding && !onboarding.sdkEverRegistered ? 'Install the SDK once. Lightcurve handles the rest.' : 'Health and release readiness across human-grounded voice tests.'}</p>
       </div>
 
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      {!loading && onboarding && !onboarding.sdkEverRegistered ? <SdkOnboarding showHeader={false} /> : null}
+
+      {onboarding?.sdkEverRegistered && onboarding.onlineRuntimeCount === 0 ? (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>Your SDK is installed but the agent is currently offline. Start your application to record or replay calls.</span>
+          <Link href="/settings/sdk" className="font-medium underline">SDK status</Link>
+        </div>
+      ) : null}
+
+      {onboarding?.sdkEverRegistered ? <><div className="flex flex-wrap items-center gap-2">
         <Link href="/logs" className="btn-primary">Inspect calls</Link>
         <Link href="/logs" className="btn-secondary">Calls</Link>
         <Link href="/experiments/new" className="btn-secondary">Create experiment</Link>
@@ -201,7 +225,7 @@ export default function Home() {
             </div>
           </section>
         </div>
-      )}
+      )}</> : null}
     </div>
   );
 }

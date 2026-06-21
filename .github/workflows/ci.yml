@@ -32,3 +32,16 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Voice Graph compiler tests
+        run: npm test
+
+      - name: Compile Python SDK
+        run: python -m compileall sdk/python/lightcurve
+
+      - name: Build and install Python SDK
+        run: |
+          python -m pip install build
+          python -m build sdk/python
+          python -m pip install --force-reinstall --no-deps sdk/python/dist/use_lightcurve-0.5.0-py3-none-any.whl
+          python -c "import lightcurve; assert lightcurve.__version__ == '0.5.0'"

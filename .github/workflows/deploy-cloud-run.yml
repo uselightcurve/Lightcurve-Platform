@@ -17,6 +17,8 @@ env:
   REPOSITORY: ${{ vars.AR_REPOSITORY || 'lightcurve' }}
   IMAGE_NAME: lightcurve-web
   MIGRATION_IMAGE_NAME: lightcurve-migrate
+  MOS_IMAGE_NAME: lightcurve-mos
+  MOS_SERVICE: lightcurve-mos
   MIGRATION_JOB: lightcurve-db-push
   NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'https://app.uselightcurve.com' }}
   GCS_BUCKET: ${{ vars.GCS_BUCKET || 'lightcurve-platform-artifacts' }}
@@ -87,6 +89,7 @@ jobs:
         env:
           WEB_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           MIGRATION_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MIGRATION_IMAGE_NAME }}:${{ github.sha }}
+          MOS_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MOS_IMAGE_NAME }}:${{ github.sha }}
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
@@ -97,20 +100,24 @@ jobs:
             --build-arg NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="$NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL" \
             --tag "$WEB_IMAGE" .
           docker build --file Dockerfile.migrate --tag "$MIGRATION_IMAGE" .
+          docker build --file mos_service/Dockerfile --tag "$MOS_IMAGE" mos_service
 
       - name: Push images
         env:
           WEB_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           MIGRATION_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MIGRATION_IMAGE_NAME }}:${{ github.sha }}
+          MOS_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MOS_IMAGE_NAME }}:${{ github.sha }}
         run: |
           docker push "$WEB_IMAGE"
           docker push "$MIGRATION_IMAGE"
+          docker push "$MOS_IMAGE"
 
       - name: Run migration and deploy Cloud Run
         id: deploy
         env:
           WEB_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           MIGRATION_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MIGRATION_IMAGE_NAME }}:${{ github.sha }}
+          MOS_IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.MOS_IMAGE_NAME }}:${{ github.sha }}
         run: bash scripts/gcp-ci-deploy.sh
 
       - name: Smoke test deployed service

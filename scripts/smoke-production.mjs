@@ -52,6 +52,14 @@ async function assertProtected(path) {
   console.log(`ok ${path} protected`);
 }
 
+async function assertFile(path, minimumBytes) {
+  const response = await fetch(`${normalizedBaseUrl}${path}`);
+  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength < minimumBytes) throw new Error(`${path} is unexpectedly small.`);
+  console.log(`ok ${path}`);
+}
+
 try {
   await assertOk('/', (html) => {
     if (typeof html !== 'string' || !html.includes('Lightcurve')) {
@@ -60,10 +68,12 @@ try {
   });
 
   await assertOk('/api/integrations/status', (json) => {
-    if (!json || !Array.isArray(json.integrations) || json.media?.telephony !== false) {
+    if (!json || !Array.isArray(json.integrations) || json.media?.telephony !== false || json.media?.hostedRunner !== false || json.integrations[0]?.sdkVersion !== '0.5.0') {
       throw new Error('Integration status response is missing the non-telephony SDK transport.');
     }
   });
+
+  await assertFile('/sdk/use_lightcurve-0.5.0-py3-none-any.whl', 8000);
 
   await assertProtected('/api/datasets');
   await assertProtected('/api/experiments');

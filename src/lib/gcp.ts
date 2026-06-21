@@ -33,11 +33,25 @@ function pcmDataFromWave(content: Buffer) {
   return content;
 }
 
-export async function synthesizeCallerPcm(text: string, languageCode: string) {
+const voiceNames: Record<string, string> = {
+  'neutral-a': 'en-US-Neural2-A',
+  'neutral-b': 'en-US-Neural2-C',
+  'warm-a': 'en-US-Neural2-F',
+  'firm-a': 'en-US-Neural2-D',
+  'conversational-a': 'en-US-Studio-O',
+  'conversational-b': 'en-US-Studio-Q',
+};
+
+export async function synthesizeCallerPcm(text: string, languageCode: string, options?: { family?: string; speakingRate?: number; pitch?: number }) {
   const [response] = await ttsClient.synthesizeSpeech({
     input: { text },
-    voice: { languageCode },
-    audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 16000, speakingRate: 1 },
+    voice: { languageCode, name: languageCode === 'en-US' && options?.family ? voiceNames[options.family] : undefined },
+    audioConfig: {
+      audioEncoding: 'LINEAR16',
+      sampleRateHertz: 16000,
+      speakingRate: Math.max(0.5, Math.min(2, options?.speakingRate ?? 1)),
+      pitch: Math.max(-10, Math.min(10, options?.pitch ?? 0)),
+    },
   });
   if (!response.audioContent) throw new Error('Text-to-speech returned no audio.');
   const content = Buffer.isBuffer(response.audioContent)

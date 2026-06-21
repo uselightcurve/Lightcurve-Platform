@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { and, asc, eq, lt, or } from 'drizzle-orm';
+import { and, asc, eq, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { agentRuntimes, captureSessions, datasetCases, replayJobs, runs } from '@/db/schema';
 import { requireSdkAccount, sdkUnauthorizedJson } from '@/lib/sdkAuth';
 import { iceServers } from '@/lib/webrtc';
+import { refreshExperimentProgress } from '@/lib/experimentRuns';
 
 function record(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -21,7 +22,9 @@ export async function POST(req: Request) {
       eq(agentRuntimes.ownerUserId, account.userId),
     )).limit(1);
     if (!runtime) return NextResponse.json({ error: 'Runtime not found.' }, { status: 404 });
-    if (body.busy === true) return NextResponse.json({ command: null });
+    const availableCapacity = body.busy === true ? 0 : Math.max(0, Math.min(50, Math.round(Number(body.availableCapacity) || 1)));
+    if (!availableCapacity) return NextResponse.json({ command: null, commands: [] });
+    const commands: Array<Record<string, unknown>> = [];
     const [capture] = await db.select().from(captureSessions).where(and(
       eq(captureSessions.runtimeId, runtime.id),
       eq(captureSessions.status, 'offer_ready'),
@@ -31,18 +34,30 @@ export async function POST(req: Request) {
         eq(captureSessions.id, capture.id),
         eq(captureSessions.status, 'offer_ready'),
       ));
-      return NextResponse.json({
-        command: {
+      commands.push({
           type: 'capture.start',
           captureSessionId: capture.id,
           offer: record(capture.metadata).offer,
           iceServers: iceServers(),
-        },
       });
     }
 
     const now = new Date();
-    const [replay] = await db.select({ job: replayJobs, run: runs, case: datasetCases })
+    const exhausted = await db.select({ job: replayJobs, run: runs }).from(replayJobs)
+      .innerJoin(runs, eq(runs.id, replayJobs.runId))
+      .where(and(
+        eq(replayJobs.runtimeId, runtime.id),
+        eq(replayJobs.status, 'running'),
+        lt(replayJobs.leaseExpiresAt, now),
+        sql`${replayJobs.attemptCount} >= ${replayJobs.maxAttempts}`,
+      ));
+    for (const replay of exhausted) {
+      await db.update(replayJobs).set({ status: 'failed', lastError: replay.job.lastError ?? 'SDK lease expired after maximum attempts.', updatedAt: now }).where(eq(replayJobs.id, replay.job.id));
+      await db.update(runs).set({ status: 'failed', failureSummary: replay.job.lastError ?? 'SDK lease expired after maximum attempts.', endedAt: now }).where(eq(runs.id, replay.run.id));
+      if (replay.run.experimentId) await refreshExperimentProgress(replay.run.experimentId);
+    }
+    const remaining = availableCapacity - commands.length;
+    const candidates = remaining > 0 ? await db.select({ job: replayJobs, run: runs, case: datasetCases })
       .from(replayJobs)
       .innerJoin(runs, eq(runs.id, replayJobs.runId))
       .innerJoin(datasetCases, eq(datasetCases.id, runs.caseId))
@@ -52,23 +67,33 @@ export async function POST(req: Request) {
           eq(replayJobs.status, 'queued'),
           and(eq(replayJobs.status, 'running'), lt(replayJobs.leaseExpiresAt, now)),
         ),
+        sql`${replayJobs.attemptCount} < ${replayJobs.maxAttempts}`,
       ))
       .orderBy(asc(replayJobs.createdAt))
-      .limit(1);
-    if (!replay) return NextResponse.json({ command: null });
-    await db.update(replayJobs).set({
-      status: 'running',
-      leaseOwner: typeof body.instanceId === 'string' ? body.instanceId : null,
-      leaseExpiresAt: new Date(Date.now() + 10 * 60_000),
-      updatedAt: now,
-    }).where(eq(replayJobs.id, replay.job.id));
-    await db.update(runs).set({ status: 'running', startedAt: now }).where(eq(runs.id, replay.run.id));
-    return NextResponse.json({
-      command: {
+      .limit(remaining) : [];
+    for (const replay of candidates) {
+      const [leased] = await db.update(replayJobs).set({
+        status: 'running',
+        leaseOwner: typeof body.instanceId === 'string' ? body.instanceId : null,
+        leaseExpiresAt: new Date(Date.now() + 10 * 60_000),
+        attemptCount: sql`${replayJobs.attemptCount} + 1`,
+        lastError: null,
+        updatedAt: now,
+      }).where(and(
+        eq(replayJobs.id, replay.job.id),
+        or(
+          eq(replayJobs.status, 'queued'),
+          and(eq(replayJobs.status, 'running'), lt(replayJobs.leaseExpiresAt, now)),
+        ),
+      )).returning({ id: replayJobs.id });
+      if (!leased) continue;
+      await db.update(runs).set({ status: 'running', startedAt: replay.run.startedAt ?? now }).where(eq(runs.id, replay.run.id));
+      commands.push({
         type: 'replay.start',
         jobId: replay.job.id,
         runId: replay.run.id,
         replaySeed: replay.job.replaySeed,
+        manifest: replay.run.replayManifest,
         case: {
           id: replay.case.id,
           name: replay.case.name,
@@ -77,8 +102,9 @@ export async function POST(req: Request) {
           behaviorGraph: replay.case.behaviorGraph,
           successCriteria: replay.case.successCriteria,
         },
-      },
-    });
+      });
+    }
+    return NextResponse.json({ command: commands[0] ?? null, commands });
   } catch (error) {
     const unauthorized = sdkUnauthorizedJson(error);
     if (unauthorized) return unauthorized;

@@ -23,7 +23,7 @@ export async function GET() {
     const runIds = runRows.map((row) => row.run.id);
     const allScores = runIds.length ? await db.select().from(scores).where(inArray(scores.runId, runIds)) : [];
     const metric = (runId: string, name: string) => allScores.find((score) => score.runId === runId && score.metricName === name)?.value ?? null;
-    const mos = runRows.flatMap(({ run }) => { const value = metric(run.id, 'mos'); return typeof value === 'number' ? [value] : []; });
+    const mos = runRows.flatMap(({ run }) => { const value = metric(run.id, 'dnsmos_overall') ?? metric(run.id, 'visqol_mos') ?? metric(run.id, 'mos'); return typeof value === 'number' ? [value] : []; });
     const task = runRows.flatMap(({ run }) => { const value = metric(run.id, 'task_completed') ?? metric(run.id, 'outcome_match'); return typeof value === 'number' ? [value] : []; });
     const latency = runRows.flatMap(({ run }) => { const value = metric(run.id, 'latency_p95'); return typeof value === 'number' ? [value] : []; });
     const failed = runRows.filter(({ run }) => run.status === 'failed');

@@ -7,6 +7,8 @@ required_env=(
   SERVICE_NAME
   WEB_IMAGE
   MIGRATION_IMAGE
+  MOS_IMAGE
+  MOS_SERVICE
   MIGRATION_JOB
   NEXT_PUBLIC_APP_URL
   GCS_BUCKET
@@ -39,6 +41,8 @@ secret_mappings+=("DATABASE_URL=DATABASE_URL:latest")
 required_secrets=(
   CLERK_SECRET_KEY
   DODO_PAYMENTS_API_KEY
+  MOS_SERVICE_TOKEN
+  SCORING_INGEST_TOKEN
 )
 
 for secret_name in "${required_secrets[@]}"; do
@@ -85,11 +89,30 @@ env_vars=(
   "GCS_BUCKET=$GCS_BUCKET"
   "LIGHTCURVE_STUN_URL=${LIGHTCURVE_STUN_URL:-stun:stun.uselightcurve.com:3478}"
   "LIGHTCURVE_TURN_URL=${LIGHTCURVE_TURN_URL:-turn:turn.uselightcurve.com:3478}"
+  "LIGHTCURVE_FLASH_JUDGE_MODEL=${LIGHTCURVE_FLASH_JUDGE_MODEL:-gemini-2.5-flash}"
+  "LIGHTCURVE_PRO_JUDGE_MODEL=${LIGHTCURVE_PRO_JUDGE_MODEL:-gemini-2.5-pro}"
+  "LIGHTCURVE_EMBEDDING_MODEL=${LIGHTCURVE_EMBEDDING_MODEL:-text-embedding-005}"
+  "SCORING_SCHEDULER_SERVICE_ACCOUNT=lightcurve-scoring@$PROJECT_ID.iam.gserviceaccount.com"
 )
 
-if [[ -n "${MOS_SERVICE_URL:-}" ]]; then
-  env_vars+=("MOS_SERVICE_URL=$MOS_SERVICE_URL")
-fi
+echo "Deploying MOS evaluator $MOS_SERVICE"
+gcloud run deploy "$MOS_SERVICE" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --image "$MOS_IMAGE" \
+  --port 8080 \
+  --cpu 2 \
+  --memory 4Gi \
+  --concurrency 4 \
+  --min-instances 0 \
+  --max-instances 10 \
+  --timeout 300 \
+  --set-env-vars "GCS_BUCKET=$GCS_BUCKET" \
+  --set-secrets "MOS_SERVICE_TOKEN=MOS_SERVICE_TOKEN:latest" \
+  --quiet
+gcloud run services update "$MOS_SERVICE" --project "$PROJECT_ID" --region "$REGION" --no-invoker-iam-check --quiet
+MOS_SERVICE_URL="$(gcloud run services describe "$MOS_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+env_vars+=("MOS_SERVICE_URL=$MOS_SERVICE_URL")
 
 echo "Deploying migration job $MIGRATION_JOB"
 gcloud run jobs deploy "$MIGRATION_JOB" \
@@ -135,6 +158,16 @@ gcloud run services update "$SERVICE_NAME" \
   --region "$REGION" \
   --no-invoker-iam-check \
   --quiet
+
+SCORING_SERVICE_ACCOUNT="lightcurve-scoring@$PROJECT_ID.iam.gserviceaccount.com"
+if ! gcloud iam service-accounts describe "$SCORING_SERVICE_ACCOUNT" --project "$PROJECT_ID" >/dev/null 2>&1; then
+  gcloud iam service-accounts create lightcurve-scoring --project "$PROJECT_ID" --display-name="Lightcurve scoring scheduler" --quiet
+fi
+if gcloud scheduler jobs describe lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" >/dev/null 2>&1; then
+  gcloud scheduler jobs update http lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" --schedule="* * * * *" --uri="$NEXT_PUBLIC_APP_URL/api/internal/scoring" --http-method=POST --oidc-service-account-email="$SCORING_SERVICE_ACCOUNT" --oidc-token-audience="$NEXT_PUBLIC_APP_URL" --headers="Content-Type=application/json" --message-body='{"limit":2}' --attempt-deadline=300s --quiet
+else
+  gcloud scheduler jobs create http lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" --schedule="* * * * *" --uri="$NEXT_PUBLIC_APP_URL/api/internal/scoring" --http-method=POST --oidc-service-account-email="$SCORING_SERVICE_ACCOUNT" --oidc-token-audience="$NEXT_PUBLIC_APP_URL" --headers="Content-Type=application/json" --message-body='{"limit":2}' --attempt-deadline=300s --quiet
+fi
 
 service_url="$(gcloud run services describe "$SERVICE_NAME" \
   --project "$PROJECT_ID" \

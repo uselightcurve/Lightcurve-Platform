@@ -71,9 +71,21 @@ async function buildBehaviorGraph(
     condition: 'observed_transition',
   }));
   const shared = {
-    schema: 'lightcurve.human_behavior_graph.v1',
+    schema: 'lightcurve.human_behavior_graph.v2',
     source: 'human_playground_call',
     observedPath: observedNodes,
+    allowedPaths: [observedNodes.filter((node) => node.speaker === 'human').map((node) => node.id)],
+    semanticStates: observedNodes.map((node) => ({
+      id: node.id,
+      speaker: node.speaker,
+      state: node.speaker === 'human' ? 'human_intent_observed' : 'agent_obligation_observed',
+      sourceNodeId: node.id,
+    })),
+    sourceProvenance: {
+      kind: 'real_human_playground_call',
+      observedTurnCount: observedNodes.length,
+      generatedBranchesRequireObservedSupport: true,
+    },
     timing: events
       .filter((event) => ['speech_started', 'speech_stopped', 'interruption'].includes(event.eventType))
       .map((event) => ({ type: event.eventType, speaker: event.speaker, atMs: event.timestampMs })),
@@ -87,6 +99,11 @@ async function buildBehaviorGraph(
       allowParaphrase: true,
       allowTimingVariation: true,
       allowInterruptionVariation: true,
+      allowSlotSubstitution: true,
+      allowEmotionVariation: true,
+      allowPacingVariation: true,
+      allowVoiceVariation: true,
+      allowedEnvironmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
       unconstrainedCallerGeneration: false,
     },
   };
@@ -94,9 +111,12 @@ async function buildBehaviorGraph(
   const redactedTranscript = turns.map((turn) => `${turn.speaker}: ${redactText(turn.text)}`).join('\n');
   const modelResult = await generateWithLightcurveModel('gemini-2.5-flash', `
 Convert this real human-to-agent voice call into a constrained behavioral test graph.
-Return JSON only with: nodes, edges, humanGoal, facts, pressurePoints, terminalOutcomes,
-variationAxes, and successCriteria. Nodes need id, kind, speaker, intentOrResponseClass,
-state, and constraints. Edges need from, to, and condition. Preserve observed human
+Return JSON only with: nodes, edges, semanticStates, humanGoal, facts, pressurePoints,
+agentObligations, allowedBranches, allowedPaths, terminalOutcomes, variationAxes,
+temporalProfile, and successCriteria. Nodes need id, kind, speaker, intentOrResponseClass,
+state, constraints, and sourceNodeId. Edges need from, to, condition, and observedSupport.
+Every allowedPath must contain only human node IDs from an observed or directly supported
+branch. Preserve observed human
 behavior and facts. Add alternate branches only when they are direct behavioral
 variations of the observed call. Never invent a new caller goal or an unconstrained
 persona. PII placeholders must remain placeholders.
@@ -134,6 +154,8 @@ export async function deriveCaseFromCapture(params: {
   name?: string;
   language?: string;
   domain?: string;
+  riskWeight?: number;
+  variationPolicy?: Record<string, unknown>;
 }) {
   const [capture] = await db
     .select()
@@ -192,6 +214,18 @@ export async function deriveCaseFromCapture(params: {
         captureSessionId: capture.id,
         humanDerived: true,
         derivedAt: new Date().toISOString(),
+      },
+      riskWeight: Math.max(1, Math.min(10, Math.round(params.riskWeight ?? 1))),
+      variationPolicy: params.variationPolicy ?? {
+        preserveIntent: true,
+        preserveFacts: true,
+        allowBranchVariation: true,
+        allowSlotSubstitution: true,
+        allowEmotionVariation: true,
+        allowPacingVariation: true,
+        allowInterruptionVariation: true,
+        allowVoiceVariation: true,
+        environmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
       },
     }).returning();
 

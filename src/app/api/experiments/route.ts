@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { agentRuntimes, datasetCases, datasets, experiments, replayJobs, runs } from '@/db/schema';
+import { agentRuntimes, datasetCases, datasets, experiments, runs } from '@/db/schema';
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
+import { createCompiledExperiment } from '@/lib/experimentRuns';
+import { normalizeReplayConfig } from '@/lib/replayCompiler';
 
 export async function GET() {
   try {
@@ -55,32 +57,23 @@ export async function POST(req: Request) {
       : await db.select().from(agentRuntimes).where(eq(agentRuntimes.ownerUserId, account.userId))
           .orderBy(desc(agentRuntimes.lastSeenAt)).limit(1);
     if (!runtime) return NextResponse.json({ error: 'No Lightcurve-enabled runtime is registered.' }, { status: 409 });
-    await assertUsageAvailable(account.userId, { actions: cases.length });
-
-    const result = await db.transaction(async (tx) => {
-      const [experiment] = await tx.insert(experiments).values({
-        ownerUserId: account.userId,
-        name: typeof body.name === 'string' && body.name.trim() ? body.name.trim() : `${dataset.name} evaluation`,
-        datasetId: dataset.id,
-        datasetVersion: dataset.currentVersion,
-        runtimeId: runtime.id,
-        status: 'queued',
-        gitSha: typeof body.gitSha === 'string' ? body.gitSha : runtime.gitSha,
-      }).returning();
-      const createdRuns = await tx.insert(runs).values(cases.map((item) => ({
-        ownerUserId: account.userId,
-        experimentId: experiment.id,
-        caseId: item.id,
-        status: 'queued',
-      }))).returning();
-      await tx.insert(replayJobs).values(createdRuns.map((run, index) => ({
-        ownerUserId: account.userId,
-        runId: run.id,
-        runtimeId: runtime.id,
-        status: 'queued',
-        replaySeed: 42 + index,
-      })));
-      return { experiment, runs: createdRuns };
+    const config = normalizeReplayConfig({
+      preset: body.preset,
+      replayCount: body.replayCount,
+      maxConcurrency: body.maxConcurrency,
+      seed: body.seed,
+      judgePolicy: body.judgePolicy,
+      environmentMix: body.environmentMix,
+    });
+    await assertUsageAvailable(account.userId, { actions: Math.max(config.replayCount, cases.length) });
+    const result = await createCompiledExperiment({
+      ownerUserId: account.userId,
+      dataset,
+      runtime,
+      cases,
+      config,
+      name: typeof body.name === 'string' ? body.name : undefined,
+      gitSha: typeof body.gitSha === 'string' ? body.gitSha : runtime.gitSha,
     });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

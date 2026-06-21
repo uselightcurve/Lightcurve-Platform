@@ -43,7 +43,12 @@ export async function POST(req: Request) {
       lastSeenAt: now,
     }).onConflictDoUpdate({
       target: [runtimeInstances.runtimeId, runtimeInstances.instanceKey],
-      set: { status: 'online', lastSeenAt: now },
+      set: {
+        status: 'online',
+        capacity: Number.isFinite(body.capacity) ? Math.max(1, Math.floor(body.capacity)) : 1,
+        metadata: typeof body.metadata === 'object' && body.metadata ? body.metadata : {},
+        lastSeenAt: now,
+      },
     }).returning();
     return NextResponse.json({ runtime, instance });
   } catch (error) {

@@ -19,6 +19,7 @@ export async function POST(req: Request) {
     await db.update(runtimeInstances).set({
       status: 'online',
       activeSessions: Number.isFinite(body.activeSessions) ? Math.max(0, Math.floor(body.activeSessions)) : 0,
+      capacity: Number.isFinite(body.capacity) ? Math.max(1, Math.floor(body.capacity)) : 1,
       lastSeenAt: now,
     }).where(and(eq(runtimeInstances.id, body.instanceId), eq(runtimeInstances.runtimeId, runtime.id)));
     return NextResponse.json({ ok: true, serverTime: now.toISOString() });

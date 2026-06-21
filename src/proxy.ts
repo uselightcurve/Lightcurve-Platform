@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/dodo',
   '/api/integrations/status',
   '/api/release-gate(.*)',
+  '/api/internal/scoring',
   '/api/sdk/(.*)',
   '/api/datasets(.*)',
 ]);

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { datasetCases, experiments, runs, scores, traces } from '@/db/schema';
+import { datasetCases, experiments, replayJobs, replayResults, runs, scores, traces } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { signedPrivateAudioUrl } from '@/lib/captureStorage';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -15,11 +16,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .where(and(eq(runs.id, id), eq(runs.ownerUserId, account.userId)))
       .limit(1);
     if (!row) return NextResponse.json({ error: 'Run not found.' }, { status: 404 });
-    const [traceRows, scoreRows] = await Promise.all([
+    const [traceRows, scoreRows, jobRows, audio] = await Promise.all([
       db.select().from(traces).where(eq(traces.runId, id)).orderBy(asc(traces.turnIndex)),
       db.select().from(scores).where(eq(scores.runId, id)),
+      db.select().from(replayJobs).where(eq(replayJobs.runId, id)).limit(1),
+      Promise.all([
+        signedPrivateAudioUrl(row.run.audioCleanCallerUrl).catch(() => null),
+        signedPrivateAudioUrl(row.run.audioImpairedCallerUrl).catch(() => null),
+        signedPrivateAudioUrl(row.run.audioAgentUrl).catch(() => null),
+      ]),
     ]);
-    return NextResponse.json({ ...row, traces: traceRows, scores: scoreRows });
+    const resultRows = jobRows[0] ? await db.select().from(replayResults).where(eq(replayResults.jobId, jobRows[0].id)).limit(1) : [];
+    return NextResponse.json({
+      ...row,
+      traces: traceRows,
+      scores: scoreRows,
+      replayResult: resultRows[0] ?? null,
+      audio: { cleanCaller: audio[0], impairedCaller: audio[1], agent: audio[2] },
+    });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;

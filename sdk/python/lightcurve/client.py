@@ -38,12 +38,24 @@ class Lightcurve:
         name: str | None = None,
         runtime_id: str | None = None,
         git_sha: str | None = None,
+        preset: str = "release",
+        replay_count: int | None = None,
+        max_concurrency: int | None = None,
+        seed: int | None = None,
+        judge_policy: str = "flash-pro-review",
+        environment_mix: Mapping[str, float] | None = None,
     ) -> JsonDict:
         return self._request("POST", "/api/sdk/run", {
             "datasetId": dataset_id,
             "name": name,
             "runtimeId": runtime_id,
             "gitSha": git_sha,
+            "preset": preset,
+            "replayCount": replay_count,
+            "maxConcurrency": max_concurrency,
+            "seed": seed,
+            "judgePolicy": judge_policy,
+            "environmentMix": dict(environment_mix or {}),
         })
 
     def get_dataset_run(self, experiment_id: str) -> JsonDict:
@@ -66,7 +78,7 @@ class Lightcurve:
 
     def _request(self, method: str, path: str, payload: Mapping[str, Any] | None = None) -> JsonDict:
         body = json.dumps(payload).encode("utf-8") if payload is not None else None
-        headers = {"Accept": "application/json", "X-Lightcurve-SDK": "python/0.4.0"}
+        headers = {"Accept": "application/json", "X-Lightcurve-SDK": "python/0.5.0"}
         if body is not None:
             headers["Content-Type"] = "application/json"
         if self.api_key:
