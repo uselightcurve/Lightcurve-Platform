@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 type ApiKey = { id: string; name: string; keyPrefix: string; lastUsedAt?: string | null };
 type Runtime = { id: string; name: string; status: 'online' | 'offline'; version?: string | null };
 
-const installCommand = 'pip install -U use-lightcurve';
+const installCommand = 'pip install --upgrade https://app.uselightcurve.com/sdk/use_lightcurve-0.5.0-py3-none-any.whl';
 const importSnippet = 'import lightcurve.auto';
 
 function CopyBlock({ value }: { value: string }) {
@@ -108,7 +108,7 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
         <Step number={4} title="Enable Lightcurve" description="Add this before your Pipecat PipelineWorker is created."><CopyBlock value={importSnippet} /></Step>
         <Step number={5} title="Run your application" description="Use your normal start command. Lightcurve registers the agent and unlocks the Playground automatically."><CopyBlock value="python app.py" /><p className="mt-3 text-sm text-slate-500">That is the entire integration. No agent URL, phone number, room, SIP setup, or callback.</p></Step>
       </div>
-      <p className="text-center text-xs text-slate-400">If PyPI is temporarily unavailable, use the <a className="underline" href="/sdk/use_lightcurve-0.5.0-py3-none-any.whl">Lightcurve-hosted wheel</a>.</p>
+      <p className="text-center text-xs text-slate-400">This signed release is hosted by Lightcurve while PyPI trusted publishing is activated.</p>
     </div>
   );
 }
