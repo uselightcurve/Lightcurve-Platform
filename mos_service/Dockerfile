@@ -2,11 +2,13 @@ FROM ubuntu:22.04 AS visqol-builder
 
 ARG VISQOL_VERSION=v3.3.3
 ARG BAZEL_VERSION=5.1.0
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git build-essential python3 python3-numpy \
+COPY visqol-system-armadillo.patch /tmp/visqol-system-armadillo.patch
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git build-essential python3 python3-numpy libarmadillo-dev patch \
     && curl -fsSL "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-x86_64" -o /usr/local/bin/bazel \
     && chmod +x /usr/local/bin/bazel \
     && git clone --depth 1 --branch "${VISQOL_VERSION}" https://github.com/google/visqol.git /src/visqol \
     && cd /src/visqol \
+    && patch -p1 < /tmp/visqol-system-armadillo.patch \
     && bazel build :visqol -c opt \
     && mkdir -p /out \
     && cp -L bazel-bin/visqol /out/visqol \

@@ -1,0 +1,25 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 45d984b..d9802fc 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -162,7 +162,8 @@ http_archive(
+ )
+ 
+ # Armadillo Headers
+-http_archive(
++new_local_repository(
+     name = "armadillo_headers",
++    path = "/usr",
+     build_file_content = """
+ cc_library(
+     name = "armadillo_header",
+@@ -173,9 +174,6 @@ cc_library(
+     visibility = ["//visibility:public"],
+ )
+ """,
+-    sha256 = "d856ea58c18998997bcae6689784d2d3eeb5daf1379d569fddc277fe046a996b",
+-    strip_prefix = "armadillo-9.860.2",
+-    urls = ["http://sourceforge.net/projects/arma/files/armadillo-9.860.2.tar.xz"],
+ )
+ 
+ # PFFFT
