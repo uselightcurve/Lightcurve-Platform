@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && git clone --depth 1 --branch "${VISQOL_VERSION}" https://github.com/google/visqol.git /src/visqol \
     && cd /src/visqol \
     && patch -p1 < /tmp/visqol-system-armadillo.patch \
+    && sed -i '/d856ea58c18998997bcae6689784d2d3eeb5daf1379d569fddc277fe046a996b/d; /strip_prefix = "armadillo-9.860.2"/d; /sourceforge.net\/projects\/arma\/files\/armadillo-9.860.2.tar.xz/d' WORKSPACE \
     && bazel build :visqol -c opt \
     && mkdir -p /out \
     && cp -L bazel-bin/visqol /out/visqol \
