@@ -9,7 +9,7 @@ index 45d984b..d9802fc 100644
 -http_archive(
 +new_local_repository(
      name = "armadillo_headers",
-+    path = "/usr",
++    path = "/opt/armadillo",
      build_file_content = """
  cc_library(
      name = "armadillo_header",
