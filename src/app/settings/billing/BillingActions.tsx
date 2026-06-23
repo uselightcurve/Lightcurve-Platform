@@ -61,6 +61,24 @@ function ContactSalesModal({ onClose }: { onClose: () => void }) {
 
 export function BillingActions({ planId, active }: { planId: PlanId; active: boolean }) {
   const [showSales, setShowSales] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function upgradeToPro() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/billing/checkout', { method: 'POST' });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert(data.error || 'Checkout failed');
+      }
+    } catch (err) {
+      alert('Checkout failed');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   if (planId === 'scale') {
     return (
@@ -84,8 +102,8 @@ export function BillingActions({ planId, active }: { planId: PlanId; active: boo
   }
 
   return (
-    <button className="mt-5 w-full btn-secondary" disabled>
-      {planId === 'pro' ? 'Pro checkout disabled for pilot' : 'Unavailable'}
+    <button className="mt-5 w-full btn-primary" onClick={() => void upgradeToPro()} disabled={loading}>
+      {loading ? 'Redirecting...' : 'Upgrade to Pro'}
     </button>
   );
 }
