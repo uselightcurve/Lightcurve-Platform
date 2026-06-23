@@ -32,7 +32,7 @@ env:
   NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: /
   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: /
   DODO_ENVIRONMENT: ${{ vars.DODO_ENVIRONMENT || 'test_mode' }}
-  DODO_PRO_PRODUCT_ID: ${{ vars.DODO_PRO_PRODUCT_ID }}
+  DODO_PRO_PRODUCT_ID: ${{ vars.DODO_PRO_PRODUCT_ID || 'pdt_0NhfcPIDiQCyq6o29J4Fx' }}
   DODO_RETURN_URL: ${{ vars.DODO_RETURN_URL || 'https://app.uselightcurve.com/settings/billing' }}
   DODO_WEBHOOK_URL: ${{ vars.DODO_WEBHOOK_URL || 'https://app.uselightcurve.com/api/webhooks/dodo' }}
 
