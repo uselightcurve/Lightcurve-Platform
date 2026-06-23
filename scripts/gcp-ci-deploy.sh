@@ -161,12 +161,19 @@ gcloud run services update "$SERVICE_NAME" \
 
 SCORING_SERVICE_ACCOUNT="lightcurve-scoring@$PROJECT_ID.iam.gserviceaccount.com"
 if ! gcloud iam service-accounts describe "$SCORING_SERVICE_ACCOUNT" --project "$PROJECT_ID" >/dev/null 2>&1; then
-  gcloud iam service-accounts create lightcurve-scoring --project "$PROJECT_ID" --display-name="Lightcurve scoring scheduler" --quiet
+  echo "Attempting to create lightcurve-scoring service account..."
+  if ! gcloud iam service-accounts create lightcurve-scoring --project "$PROJECT_ID" --display-name="Lightcurve scoring scheduler" --quiet; then
+    echo "Warning: Failed to create service account (likely IAM permission denied). Skipping scheduler setup."
+    SCORING_SERVICE_ACCOUNT=""
+  fi
 fi
-if gcloud scheduler jobs describe lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" >/dev/null 2>&1; then
-  gcloud scheduler jobs update http lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" --schedule="* * * * *" --uri="$NEXT_PUBLIC_APP_URL/api/internal/scoring" --http-method=POST --oidc-service-account-email="$SCORING_SERVICE_ACCOUNT" --oidc-token-audience="$NEXT_PUBLIC_APP_URL" --headers="Content-Type=application/json" --message-body='{"limit":2}' --attempt-deadline=300s --quiet
-else
-  gcloud scheduler jobs create http lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" --schedule="* * * * *" --uri="$NEXT_PUBLIC_APP_URL/api/internal/scoring" --http-method=POST --oidc-service-account-email="$SCORING_SERVICE_ACCOUNT" --oidc-token-audience="$NEXT_PUBLIC_APP_URL" --headers="Content-Type=application/json" --message-body='{"limit":2}' --attempt-deadline=300s --quiet
+
+if [[ -n "$SCORING_SERVICE_ACCOUNT" ]]; then
+  if gcloud scheduler jobs describe lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" >/dev/null 2>&1; then
+    gcloud scheduler jobs update http lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" --schedule="* * * * *" --uri="$NEXT_PUBLIC_APP_URL/api/internal/scoring" --http-method=POST --oidc-service-account-email="$SCORING_SERVICE_ACCOUNT" --oidc-token-audience="$NEXT_PUBLIC_APP_URL" --headers="Content-Type=application/json" --message-body='{"limit":2}' --attempt-deadline=300s --quiet || echo "Warning: Failed to update scheduler."
+  else
+    gcloud scheduler jobs create http lightcurve-scoring-retry --project "$PROJECT_ID" --location "$REGION" --schedule="* * * * *" --uri="$NEXT_PUBLIC_APP_URL/api/internal/scoring" --http-method=POST --oidc-service-account-email="$SCORING_SERVICE_ACCOUNT" --oidc-token-audience="$NEXT_PUBLIC_APP_URL" --headers="Content-Type=application/json" --message-body='{"limit":2}' --attempt-deadline=300s --quiet || echo "Warning: Failed to create scheduler."
+  fi
 fi
 
 service_url="$(gcloud run services describe "$SERVICE_NAME" \
