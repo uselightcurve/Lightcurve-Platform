@@ -97,7 +97,7 @@ export default async function BillingSettingsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">Billing</h1>
-        <p className="page-subtitle">Review free-tier usage. Pro checkout stays disabled until payment webhooks are verified.</p>
+        <p className="page-subtitle">Review free-tier usage.</p>
       </div>
 
       <div className="grid grid-cols-[220px_1fr] gap-5">
@@ -151,12 +151,6 @@ export default async function BillingSettingsPage() {
                 ))}
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <p className="text-sm font-medium text-slate-900">Payment management</p>
-                <p className="mt-1 text-sm leading-5 text-slate-500">
-                  Tomorrow&apos;s pilot runs on Starter limits only. Pro checkout will be enabled after the Dodo product and webhook are verified end to end.
-                </p>
-              </div>
 
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-4">
