@@ -97,7 +97,7 @@ export default async function BillingSettingsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">Billing</h1>
-        <p className="page-subtitle">Review free-tier usage.</p>
+        <p className="page-subtitle">Manage your subscription and billing details.</p>
       </div>
 
       <div className="grid grid-cols-[220px_1fr] gap-5">
