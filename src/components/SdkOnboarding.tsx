@@ -107,6 +107,7 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
         <Step number={3} title="Configure the environment" description="Add the key to the environment where your agent runs."><CopyBlock value={`LIGHTCURVE_API_KEY=${secret || '<YOUR_LIGHTCURVE_API_KEY>'}`} /></Step>
         <Step number={4} title="Enable Lightcurve" description="Add this before your Pipecat PipelineWorker is created."><CopyBlock value={importSnippet} /></Step>
         <Step number={5} title="Run your application" description="Use your normal start command. Lightcurve registers the agent and unlocks the Playground automatically."><CopyBlock value="python app.py" /><p className="mt-3 text-sm text-slate-500">That is the entire integration. No agent URL, phone number, room, SIP setup, or callback.</p></Step>
+      </div>
     </div>
   );
 }
