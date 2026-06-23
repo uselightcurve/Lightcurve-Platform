@@ -52,9 +52,8 @@ const navItems = [
   { label: 'Logs', href: '/logs', icon: icons.logs, active: (path: string) => path.startsWith('/logs') || path.includes('/runs/') },
   { label: 'Datasets', href: '/datasets', icon: icons.datasets, active: (path: string) => path.startsWith('/datasets') },
   { label: 'Playground', href: '/playground', icon: icons.playground, active: (path: string) => path.startsWith('/playground') },
-  { label: 'SDK', href: '/settings/sdk', icon: icons.sdk, active: (path: string) => path.startsWith('/settings/sdk') || path.startsWith('/settings/api-keys') },
   { label: 'Experiments', href: '/experiments', icon: icons.experiments, active: (path: string) => path.startsWith('/experiments') },
-  { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') && !path.startsWith('/settings/sdk') && !path.startsWith('/settings/api-keys') },
+  { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') },
 ];
 
 export function Sidebar() {

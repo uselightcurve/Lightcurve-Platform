@@ -17,9 +17,9 @@ function CopyBlock({ value }: { value: string }) {
     window.setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-950 p-3 text-slate-100">
-      <code className="min-w-0 flex-1 whitespace-pre-wrap break-all text-xs leading-5">{value}</code>
-      <button type="button" onClick={() => void copy()} className="shrink-0 rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800">
+    <div className="flex items-start gap-3 code-line mt-2">
+      <code className="min-w-0 flex-1 whitespace-pre-wrap break-all text-xs leading-5 text-slate-800">{value}</code>
+      <button type="button" onClick={() => void copy()} className="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm">
         {copied ? 'Copied' : 'Copy'}
       </button>
     </div>
