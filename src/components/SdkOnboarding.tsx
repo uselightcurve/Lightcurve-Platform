@@ -61,7 +61,12 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
       setRuntimes(Array.isArray(runtimeBody.runtimes) ? runtimeBody.runtimes : []);
       setError('');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'SDK setup could not be loaded.');
+      const message = reason instanceof Error ? reason.message : '';
+      if (message.includes('NetworkError') || message.includes('Failed to fetch')) {
+        setError('Cannot connect to the server. If you are running locally, ensure your Next.js dev server is still running.');
+      } else {
+        setError(message || 'SDK setup could not be loaded.');
+      }
     }
   }, []);
 
