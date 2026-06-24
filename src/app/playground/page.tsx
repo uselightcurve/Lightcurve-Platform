@@ -67,10 +67,9 @@ export default function PlaygroundPage() {
   }, []);
 
   useEffect(() => {
-    const initial = window.setTimeout(() => void loadRuntimes(), 0);
-    const timer = window.setInterval(() => void loadRuntimes(), 15_000);
+    void loadRuntimes();
+    const timer = window.setInterval(() => void loadRuntimes(), 5000);
     return () => {
-      window.clearTimeout(initial);
       window.clearInterval(timer);
     };
   }, [loadRuntimes]);
