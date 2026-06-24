@@ -17,9 +17,12 @@ type DatasetSummary = {
 export default function DatasetsPage() {
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
     fetch('/api/datasets', { cache: 'no-store' })
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
@@ -28,24 +31,66 @@ export default function DatasetsPage() {
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'Datasets could not be loaded.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshTrigger]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    setUploading(true);
+    setError('');
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/datasets/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? 'File upload failed.');
+      
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'An error occurred during upload.');
+    } finally {
+      setUploading(false);
+      // Reset input
+      event.target.value = '';
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {uploading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-2xl bg-white p-8 shadow-xl border border-slate-100">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#cfd8ff] border-t-indigo-600"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-slate-900">Analyzing Call</h3>
+              <p className="mt-1 text-sm text-slate-500">Extracting transcript, behavior graph, and accent...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Datasets</h1>
           <p className="page-subtitle">Human-grounded voice cases captured once and replayed across every agent version.</p>
         </div>
         <div className="flex gap-3">
-          <button className="btn-secondary flex items-center gap-2">
+          <label className="btn-secondary flex cursor-pointer items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             Add your Datasets
-          </button>
+            <input type="file" className="hidden" accept="audio/*" onChange={handleFileUpload} disabled={uploading} />
+          </label>
           <Link href="/playground" className="btn-primary">Record a call</Link>
         </div>
       </div>

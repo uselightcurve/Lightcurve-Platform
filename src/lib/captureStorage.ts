@@ -18,6 +18,23 @@ export async function storeCaptureAudio(params: {
   });
   return `gs://${bucketName}/${objectName}`;
 }
+export async function storeImportedAudio(params: {
+  ownerUserId: string;
+  filename: string;
+  contentType: string;
+  bytes: Buffer;
+}) {
+  const bucketName = process.env.GCS_BUCKET?.trim();
+  if (!bucketName) throw new Error('GCS_BUCKET is not configured.');
+  const safeName = params.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const objectName = `imports/${params.ownerUserId}/${Date.now()}_${safeName}`;
+  await storage.bucket(bucketName).file(objectName).save(params.bytes, {
+    resumable: false,
+    contentType: params.contentType,
+    metadata: { cacheControl: 'private, max-age=0, no-store' },
+  });
+  return `gs://${bucketName}/${objectName}`;
+}
 
 export async function storeReplayAudio(params: {
   ownerUserId: string;
