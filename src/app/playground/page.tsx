@@ -258,12 +258,15 @@ export default function PlaygroundPage() {
               </button>
             ) : (
               <div className="rounded-xl border border-[#cfd8ff] bg-[#f6f8ff] p-5">
-                <div className="flex items-center justify-between gap-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div>
-                    <p className="font-medium text-slate-900">Install the SDK once</p>
-                    <p className="mt-1 text-sm text-slate-600">Add Lightcurve to your Pipecat app and run it. The Playground becomes ready automatically.</p>
+                    <p className="font-medium text-slate-900">Waiting for agent connection…</p>
+                    <p className="mt-1 text-sm text-slate-600">Start your Pipecat or LiveKit agent with the Lightcurve SDK installed. It will automatically appear here once online.</p>
                   </div>
-                  <Link href="/settings/sdk" className="btn-primary shrink-0">Install SDK</Link>
+                  <div className="flex gap-3 shrink-0">
+                    <button type="button" className="btn-secondary" onClick={() => { setLoadingRuntimes(true); void loadRuntimes(); }}>Check connection</button>
+                    <Link href="/settings/sdk" className="btn-primary">Install SDK</Link>
+                  </div>
                 </div>
               </div>
             )}
