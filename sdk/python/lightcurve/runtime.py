@@ -303,11 +303,33 @@ class RuntimeClient:
             self.release_worker(worker)
 
     async def _feed_pcm(self, worker: Any, audio: bytes, sample_rate: int, channels: int, transport: dict[str, Any], seed: int) -> None:
-        from pipecat.frames.frames import InputAudioRawFrame
-
         worker_loop = self.worker_loops.get(id(worker))
         if worker_loop is None:
-            raise RuntimeError("Pipecat pipeline has not started.")
+            raise RuntimeError("Agent pipeline has not started.")
+
+        is_pipecat = hasattr(worker, "queue_frame")
+        livekit_source = None
+
+        if not is_pipecat:
+            room = getattr(worker, "room", None)
+            if not room:
+                return
+            if not hasattr(worker, "_lightcurve_replay_source"):
+                from livekit import rtc
+                livekit_source = rtc.AudioSource(sample_rate, channels)
+                livekit_source._is_lightcurve_replay_source = True
+                track = rtc.LocalAudioTrack.create_audio_track("lightcurve_replay", livekit_source)
+                options = rtc.TrackPublishOptions()
+                options.source = rtc.TrackSource.SOURCE_MICROPHONE
+                future = asyncio.run_coroutine_threadsafe(
+                    room.local_participant.publish_track(track, options),
+                    worker_loop
+                )
+                await asyncio.wrap_future(future)
+                worker._lightcurve_replay_source = livekit_source
+            else:
+                livekit_source = worker._lightcurve_replay_source
+
         chunk_size = max(2, int(sample_rate * channels * 2 * 0.02))
         chunks = [audio[offset:offset + chunk_size] for offset in range(0, len(audio), chunk_size)]
         rng = random.Random(seed)
@@ -327,11 +349,23 @@ class RuntimeClient:
             burst = False
             if index + 1 < len(chunks) and rng.random() < reorder:
                 chunk, chunks[index + 1] = chunks[index + 1], chunk
-            future = asyncio.run_coroutine_threadsafe(
-                worker.queue_frame(InputAudioRawFrame(audio=chunk, sample_rate=sample_rate, num_channels=channels)),
-                worker_loop,
-            )
-            await asyncio.wrap_future(future)
+                
+            if is_pipecat:
+                from pipecat.frames.frames import InputAudioRawFrame
+                future = asyncio.run_coroutine_threadsafe(
+                    worker.queue_frame(InputAudioRawFrame(audio=chunk, sample_rate=sample_rate, num_channels=channels)),
+                    worker_loop,
+                )
+                await asyncio.wrap_future(future)
+            else:
+                from livekit import rtc
+                frame = rtc.AudioFrame(chunk, sample_rate, channels, len(chunk) // (2 * channels))
+                future = asyncio.run_coroutine_threadsafe(
+                    asyncio.to_thread(livekit_source.capture_frame, frame),
+                    worker_loop,
+                )
+                await asyncio.wrap_future(future)
+                
             jitter = rng.uniform(-jitter_ms, jitter_ms) / 1000 if jitter_ms else 0
             await asyncio.sleep(max(0, 0.02 + jitter))
 
@@ -538,8 +572,134 @@ def install_pipecat_instrumentation() -> None:
     PipelineWorker.__init__ = instrumented_init
 
 
+def install_livekit_instrumentation() -> None:
+    try:
+        from livekit.agents import JobContext
+        from livekit.agents.voice_assistant import VoiceAssistant
+        from livekit import rtc
+    except ImportError:
+        logger.debug("livekit-agents is not installed; skipping LiveKit instrumentation.")
+        return
+
+    original_job_init = JobContext.__init__
+    if not getattr(original_job_init, "__lightcurve_instrumented__", False):
+        def instrumented_job_init(ctx, *args, **kwargs):
+            original_job_init(ctx, *args, **kwargs)
+            if all(existing is not ctx for existing in runtime.workers):
+                runtime.workers.append(ctx)
+            runtime.worker_loops[id(ctx)] = asyncio.get_running_loop()
+        instrumented_job_init.__lightcurve_instrumented__ = True
+        JobContext.__init__ = instrumented_job_init
+
+    original_agent_init = VoiceAssistant.__init__
+    if not getattr(original_agent_init, "__lightcurve_instrumented__", False):
+        def instrumented_agent_init(agent, *args, **kwargs):
+            original_agent_init(agent, *args, **kwargs)
+
+            def get_capture_id():
+                for ctx in runtime.workers:
+                    if id(ctx) in runtime.worker_sessions:
+                        return runtime.worker_sessions[id(ctx)]
+                return None
+
+            def add_event(capture_id, event_type, speaker, payload=None):
+                if not payload:
+                    payload = {}
+                at_ms = int((time.monotonic() - runtime.capture_started.get(capture_id, time.monotonic())) * 1000)
+                runtime.sequence += 1
+                runtime.events.setdefault(capture_id, []).append({
+                    "sequence": runtime.sequence,
+                    "eventType": event_type,
+                    "speaker": speaker,
+                    "timestampMs": at_ms,
+                    "payload": payload,
+                })
+
+            @agent.on("user_speech_committed")
+            def on_user_speech_committed(msg):
+                capture_id = get_capture_id()
+                if capture_id:
+                    text = msg.alternatives[0].text if getattr(msg, "alternatives", None) else getattr(msg, "text", "")
+                    if text:
+                        at_ms = int((time.monotonic() - runtime.capture_started.get(capture_id, time.monotonic())) * 1000)
+                        runtime.transcripts.setdefault(capture_id, []).append({"speaker": "human", "text": text, "startedAtMs": at_ms})
+                        add_event(capture_id, "transcript", "human", {"text": text})
+
+            @agent.on("agent_speech_committed")
+            def on_agent_speech_committed(msg):
+                capture_id = get_capture_id()
+                if capture_id:
+                    text = getattr(msg, "text", "")
+                    if text:
+                        at_ms = int((time.monotonic() - runtime.capture_started.get(capture_id, time.monotonic())) * 1000)
+                        runtime.transcripts.setdefault(capture_id, []).append({"speaker": "agent", "text": text, "startedAtMs": at_ms})
+                        add_event(capture_id, "transcript", "agent", {"text": text})
+
+            @agent.on("agent_started_speaking")
+            def on_agent_started_speaking():
+                capture_id = get_capture_id()
+                if capture_id:
+                    add_event(capture_id, "speech_started", "agent")
+
+            @agent.on("agent_stopped_speaking")
+            def on_agent_stopped_speaking():
+                capture_id = get_capture_id()
+                if capture_id:
+                    add_event(capture_id, "speech_stopped", "agent")
+                    if capture_id in runtime.bot_stopped_events and runtime.loop:
+                        runtime.loop.call_soon_threadsafe(runtime.bot_stopped_events[capture_id].set)
+
+            @agent.on("function_calls_collected")
+            def on_function_calls_collected(calls):
+                capture_id = get_capture_id()
+                if capture_id:
+                    for call in calls:
+                        name = getattr(call, "function_info", getattr(call, "name", "unknown")).name if hasattr(getattr(call, "function_info", None), "name") else getattr(call, "name", "unknown")
+                        add_event(capture_id, "tool_started", "agent", {"functionName": name})
+
+            @agent.on("function_calls_finished")
+            def on_function_calls_finished(calls):
+                capture_id = get_capture_id()
+                if capture_id:
+                    for call in calls:
+                        name = getattr(call, "function_info", getattr(call, "name", "unknown")).name if hasattr(getattr(call, "function_info", None), "name") else getattr(call, "name", "unknown")
+                        add_event(capture_id, "tool_completed", "agent", {"functionName": name})
+
+        instrumented_agent_init.__lightcurve_instrumented__ = True
+        VoiceAssistant.__init__ = instrumented_agent_init
+
+    original_capture_frame = rtc.AudioSource.capture_frame
+    if not getattr(original_capture_frame, "__lightcurve_instrumented__", False):
+        def instrumented_capture_frame(source, frame, *args, **kwargs):
+            capture_id = None
+            for ctx in runtime.workers:
+                if id(ctx) in runtime.worker_sessions:
+                    capture_id = runtime.worker_sessions[id(ctx)]
+                    break
+            
+            if capture_id and not getattr(source, "_is_lightcurve_replay_source", False):
+                audio_format = (frame.sample_rate, frame.num_channels)
+                if capture_id not in runtime.agent_audio_format:
+                    runtime.agent_audio_format[capture_id] = audio_format
+                
+                audio_data = frame.data.tobytes() if hasattr(frame.data, "tobytes") else bytes(frame.data)
+                if runtime.agent_audio_format[capture_id] == audio_format and len(runtime.agent_audio.get(capture_id, b"")) < 50 * 1024 * 1024:
+                    if capture_id not in runtime.agent_audio:
+                        runtime.agent_audio[capture_id] = bytearray()
+                    runtime.agent_audio[capture_id].extend(audio_data)
+                    
+                for output_track in list(runtime.output_tracks.get(capture_id, set())):
+                    output_track.put_audio(audio_data, frame.sample_rate, frame.num_channels)
+            
+            return original_capture_frame(source, frame, *args, **kwargs)
+            
+        instrumented_capture_frame.__lightcurve_instrumented__ = True
+        rtc.AudioSource.capture_frame = instrumented_capture_frame
+
+
 def start() -> None:
     install_pipecat_instrumentation()
+    install_livekit_instrumentation()
     if not runtime.api_key:
         logger.warning("Set LIGHTCURVE_API_KEY to enable Lightcurve.")
         return
