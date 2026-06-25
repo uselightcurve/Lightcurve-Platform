@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    name: Build and publish @lightcurve/sdk
+    name: Build and publish @use-lightcurve/sdk
     runs-on: ubuntu-latest
     
     steps:
