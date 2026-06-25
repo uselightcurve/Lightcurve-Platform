@@ -6,9 +6,6 @@ import { useCallback, useEffect, useState } from 'react';
 type ApiKey = { id: string; name: string; keyPrefix: string; lastUsedAt?: string | null };
 type Runtime = { id: string; name: string; status: 'online' | 'offline'; version?: string | null };
 
-const installCommand = 'pip install -U use-lightcurve';
-const importSnippet = 'import lightcurve.auto';
-
 function CopyBlock({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
@@ -43,6 +40,12 @@ function Step({ number, title, description, children }: { number: number; title:
 
 export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
   const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [language, setLanguage] = useState<'python' | 'node'>('python');
+
+  const installCommand = language === 'python' ? 'pip install -U use-lightcurve' : 'npm install @use-lightcurve/sdk';
+  const importSnippet = language === 'python' ? 'import lightcurve.auto' : "import { start } from '@use-lightcurve/sdk/dist/runtime';\n\nstart();";
+  const runCommand = language === 'python' ? 'python app.py' : 'node index.js';
+  const versionInfo = language === 'python' ? 'Lightcurve SDK 0.5.0 · Python 3.10+' : 'Lightcurve SDK 0.2.2 · Node.js 18+';
   const [secret, setSecret] = useState('');
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [creating, setCreating] = useState(false);
@@ -99,19 +102,24 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
       <div className={`rounded-xl border p-4 ${online.length ? 'border-emerald-200 bg-emerald-50' : 'border-blue-200 bg-blue-50'}`}>
         <div className="flex items-center justify-between gap-4">
-          <div><p className="text-sm font-semibold text-slate-900">{online.length ? 'SDK is online' : 'Start tracing your voice agent'}</p><p className="mt-1 text-sm text-slate-600">{online.length ? `${online[0].name}${online[0].version ? ` · ${online[0].version}` : ''} is ready.` : 'Python and Pipecat are supported today. Registration happens automatically when your app starts.'}</p></div>
-          {online.length ? <Link href="/playground" className="btn-primary shrink-0">Start a call</Link> : <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500">Python</span>}
+          <div><p className="text-sm font-semibold text-slate-900">{online.length ? 'SDK is online' : 'Start tracing your voice agent'}</p><p className="mt-1 text-sm text-slate-600">{online.length ? `${online[0].name}${online[0].version ? ` · ${online[0].version}` : ''} is ready.` : 'Python and Node.js are supported today. Registration happens automatically when your app starts.'}</p></div>
+          {online.length ? <Link href="/playground" className="btn-primary shrink-0">Start a call</Link> : (
+            <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit border border-slate-200 shadow-inner shrink-0">
+              <button type="button" onClick={() => setLanguage('python')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${language === 'python' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>Python</button>
+              <button type="button" onClick={() => setLanguage('node')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${language === 'node' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>Node.js</button>
+            </div>
+          )}
         </div>
       </div>
       <div className="space-y-4">
-        <Step number={1} title="Install the SDK" description="Run this in the same Python environment as your Pipecat agent."><CopyBlock value={installCommand} /><p className="mt-2 text-xs text-slate-400">Lightcurve SDK 0.5.0 · Python 3.10+</p></Step>
+        <Step number={1} title="Install the SDK" description={`Run this in your ${language === 'python' ? 'Python' : 'Node.js'} project.`}><CopyBlock value={installCommand} /><p className="mt-2 text-xs text-slate-400">{versionInfo}</p></Step>
         <Step number={2} title="Generate a workspace key" description="The full key is shown once. Lightcurve stores only its hash.">
           <button type="button" className="btn-primary" disabled={creating} onClick={() => void createKey()}>{creating ? 'Creating…' : 'Generate API key'}</button>
           {secret ? <div className="mt-3 space-y-2"><CopyBlock value={secret} /><p className="text-xs text-amber-700">Copy it now; it will not be shown again.</p></div> : keys.length ? <p className="mt-3 text-sm text-slate-500">You already have {keys.length} workspace key{keys.length === 1 ? '' : 's'}.</p> : null}
         </Step>
         <Step number={3} title="Configure the environment" description="Add the key to the environment where your agent runs."><CopyBlock value={`LIGHTCURVE_API_KEY=${secret || '<YOUR_LIGHTCURVE_API_KEY>'}`} /></Step>
         <Step number={4} title="Enable Lightcurve" description="Add this before your Pipecat PipelineWorker is created."><CopyBlock value={importSnippet} /></Step>
-        <Step number={5} title="Run your application" description="Use your normal start command. Lightcurve registers the agent and unlocks the Playground automatically."><CopyBlock value="python app.py" /><p className="mt-3 text-sm text-slate-500">That is the entire integration. No agent URL, phone number, room, SIP setup, or callback.</p></Step>
+        <Step number={5} title="Run your application" description="Use your normal start command. Lightcurve registers the agent and unlocks the Playground automatically."><CopyBlock value={runCommand} /><p className="mt-3 text-sm text-slate-500">That is the entire integration. No agent URL, phone number, room, SIP setup, or callback.</p></Step>
       </div>
     </div>
   );
