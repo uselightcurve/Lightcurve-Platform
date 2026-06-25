@@ -6,8 +6,8 @@ function dodoEnvironment(): DodoEnvironment {
   if (process.env.DODO_ENVIRONMENT === 'live_mode') return 'live_mode';
   if (process.env.DODO_ENVIRONMENT === 'test_mode') return 'test_mode';
   
-  // Auto-detect based on key prefix
-  if (process.env.DODO_PAYMENTS_API_KEY?.startsWith('live_') || process.env.DODO_PAYMENTS_API_KEY?.startsWith('sk_live_')) {
+  const key = process.env.DODO_PAYMENTS_API_KEY || '';
+  if (key.startsWith('live_') || key.startsWith('sk_live_') || key.startsWith('dp_live_') || key.includes('_live_')) {
     return 'live_mode';
   }
   return 'test_mode';
