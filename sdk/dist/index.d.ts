@@ -69,3 +69,4 @@ export declare class Lightcurve {
 }
 export declare const VoiceSandbox: typeof Lightcurve;
 export default Lightcurve;
+export * as runtime from './runtime';

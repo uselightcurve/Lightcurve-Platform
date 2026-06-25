@@ -1,0 +1,40 @@
+export declare class RuntimeClient {
+    apiKey: string;
+    baseUrl: string;
+    name: string;
+    instanceKey: string;
+    runtimeId?: string;
+    instanceId?: string;
+    maxCapacity: number;
+    workers: any[];
+    workerSessions: Map<any, string>;
+    outputTracks: Map<string, Set<any>>;
+    events: Map<string, any[]>;
+    transcripts: Map<string, any[]>;
+    captureStarted: Map<string, number>;
+    seenFrameIds: Map<string, Set<string>>;
+    agentAudio: Map<string, Buffer>;
+    agentAudioFormat: Map<string, {
+        sampleRate: number;
+        channels: number;
+    }>;
+    botStoppedEvents: Map<string, () => void>;
+    sequence: number;
+    constructor();
+    request(method: string, path: string, payload?: any): Promise<any>;
+    start(): Promise<void>;
+    private heartbeatLoop;
+    private pollLoop;
+    private flushLoop;
+    private effectiveCapacity;
+    private availableWorkers;
+    private claimWorker;
+    private releaseWorker;
+    private startCaptureSafely;
+    private startCapture;
+    private runReplay;
+    normalizedTranscript(sessionId: string): any[];
+}
+export declare const runtime: RuntimeClient;
+export declare function installPipecatInstrumentation(): void;
+export declare function start(): void;

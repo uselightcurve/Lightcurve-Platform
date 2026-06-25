@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VoiceSandbox = exports.Lightcurve = void 0;
+exports.runtime = exports.VoiceSandbox = exports.Lightcurve = void 0;
 class Lightcurve {
     baseUrl;
     apiKey;
@@ -44,3 +44,4 @@ class Lightcurve {
 exports.Lightcurve = Lightcurve;
 exports.VoiceSandbox = Lightcurve;
 exports.default = Lightcurve;
+exports.runtime = require("./runtime");

@@ -1,7 +1,7 @@
 {
   "name": "@uselightcurve/sdk",
   "version": "0.2.0",
-  "description": "Lightcurve human-grounded voice dataset API client.",
+  "description": "Lightcurve human-grounded voice dataset API client and runtime instrumenter.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -16,10 +16,24 @@
     "voice-ai",
     "evals",
     "testing",
-    "datasets"
+    "datasets",
+    "pipecat"
   ],
   "license": "UNLICENSED",
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "peerDependencies": {
+    "@pipecat-ai/pipecat": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@pipecat-ai/pipecat": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.10",
     "typescript": "^5.0.0"
   }
 }
