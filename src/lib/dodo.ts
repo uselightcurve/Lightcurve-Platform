@@ -3,7 +3,14 @@ import DodoPayments from 'dodopayments';
 type DodoEnvironment = 'test_mode' | 'live_mode';
 
 function dodoEnvironment(): DodoEnvironment {
-  return process.env.DODO_ENVIRONMENT === 'live_mode' ? 'live_mode' : 'test_mode';
+  if (process.env.DODO_ENVIRONMENT === 'live_mode') return 'live_mode';
+  if (process.env.DODO_ENVIRONMENT === 'test_mode') return 'test_mode';
+  
+  // Auto-detect based on key prefix
+  if (process.env.DODO_PAYMENTS_API_KEY?.startsWith('live_') || process.env.DODO_PAYMENTS_API_KEY?.startsWith('sk_live_')) {
+    return 'live_mode';
+  }
+  return 'test_mode';
 }
 
 export function getDodoClient() {
