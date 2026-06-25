@@ -63,7 +63,7 @@ export function Sidebar() {
     <aside className="fixed inset-y-0 left-0 z-10 flex w-56 flex-col bg-white">
       <div className="px-3 py-3">
         <Link href="/" className="flex h-9 items-center gap-2.5 rounded-md px-3.5 text-slate-900">
-          <img src="/logo.svg" alt="Lightcurve" className="h-6 w-auto" />
+          <img src="/logo.svg" alt="Lightcurve" className="h-7 w-auto" />
           <span className="text-[15px] font-bold tracking-tight">Lightcurve</span>
         </Link>
       </div>
