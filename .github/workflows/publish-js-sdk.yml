@@ -1,0 +1,36 @@
+name: Publish JS SDK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'js-v*'
+
+jobs:
+  publish:
+    name: Build and publish @lightcurve/sdk
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        working-directory: ./sdk
+        run: npm ci
+
+      - name: Build package
+        working-directory: ./sdk
+        run: npm run build
+
+      - name: Publish to npm
+        working-directory: ./sdk
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
