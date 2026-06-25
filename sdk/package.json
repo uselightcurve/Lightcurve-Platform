@@ -1,6 +1,6 @@
 {
-  "name": "@uselightcurve/sdk",
-  "version": "0.2.0",
+  "name": "@lightcurve/sdk",
+  "version": "0.2.1",
   "description": "Lightcurve human-grounded voice dataset API client and runtime instrumenter.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
