@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ScoreBar, StatusChip } from '@/components/PageActions';
 import { OverviewMetricGrid } from '@/components/OverviewMetricGrid';
-import { SdkOnboarding } from '@/components/SdkOnboarding';
+import { OrbitOnboarding } from '@/components/OrbitOnboarding';
 
 type OverviewResponse = {
   panels: {
@@ -144,7 +144,7 @@ export default function Home() {
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      {!loading && onboarding && !onboarding.sdkEverRegistered ? <SdkOnboarding showHeader={false} /> : null}
+      {!loading && onboarding && !onboarding.sdkEverRegistered ? <div className="mb-6"><OrbitOnboarding /></div> : null}
 
       {onboarding?.sdkEverRegistered && onboarding.onlineRuntimeCount === 0 ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
