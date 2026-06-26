@@ -26,7 +26,7 @@ export default function ExperimentsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between"><div><h1 className="page-title">Experiments</h1><p className="page-subtitle">Dataset replays across agent versions.</p></div><Link href="/experiments/new" className="btn-primary">Run dataset</Link></div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden card">
         {experiments.length ? experiments.map((experiment) => (
           <Link key={experiment.id} href={`/experiments/${experiment.id}`} className="flex items-center justify-between border-b border-slate-100 px-5 py-4 last:border-0 hover:bg-slate-50">
             <div><p className="font-medium text-slate-900">{experiment.name}</p><p className="mt-1 text-sm text-slate-500">{experiment.datasetName} · {experiment.runtimeName || 'Runtime unavailable'} · {experiment.runCount} cases</p></div>

@@ -210,29 +210,26 @@ export default function PlaygroundPage() {
   const selectedRuntime = runtimes.find((runtime) => runtime.id === runtimeId);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-6">
       <div>
         <h1 className="page-title">Playground</h1>
-        <p className="page-subtitle">Make one real human call. Lightcurve turns it into a reusable behavioral dataset.</p>
+        <p className="page-subtitle">Initiate a human voice capture session to generate behavioral datasets.</p>
       </div>
 
       <audio ref={remoteAudioRef} autoPlay />
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm">{error}</div>}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="card flex flex-1 items-center justify-center p-8">
+        <div className="w-full max-w-lg">
         {state === 'idle' || state === 'connecting' ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-slate-950">Human voice capture</p>
-                <p className="mt-1 text-sm text-slate-500">Audio, timing, interruptions, tools, and outcomes are captured automatically.</p>
+          <div className="space-y-8">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 border border-slate-100">
+                <svg className="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
               </div>
-              {selectedRuntime && (
-                <span className={`rounded-full px-2.5 py-1 text-xs ${selectedRuntime.status === 'online' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                  {selectedRuntime.status}
-                </span>
-              )}
+              <h2 className="text-xl font-bold text-slate-900">New Voice Capture</h2>
+              <p className="mt-2 text-sm text-slate-500">Audio, timing, interruptions, and tool calls will be recorded.</p>
             </div>
 
             {runtimes.length > 1 && (
@@ -271,13 +268,19 @@ export default function PlaygroundPage() {
             )}
           </div>
         ) : state === 'live' ? (
-          <div className="py-8 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#eef2ff]">
-              <span className="h-4 w-4 animate-pulse rounded-full bg-[#2f5ae0]" />
+          <div className="py-12 text-center">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#eef2ff] border-4 border-white shadow-xl">
+              <div className="flex items-center gap-1.5 h-8">
+                <span className="w-1.5 h-full bg-[#2f5ae0] rounded-full animate-[pulse_1s_ease-in-out_infinite]" />
+                <span className="w-1.5 h-1/2 bg-[#2f5ae0] rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]" />
+                <span className="w-1.5 h-3/4 bg-[#2f5ae0] rounded-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]" />
+                <span className="w-1.5 h-full bg-[#2f5ae0] rounded-full animate-[pulse_1.1s_ease-in-out_infinite_0.1s]" />
+                <span className="w-1.5 h-1/2 bg-[#2f5ae0] rounded-full animate-[pulse_0.9s_ease-in-out_infinite_0.3s]" />
+              </div>
             </div>
-            <h2 className="mt-5 text-xl font-semibold text-slate-950">Call in progress</h2>
+            <h2 className="mt-6 text-2xl font-bold text-slate-900">Call is Live</h2>
             <p className="mt-2 text-sm text-slate-500">Speak naturally. This human interaction becomes the source graph for future replays.</p>
-            <button type="button" className="mt-7 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white" onClick={() => void endCall()}>End call</button>
+            <button type="button" className="mt-8 rounded-lg bg-red-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-red-700 transition-colors" onClick={() => void endCall()}>End Call</button>
           </div>
         ) : state === 'review' ? (
           <div className="space-y-5">
@@ -302,6 +305,7 @@ export default function PlaygroundPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

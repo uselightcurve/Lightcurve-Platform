@@ -342,3 +342,32 @@ export const sandboxToolEvents = pgTable('sandbox_tool_events', {
   status: text('status').notNull().default('200 OK'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export const playbooks = pgTable('playbooks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  instructions: text('instructions').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const guardrails = pgTable('guardrails', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  description: text('description'),
+  rule: text('rule').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const scenarios = pgTable('scenarios', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('custom'), // e.g. 'jailbreak', 'custom'
+  prompt: text('prompt').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});

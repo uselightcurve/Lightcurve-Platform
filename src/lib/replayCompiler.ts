@@ -9,6 +9,9 @@ export type ReplayCompilerConfig = {
   seed?: number;
   judgePolicy?: 'flash-pro-review' | 'pro' | 'flash';
   environmentMix?: Record<string, number>;
+  playbookId?: string;
+  guardrailIds?: string[];
+  scenarioIds?: string[];
 };
 
 export type ReplayCaseInput = {
@@ -153,6 +156,9 @@ export function normalizeReplayConfig(config: ReplayCompilerConfig = {}) {
     seed: boundedInteger(config.seed, 20260620, 1, 2_147_483_647),
     judgePolicy: config.judgePolicy ?? defaults.judgePolicy,
     environmentMix: Object.keys(environmentMix).length ? environmentMix : DEFAULT_ENVIRONMENT_MIX,
+    playbookId: config.playbookId,
+    guardrailIds: Array.isArray(config.guardrailIds) ? config.guardrailIds : [],
+    scenarioIds: Array.isArray(config.scenarioIds) ? config.scenarioIds : [],
   };
 }
 

@@ -1,0 +1,18 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 15
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 30
+      arrivalRate: 50
+      name: "Sustained load"
+scenarios:
+  - name: "Status and Onboarding Flow"
+    flow:
+      - get:
+          url: "/"
+      - get:
+          url: "/api/integrations/status"
+      - get:
+          url: "/api/onboarding"

@@ -46,6 +46,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [onboarding, setOnboarding] = useState<{ sdkEverRegistered: boolean; onlineRuntimeCount: number } | null>(null);
+  const [onboardingFinishedLocally, setOnboardingFinishedLocally] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -74,7 +75,19 @@ export default function Home() {
       setLoading(false);
     };
     load();
+    
+    try {
+      const stored = localStorage.getItem('lightcurve_onboarding_progress');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.includes(7)) {
+          setOnboardingFinishedLocally(true);
+        }
+      }
+    } catch (e) {}
   }, []);
+
+  const showOverview = onboarding?.sdkEverRegistered || onboardingFinishedLocally;
 
   const panels = useMemo(() => [
     {
@@ -135,25 +148,32 @@ export default function Home() {
 
   return (
     <div className="space-y-4">
-      <div className="page-header">
-        <h1 className="page-title">Overview</h1>
-        <p className="page-subtitle">{onboarding && !onboarding.sdkEverRegistered ? 'Install the SDK once. Lightcurve handles the rest.' : 'Health and release readiness across human-grounded voice tests.'}</p>
-      </div>
+      {showOverview && (
+        <div className="page-header">
+          <h1 className="page-title">Overview</h1>
+          <p className="page-subtitle">Health and release readiness across human-grounded voice tests.</p>
+        </div>
+      )}
 
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      {!loading && onboarding && !onboarding.sdkEverRegistered ? <div className="mb-6"><OrbitOnboarding /></div> : null}
+      {!loading && onboarding && !showOverview ? <div className="mb-6"><OrbitOnboarding onReachEnd={() => setOnboardingFinishedLocally(true)} /></div> : null}
 
-      {onboarding?.sdkEverRegistered && onboarding.onlineRuntimeCount === 0 ? (
+      {showOverview && onboarding?.onlineRuntimeCount === 0 && !onboarding.sdkEverRegistered ? (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>You've explored all evaluation orbits. Start your application with the SDK to record real data.</span>
+          <Link href="/settings/sdk" className="font-medium underline">SDK setup</Link>
+        </div>
+      ) : showOverview && onboarding?.onlineRuntimeCount === 0 ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <span>Your SDK is installed but the agent is currently offline. Start your application to record or replay calls.</span>
           <Link href="/settings/sdk" className="font-medium underline">SDK status</Link>
         </div>
       ) : null}
 
-      {onboarding?.sdkEverRegistered ? <><div className="flex flex-wrap items-center gap-2">
+      {showOverview ? <><div className="flex flex-wrap items-center gap-2">
         <Link href="/logs" className="btn-primary">Inspect calls</Link>
         <Link href="/logs" className="btn-secondary">Calls</Link>
         <Link href="/experiments/new" className="btn-secondary">Create experiment</Link>

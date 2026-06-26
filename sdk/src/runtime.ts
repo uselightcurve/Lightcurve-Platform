@@ -325,7 +325,7 @@ export class RuntimeClient {
     let burst = false;
 
     for (let i = 0; i < chunks.length; i++) {
-      let chunk = chunks[i];
+      const chunk = chunks[i];
       const lossProbability = burst ? burstLoss : packetLoss;
       
       if (nextRandom() < lossProbability) {

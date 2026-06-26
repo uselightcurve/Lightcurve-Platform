@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react';
 
 type Dataset = { id: string; name: string; caseCount: number; currentVersion: number };
 type Runtime = { id: string; name: string; version?: string | null; status: string };
+type Playbook = { id: string; name: string };
+type Guardrail = { id: string; name: string };
+type Scenario = { id: string; name: string; type: string };
 type Preset = 'quick' | 'release' | 'stress';
 
 const presets: Record<Preset, { label: string; calls: number; concurrency: number; description: string }> = {
@@ -27,8 +30,15 @@ export default function NewExperimentPage() {
   const router = useRouter();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [guardrails, setGuardrails] = useState<Guardrail[]>([]);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+
   const [datasetId, setDatasetId] = useState('');
   const [runtimeId, setRuntimeId] = useState('');
+  const [playbookId, setPlaybookId] = useState('');
+  const [guardrailIds, setGuardrailIds] = useState<string[]>([]);
+  const [scenarioIds, setScenarioIds] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [preset, setPreset] = useState<Preset>('release');
   const [replayCount, setReplayCount] = useState(100);
@@ -44,24 +54,34 @@ export default function NewExperimentPage() {
     Promise.all([
       fetch('/api/datasets', { cache: 'no-store' }).then((response) => response.json()),
       fetch('/api/runtimes', { cache: 'no-store' }).then((response) => response.json()),
-    ]).then(([datasetBody, runtimeBody]) => {
+      fetch('/api/playbooks', { cache: 'no-store' }).then((response) => response.json()),
+      fetch('/api/guardrails', { cache: 'no-store' }).then((response) => response.json()),
+      fetch('/api/scenarios', { cache: 'no-store' }).then((response) => response.json()),
+    ]).then(([datasetBody, runtimeBody, playbookBody, guardrailBody, scenarioBody]) => {
       const loadedDatasets = Array.isArray(datasetBody.datasets) ? datasetBody.datasets : [];
       const loadedRuntimes = Array.isArray(runtimeBody.runtimes) ? runtimeBody.runtimes : [];
       setDatasets(loadedDatasets);
       setRuntimes(loadedRuntimes);
+      setPlaybooks(Array.isArray(playbookBody.playbooks) ? playbookBody.playbooks : []);
+      setGuardrails(Array.isArray(guardrailBody.guardrails) ? guardrailBody.guardrails : []);
+      setScenarios(Array.isArray(scenarioBody.scenarios) ? scenarioBody.scenarios : []);
       const requestedDataset = new URLSearchParams(window.location.search).get('dataset');
       setDatasetId((current) => current || (requestedDataset && loadedDatasets.some((item: Dataset) => item.id === requestedDataset) ? requestedDataset : loadedDatasets[0]?.id) || '');
       setRuntimeId(loadedRuntimes.find((item: Runtime) => item.status === 'online')?.id || loadedRuntimes[0]?.id || '');
-    }).catch(() => setError('Datasets and runtimes could not be loaded.'));
+    }).catch(() => setError('Failed to load resources.'));
   }, []);
 
   function choosePreset(value: Preset) {
     setPreset(value);
-    setReplayCount(presets[value].calls);
-    setMaxConcurrency(presets[value].concurrency);
   }
 
-  async function createExperiment() {
+  async function createExperiment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!datasetId) return setError('Please select a dataset to test against.');
+    if (!runtimeId) return setError('Please select an agent runtime to test.');
+    
+    const { calls: replayCount, concurrency: maxConcurrency } = presets[preset];
+
     setSaving(true);
     setError('');
     try {
@@ -78,6 +98,9 @@ export default function NewExperimentPage() {
           seed,
           judgePolicy,
           environmentMix,
+          playbookId,
+          guardrailIds,
+          scenarioIds,
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -97,10 +120,49 @@ export default function NewExperimentPage() {
         <p className="page-subtitle">Compile human-derived Cases into reproducible, meaningfully different end-to-end calls.</p>
       </div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      <div className="space-y-6 rounded-xl border border-slate-200 bg-white p-6">
+      <form onSubmit={createExperiment} className="space-y-6 rounded-xl border border-slate-200 bg-white p-6">
         <label className="block text-sm text-slate-600">Run name<input className="input-field mt-2" value={name} onChange={(event) => setName(event.target.value)} placeholder="Release candidate evaluation" /></label>
-        <label className="block text-sm text-slate-600">Dataset<select className="input-field mt-2" value={datasetId} onChange={(event) => setDatasetId(event.target.value)}>{datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.name} · {dataset.caseCount} Cases · v{dataset.currentVersion}</option>)}</select></label>
-        <label className="block text-sm text-slate-600">Connected agent runtime<select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>{runtimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''} · {runtime.status}</option>)}</select></label>
+        
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm text-slate-600">Dataset<select className="input-field mt-2" value={datasetId} onChange={(event) => setDatasetId(event.target.value)}>{datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.name} · {dataset.caseCount} Cases · v{dataset.currentVersion}</option>)}</select></label>
+          <label className="block text-sm text-slate-600">Connected agent runtime<select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>{runtimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''} · {runtime.status}</option>)}</select></label>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-[1fr_2fr] pt-4 border-t border-slate-100">
+          <div>
+            <label className="block text-sm text-slate-600 mb-2">Playbook</label>
+            <select className="input-field w-full" value={playbookId} onChange={(event) => setPlaybookId(event.target.value)}>
+              <option value="">None (Default Agent Instructions)</option>
+              {playbooks.map(pb => <option key={pb.id} value={pb.id}>{pb.name}</option>)}
+            </select>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-slate-600 mb-2">Guardrails</p>
+              <div className="flex flex-wrap gap-2">
+                {guardrails.map(g => (
+                  <button key={g.id} type="button" onClick={() => setGuardrailIds(prev => prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id])} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${guardrailIds.includes(g.id) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-600 border-slate-200'} border`}>
+                    {guardrailIds.includes(g.id) ? '✓ ' : ''}{g.name}
+                  </button>
+                ))}
+                {guardrails.length === 0 && <span className="text-xs text-slate-400">No guardrails defined.</span>}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm text-slate-600 mb-2">Custom Scenarios & Jailbreaks</p>
+              <div className="flex flex-wrap gap-2">
+                {scenarios.map(s => (
+                  <button key={s.id} type="button" onClick={() => setScenarioIds(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id])} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${scenarioIds.includes(s.id) ? (s.type === 'jailbreak' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200') : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                    {scenarioIds.includes(s.id) ? '✓ ' : ''}{s.name}
+                  </button>
+                ))}
+                {scenarios.length === 0 && <span className="text-xs text-slate-400">No scenarios defined.</span>}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <fieldset>
           <legend className="text-sm font-medium text-slate-800">Coverage preset</legend>
@@ -131,8 +193,9 @@ export default function NewExperimentPage() {
           </div>
         )}
 
-        <button type="button" className="btn-primary w-full" disabled={saving || !datasetId || !runtimeId} onClick={() => void createExperiment()}>{saving ? 'Compiling voice graph…' : `Run ${replayCount} calls`}</button>
-      </div>
+
+        <button type="submit" disabled={saving || !datasetId || !runtimeId} className="btn-primary w-full justify-center">{saving ? 'Starting test...' : 'Start automated evaluation'}</button>
+      </form>
     </div>
   );
 }

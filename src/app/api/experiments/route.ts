@@ -64,6 +64,9 @@ export async function POST(req: Request) {
       seed: body.seed,
       judgePolicy: body.judgePolicy,
       environmentMix: body.environmentMix,
+      playbookId: body.playbookId,
+      guardrailIds: body.guardrailIds,
+      scenarioIds: body.scenarioIds,
     });
     await assertUsageAvailable(account.userId, { actions: Math.max(config.replayCount, cases.length) });
     const result = await createCompiledExperiment({
