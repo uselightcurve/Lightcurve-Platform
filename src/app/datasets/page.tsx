@@ -79,7 +79,7 @@ export default function DatasetsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Datasets</h1>
-          <p className="page-subtitle">Human-grounded voice cases captured once and replayed across every agent version.</p>
+          <p className="page-subtitle">Voice call recordings saved as test cases for your agents.</p>
         </div>
         <div className="flex gap-3">
           <Link href="/playground" className="btn-primary">Record a call</Link>

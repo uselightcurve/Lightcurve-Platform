@@ -24,7 +24,7 @@ export default function ExperimentsPage() {
   }, []);
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between"><div><h1 className="page-title">Experiments</h1><p className="page-subtitle">Dataset replays across agent versions.</p></div><Link href="/experiments/new" className="btn-primary">Run dataset</Link></div>
+      <div className="flex items-start justify-between"><div><h1 className="page-title">Experiments</h1><p className="page-subtitle">Results from your automated test runs.</p></div><Link href="/experiments/new" className="btn-primary">Run dataset</Link></div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       <div className="overflow-hidden card">
         {experiments.length ? experiments.map((experiment) => (

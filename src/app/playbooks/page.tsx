@@ -45,7 +45,7 @@ export default function PlaybooksPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
         <h1 className="page-title">Playbooks</h1>
-        <p className="page-subtitle">Define core instructions and goals for your agent.</p>
+        <p className="page-subtitle">Write the main instructions and persona for your agent.</p>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -213,7 +213,7 @@ export default function PlaygroundPage() {
     <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-6">
       <div>
         <h1 className="page-title">Playground</h1>
-        <p className="page-subtitle">Initiate a human voice capture session to generate behavioral datasets.</p>
+        <p className="page-subtitle">Talk to your agent to test it and save the recording as a test case.</p>
       </div>
 
       <audio ref={remoteAudioRef} autoPlay />

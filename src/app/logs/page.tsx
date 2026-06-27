@@ -145,7 +145,7 @@ export default function LogsPage() {
       <div className="page-header flex items-start justify-between">
         <div>
           <h1 className="page-title">Logs</h1>
-          <p className="page-subtitle">Search and inspect every human capture and dataset replay.</p>
+          <p className="page-subtitle">Search and review all your call logs and test runs.</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="toolbar-button" onClick={exportCsv}>Export CSV</button>

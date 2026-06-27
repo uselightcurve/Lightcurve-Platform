@@ -111,6 +111,9 @@ export default async function BillingSettingsPage() {
           <Link href="/settings/sdk" className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-50">
             SDK setup
           </Link>
+          <Link href="/settings/integrations" className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            Integrations
+          </Link>
         </aside>
 
         <section className="space-y-4">

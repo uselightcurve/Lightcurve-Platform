@@ -151,7 +151,7 @@ export default function Home() {
       {showOverview && (
         <div className="page-header">
           <h1 className="page-title">Overview</h1>
-          <p className="page-subtitle">Health and release readiness across human-grounded voice tests.</p>
+          <p className="page-subtitle">Overview of your agent's performance and recent test results.</p>
         </div>
       )}
 

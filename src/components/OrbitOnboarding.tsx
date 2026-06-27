@@ -76,7 +76,7 @@ function SetupSnippetView({ onComplete, isCompleted }: { onComplete: () => void;
 
   return (
     <div className="mt-6">
-      <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+      <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
         <div className="flex border-b border-slate-200 bg-white">
           <button
             onClick={() => setLang('node')}

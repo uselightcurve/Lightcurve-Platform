@@ -6,18 +6,24 @@ type Scenario = { id: string; name: string; type: string; prompt: string; update
 
 export default function ScenariosPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [datasets, setDatasets] = useState<Array<{ id: string; name: string }>>([]);
   const [name, setName] = useState('');
   const [type, setType] = useState('custom');
   const [prompt, setPrompt] = useState('');
+  const [datasetId, setDatasetId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const loadScenarios = () => fetch('/api/scenarios').then((r) => r.json()).then((data) => {
     if (data.scenarios) setScenarios(data.scenarios);
   });
+  const loadDatasets = () => fetch('/api/datasets').then(r => r.json()).then(data => {
+    if (data.datasets) setDatasets(data.datasets);
+  });
 
   useEffect(() => {
     loadScenarios();
+    loadDatasets();
   }, []);
 
   async function createScenario(e: React.FormEvent) {
@@ -28,13 +34,14 @@ export default function ScenariosPage() {
       const response = await fetch('/api/scenarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, type, prompt }),
+        body: JSON.stringify({ name, type, prompt, datasetId: datasetId || undefined }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? 'Failed to create scenario');
       setName('');
       setType('custom');
       setPrompt('');
+      setDatasetId('');
       loadScenarios();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed');
@@ -47,14 +54,14 @@ export default function ScenariosPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
         <h1 className="page-title">Scenarios</h1>
-        <p className="page-subtitle">Define custom testing scenarios and adversarial jailbreaks.</p>
+        <p className="page-subtitle">Create custom edge cases and tricky situations to test your agent.</p>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Create New Scenario</h2>
         {error && <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         <form onSubmit={createScenario} className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <label className="block text-sm font-medium text-slate-700">Name
               <input required className="input-field mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ignore Instructions" />
             </label>
@@ -62,6 +69,12 @@ export default function ScenariosPage() {
               <select className="input-field mt-1" value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="custom">Custom Scenario</option>
                 <option value="jailbreak">Adversarial Jailbreak</option>
+              </select>
+            </label>
+            <label className="block text-sm font-medium text-slate-700">Add to Dataset
+              <select className="input-field mt-1" value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
+                <option value="">None (Scenario only)</option>
+                {datasets.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </label>
           </div>

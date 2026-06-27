@@ -117,7 +117,7 @@ export default function NewExperimentPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="page-title">Run a voice graph</h1>
-        <p className="page-subtitle">Compile human-derived Cases into reproducible, meaningfully different end-to-end calls.</p>
+        <p className="page-subtitle">Run automated tests using your saved datasets and scenarios.</p>
       </div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       <form onSubmit={createExperiment} className="space-y-6 rounded-xl border border-slate-200 bg-white p-6">

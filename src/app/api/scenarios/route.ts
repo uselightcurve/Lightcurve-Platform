@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { scenarios } from '@/db/schema';
+import { scenarios, datasetCases } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { requireSdkAccount } from '@/lib/sdkAuth';
 
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const type = typeof body.type === 'string' && ['jailbreak', 'custom'].includes(body.type) ? body.type : 'custom';
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+    const datasetId = typeof body.datasetId === 'string' ? body.datasetId : null;
     
     if (!name) return NextResponse.json({ error: 'Scenario name is required.' }, { status: 400 });
     if (!prompt) return NextResponse.json({ error: 'Scenario prompt is required.' }, { status: 400 });
@@ -45,6 +46,15 @@ export async function POST(req: Request) {
       type,
       prompt,
     }).returning();
+
+    if (datasetId) {
+      await db.insert(datasetCases).values({
+        datasetId,
+        name: `Scenario: ${name}`,
+        behaviorGraph: { nodes: [{ id: 'start', type: 'scenario', prompt }] },
+      });
+    }
+
     return NextResponse.json({ scenario: created }, { status: 201 });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
