@@ -93,7 +93,7 @@ export default function Home() {
     {
       title: 'Calls',
       value: overview.panels.calls.value.toString(),
-      href: '/logs',
+      href: '/experiments',
       icon: 'bubble',
       variant: 'line' as const,
       series: overview.panels.calls.series,
@@ -102,7 +102,7 @@ export default function Home() {
     {
       title: 'Avg MOS',
       value: overview.panels.mos.value ? overview.panels.mos.value.toFixed(1) : '-',
-      href: '/logs?metric=mos',
+      href: '/experiments',
       icon: 'target',
       variant: 'line' as const,
       series: overview.panels.mos.series,
@@ -120,7 +120,7 @@ export default function Home() {
     {
       title: 'Latency p95',
       value: overview.panels.latency.value ? `${(overview.panels.latency.value / 1000).toFixed(1)}s` : '-',
-      href: '/logs?metric=latency',
+      href: '/experiments',
       icon: 'clock',
       variant: 'line' as const,
       series: overview.panels.latency.series,
@@ -151,7 +151,7 @@ export default function Home() {
       {showOverview && (
         <div className="page-header">
           <h1 className="page-title">Overview</h1>
-          <p className="page-subtitle">Overview of your agent's performance and recent test results.</p>
+          <p className="page-subtitle">Overview of your sandbox agent performance and recent test results.</p>
         </div>
       )}
 
@@ -163,19 +163,18 @@ export default function Home() {
 
       {showOverview && onboarding?.onlineRuntimeCount === 0 && !onboarding.sdkEverRegistered ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span>You've explored all evaluation orbits. Start your application with the SDK to record real data.</span>
+          <span>You've explored all evaluation orbits. Start your sandbox testing environment with the SDK to record real data.</span>
           <Link href="/settings/sdk" className="font-medium underline">SDK setup</Link>
         </div>
       ) : showOverview && onboarding?.onlineRuntimeCount === 0 ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span>Your SDK is installed but the agent is currently offline. Start your application to record or replay calls.</span>
+          <span>Your SDK is installed but the test agent is currently offline. Start your application to record or replay calls.</span>
           <Link href="/settings/sdk" className="font-medium underline">SDK status</Link>
         </div>
       ) : null}
 
       {showOverview ? <><div className="flex flex-wrap items-center gap-2">
-        <Link href="/logs" className="btn-primary">Inspect calls</Link>
-        <Link href="/logs" className="btn-secondary">Calls</Link>
+        <Link href="/playground" className="btn-primary">Open Sandbox</Link>
         <Link href="/experiments/new" className="btn-secondary">Create experiment</Link>
       </div>
 
@@ -185,7 +184,7 @@ export default function Home() {
         <section className="card p-8 text-center">
           <h2 className="text-base font-medium text-slate-950">No sandbox runs yet</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-            Enable the SDK, record one real human call, and Lightcurve will build your first replayable dataset.
+            Enable the SDK, record one sandbox call in the Playground, and Lightcurve will build your first replayable dataset.
           </p>
           <Link href="/experiments/new" className="btn-primary mt-5 inline-flex">Create first experiment</Link>
         </section>

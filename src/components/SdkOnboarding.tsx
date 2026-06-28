@@ -98,12 +98,12 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
   const online = runtimes.filter((runtime) => runtime.status === 'online');
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      {showHeader ? <div className="page-header"><h1 className="page-title">Install Lightcurve SDK</h1><p className="page-subtitle">Add one import. Lightcurve handles Playground calls, datasets, replay, and evaluation.</p></div> : null}
+      {showHeader ? <div className="page-header"><h1 className="page-title">Connect your Sandbox Environment</h1><p className="page-subtitle">Add one import. Lightcurve connects to your test agent to handle Playground sandbox testing, datasets, replay, and evaluation.</p></div> : null}
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
       <div className={`rounded-xl border p-4 ${online.length ? 'border-emerald-200 bg-emerald-50' : 'border-blue-200 bg-blue-50'}`}>
         <div className="flex items-center justify-between gap-4">
-          <div><p className="text-sm font-semibold text-slate-900">{online.length ? 'SDK is online' : 'Start tracing your voice agent'}</p><p className="mt-1 text-sm text-slate-600">{online.length ? `${online[0].name}${online[0].version ? ` · ${online[0].version}` : ''} is ready.` : 'Python and Node.js are supported today. Registration happens automatically when your app starts.'}</p></div>
-          {online.length ? <Link href="/playground" className="btn-primary shrink-0">Start a call</Link> : (
+          <div><p className="text-sm font-semibold text-slate-900">{online.length ? 'Sandbox environment is online' : 'Connect your test agent'}</p><p className="mt-1 text-sm text-slate-600">{online.length ? `${online[0].name}${online[0].version ? ` · ${online[0].version}` : ''} is ready for testing.` : 'Python and Node.js are supported today. Registration happens automatically when your test app starts.'}</p></div>
+          {online.length ? <Link href="/playground" className="btn-primary shrink-0">Open Sandbox</Link> : (
             <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit border border-slate-200 shadow-inner shrink-0">
               <button type="button" onClick={() => setLanguage('python')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${language === 'python' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>Python</button>
               <button type="button" onClick={() => setLanguage('node')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${language === 'node' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>Node.js</button>
@@ -112,14 +112,14 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
         </div>
       </div>
       <div className="space-y-4">
-        <Step number={1} title="Install the SDK" description={`Run this in your ${language === 'python' ? 'Python' : 'Node.js'} project.`}><CopyBlock value={installCommand} /><p className="mt-2 text-xs text-slate-400">{versionInfo}</p></Step>
+        <Step number={1} title="Install the SDK Runner" description={`Run this in your ${language === 'python' ? 'Python' : 'Node.js'} test project.`}><CopyBlock value={installCommand} /><p className="mt-2 text-xs text-slate-400">{versionInfo}</p></Step>
         <Step number={2} title="Generate a workspace key" description="The full key is shown once. Lightcurve stores only its hash.">
           <button type="button" className="btn-primary" disabled={creating} onClick={() => void createKey()}>{creating ? 'Creating…' : 'Generate API key'}</button>
           {secret ? <div className="mt-3 space-y-2"><CopyBlock value={secret} /><p className="text-xs text-amber-700">Copy it now; it will not be shown again.</p></div> : keys.length ? <p className="mt-3 text-sm text-slate-500">You already have {keys.length} workspace key{keys.length === 1 ? '' : 's'}.</p> : null}
         </Step>
-        <Step number={3} title="Configure the environment" description="Add the key to the environment where your agent runs."><CopyBlock value={`LIGHTCURVE_API_KEY=${secret || '<YOUR_LIGHTCURVE_API_KEY>'}`} /></Step>
+        <Step number={3} title="Configure the environment" description="Add the key to your test environment."><CopyBlock value={`LIGHTCURVE_API_KEY=${secret || '<YOUR_LIGHTCURVE_API_KEY>'}`} /></Step>
         <Step number={4} title="Enable Lightcurve" description="Add this before your Pipecat PipelineWorker is created."><CopyBlock value={importSnippet} /></Step>
-        <Step number={5} title="Run your application" description="Use your normal start command. Lightcurve registers the agent and unlocks the Playground automatically."><CopyBlock value={runCommand} /><p className="mt-3 text-sm text-slate-500">That is the entire integration. No agent URL, phone number, room, SIP setup, or callback.</p></Step>
+        <Step number={5} title="Run your test application" description="Use your normal start command. Lightcurve registers the test agent and unlocks the Sandbox automatically."><CopyBlock value={runCommand} /><p className="mt-3 text-sm text-slate-500">That is the entire integration. No agent URL, phone number, room, SIP setup, or callback.</p></Step>
       </div>
     </div>
   );

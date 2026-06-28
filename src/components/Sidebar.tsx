@@ -85,8 +85,6 @@ const navigation = [
   },
   {
     section: 'Data',
-    items: [
-      { label: 'Logs', href: '/logs', icon: icons.logs, active: (path: string) => path.startsWith('/logs') || path.includes('/runs/') },
       { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') },
     ]
   }

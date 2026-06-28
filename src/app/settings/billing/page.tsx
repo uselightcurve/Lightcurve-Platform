@@ -174,7 +174,6 @@ export default async function BillingSettingsPage() {
                       Lightcurve is built to make testing a daily habit, not another expensive provider bill.
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">Low-cost first</span>
                 </div>
                 <div className="mt-4 divide-y divide-slate-100">
                   {billingFaqs.map((item) => (
