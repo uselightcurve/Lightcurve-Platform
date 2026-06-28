@@ -96,18 +96,23 @@ export async function getBillingSummary(userId: string) {
   const billableUsageRows = usageRows.filter((event) => !event.sourceRunId || completedRunIds.has(event.sourceRunId));
   const minutesUsed = billableUsageRows.reduce((sum, event) => sum + Number(event.minutes ?? 0), 0);
   const actionsUsed = billableUsageRows.reduce((sum, event) => sum + Number(event.actions ?? 0), 0);
+  const fixesUsed = billableUsageRows.reduce((sum, event) => sum + (event.eventType === 'fix_generated' ? 1 : 0), 0);
   const minutesRemaining = plan.minutesLimit === null ? null : Math.max(0, plan.minutesLimit - minutesUsed);
   const actionsRemaining = plan.actionsLimit === null ? null : Math.max(0, plan.actionsLimit - actionsUsed);
+  const fixesRemaining = plan.fixesLimit === null ? null : Math.max(0, plan.fixesLimit - fixesUsed);
 
   return {
     plan,
     subscription,
     minutesUsed,
     actionsUsed,
+    fixesUsed,
     minutesRemaining,
     actionsRemaining,
+    fixesRemaining,
     minutesPercent: plan.minutesLimit === null ? 0 : Math.min(100, Math.round((minutesUsed / plan.minutesLimit) * 100)),
     actionsPercent: plan.actionsLimit === null ? 0 : Math.min(100, Math.round((actionsUsed / plan.actionsLimit) * 100)),
+    fixesPercent: plan.fixesLimit === null ? 0 : Math.min(100, Math.round((fixesUsed / plan.fixesLimit) * 100)),
   };
 }
 

@@ -8,9 +8,11 @@ export type Plan = {
   monthlyCents: number;
   minutesLimit: number | null;
   actionsLimit: number | null;
+  fixesLimit: number | null;
   overageEnabled: boolean;
   minuteOverageCents: number;
   actionOverageCentsPerThousand: number;
+  fixOverageCents: number;
   features: string[];
 };
 
@@ -23,23 +25,27 @@ export const PLANS: Record<PlanId, Plan> = {
     monthlyCents: 0,
     minutesLimit: 30,
     actionsLimit: 10000,
+    fixesLimit: 50,
     overageEnabled: false,
     minuteOverageCents: 0,
     actionOverageCentsPerThousand: 0,
-    features: ['30 tested minutes', '10,000 eval actions', 'Private human-grounded datasets'],
+    fixOverageCents: 0,
+    features: ['30 tested minutes', '10,000 eval actions', '50 AI generated fixes', 'Private human-grounded datasets'],
   },
   pro: {
     id: 'pro',
     name: 'Pro',
     audience: 'Growing teams',
-    priceLabel: '$99',
-    monthlyCents: 9900,
-    minutesLimit: 1000,
-    actionsLimit: 50000,
+    priceLabel: '$249',
+    monthlyCents: 24900,
+    minutesLimit: 5000,
+    actionsLimit: 100000,
+    fixesLimit: 6000,
     overageEnabled: true,
-    minuteOverageCents: 4,
-    actionOverageCentsPerThousand: 50,
-    features: ['1,000 tested minutes', '50,000 eval actions', 'Human-grounded dataset replays', 'Paid overage after included usage'],
+    minuteOverageCents: 1,
+    actionOverageCentsPerThousand: 100,
+    fixOverageCents: 3,
+    features: ['5,000 tested minutes', '100,000 eval actions', '6,000 AI generated fixes', 'Paid overage after included usage'],
   },
   scale: {
     id: 'scale',
@@ -49,10 +55,12 @@ export const PLANS: Record<PlanId, Plan> = {
     monthlyCents: 0,
     minutesLimit: null,
     actionsLimit: null,
+    fixesLimit: null,
     overageEnabled: false,
     minuteOverageCents: 0,
     actionOverageCentsPerThousand: 0,
-    features: ['Unlimited sandbox minutes', 'Unlimited eval actions', 'SLA and priority support'],
+    fixOverageCents: 0,
+    features: ['Unlimited sandbox minutes', 'Unlimited eval actions', 'Unlimited AI fixes', 'SLA and priority support'],
   },
 };
 

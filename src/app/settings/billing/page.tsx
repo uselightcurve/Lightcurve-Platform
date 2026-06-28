@@ -67,24 +67,34 @@ function PlanCard({ plan, active }: { plan: Plan; active: boolean }) {
 
 const billingFaqs = [
   {
-    question: 'Do dataset replays use the telephone network?',
+    question: 'What exactly counts as an "Eval Action"?',
     answer:
-      'No. Lightcurve sends WebRTC audio directly to the SDK inside your running agent. There are no phone numbers, SIP calls, carriers, or hosted-room providers.',
+      'An Eval Action represents a single automated test run. This one action covers the entire lifecycle of the test: streaming the audio, evaluating the agent\'s performance, scoring audio quality (ViSQOL/DNSMOS), and generating suggested rule fixes. You are not charged extra actions for applying those fixes to your guardrails.',
   },
   {
-    question: 'What is the lowest-cost way to test before production?',
+    question: 'How are tested minutes calculated?',
     answer:
-      'Capture one real human call, approve its behavior graph as a dataset Case, and replay that case across every candidate agent version.',
+      'Tested minutes simply measure the total duration of audio processed during your automated test runs and interactive Playground sessions.',
+  },
+  {
+    question: 'What is the Behavioral (Voice) Graph and why does it matter?',
+    answer:
+      'Instead of testing your agent against a random AI persona that might hallucinate, Lightcurve constrains the test caller using a "Behavioral Graph" derived from a real human interaction. This ensures the test remains realistic, allows us to score if your agent stayed on the happy path, and mathematically isolates the exact conversational turn where a failure occurred.',
+  },
+  {
+    question: 'Do I pay extra for audio quality scoring or AI judgments?',
+    answer:
+      'No. We self-host industry-standard audio models (ViSQOL and DNSMOS) to score signal quality with zero third-party API fees. All AI evaluation costs are entirely bundled into your standard Action usage.',
+  },
+  {
+    question: 'Do automated tests use the telephone network?',
+    answer:
+      'No. Lightcurve sends WebRTC audio directly to the SDK inside your running agent. There are no phone numbers, SIP calls, carriers, or hosted-room providers involved.',
   },
   {
     question: 'Can my own model and speech services still charge me?',
     answer:
-      'Yes. A replay exercises your real STT, model, tools, and TTS through the Pipecat pipeline, so those services may consume their normal usage.',
-  },
-  {
-    question: 'Are replay callers synthetic?',
-    answer:
-      'The speech is generated for scale, but caller behavior is constrained by a graph captured from a real human interaction. Lightcurve does not invent an unconstrained caller persona from a prompt.',
+      'Yes. A replay exercises your real STT, LLM, tools, and TTS through your pipeline, so your infrastructure providers will consume their normal usage during a test.',
   },
 ];
 
@@ -142,9 +152,10 @@ export default async function BillingSettingsPage() {
                   </div>
                   <span className="status-pill-running">Active</span>
                 </div>
-                <div className="mt-5 grid grid-cols-2 gap-4">
+                <div className="mt-5 grid grid-cols-3 gap-4">
                   <UsageMeter label="Minutes" used={summary.minutesUsed} limit={summary.plan.minutesLimit} percent={summary.minutesPercent} />
                   <UsageMeter label="Actions" used={summary.actionsUsed} limit={summary.plan.actionsLimit} percent={summary.actionsPercent} />
+                  <UsageMeter label="AI Fixes" used={summary.fixesUsed} limit={summary.plan.fixesLimit} percent={summary.fixesPercent} />
                 </div>
               </div>
 
