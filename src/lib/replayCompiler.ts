@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 export type ExperimentPreset = 'quick' | 'release' | 'stress';
 
+export type AgentConfigInput = { id: string; name: string; stt?: string; llm?: string; tts?: string };
+
 export type ReplayCompilerConfig = {
   preset?: ExperimentPreset;
   replayCount?: number;
@@ -12,6 +14,7 @@ export type ReplayCompilerConfig = {
   playbookId?: string;
   guardrailIds?: string[];
   scenarioIds?: string[];
+  agentConfigs?: AgentConfigInput[];
 };
 
 export type ReplayCaseInput = {
@@ -48,6 +51,7 @@ export type ReplayManifest = {
   judgePolicy: 'flash-pro-review' | 'pro' | 'flash';
   impairment: ImpairmentProfile;
   variationPolicy: Record<string, unknown>;
+  agentConfig?: AgentConfigInput;
   uniquenessSignature: string;
 };
 
@@ -159,6 +163,7 @@ export function normalizeReplayConfig(config: ReplayCompilerConfig = {}) {
     playbookId: config.playbookId,
     guardrailIds: Array.isArray(config.guardrailIds) ? config.guardrailIds : [],
     scenarioIds: Array.isArray(config.scenarioIds) ? config.scenarioIds : [],
+    agentConfigs: Array.isArray(config.agentConfigs) && config.agentConfigs.length ? config.agentConfigs : undefined,
   };
 }
 
@@ -237,6 +242,7 @@ export function compileReplayManifests(cases: ReplayCaseInput[], rawConfig: Repl
   const discourses = ['plain', 'self_repair', 'context_first', 'request_first', 'confirm_then_ask', 'contrastive'];
   const stances = ['neutral', 'urgent', 'skeptical', 'frustrated', 'polite', 'uncertain'];
   const voices = ['neutral-a', 'neutral-b', 'warm-a', 'firm-a', 'conversational-a', 'conversational-b'];
+  const agentConfigs = config.agentConfigs ?? [{ id: 'default', name: 'Default' }];
   const manifests: ReplayManifest[] = [];
   let globalIndex = 0;
   for (const item of cases) {
@@ -271,27 +277,30 @@ export function compileReplayManifests(cases: ReplayCaseInput[], rawConfig: Repl
         responseDelayMs: Math.round(80 + random() * 950),
         interruptionOffsetMs: random() < 0.28 ? Math.round(120 + random() * 1200) : null,
       };
-      const manifestWithoutSignature = {
-        schema: 'lightcurve.replay_manifest.v2' as const,
-        caseId: item.id,
-        caseName: item.name,
-        variantIndex: globalIndex,
-        seed: variantSeed,
-        graphPath: paths[(localIndex + Math.floor(random() * paths.length)) % paths.length],
-        expectedOutcome: graph.terminalOutcome ?? graph.terminalOutcomes ?? 'approved_outcome',
-        groundedFacts: graph.facts ?? graph.groundedFacts ?? [],
-        constrainedValues: graph.slots ?? graph.constrainedValues ?? {},
-        riskTags: riskTags(graph, environment),
-        lexicalDirective,
-        voice,
-        timing,
-        environment,
-        judgePolicy: config.judgePolicy,
-        impairment: profiles[environment] ?? profiles.clean,
-        variationPolicy: policy,
-      };
-      manifests.push({ ...manifestWithoutSignature, uniquenessSignature: hash(manifestWithoutSignature) });
-      globalIndex += 1;
+      for (const agentConfig of agentConfigs) {
+        const manifestWithoutSignature = {
+          schema: 'lightcurve.replay_manifest.v2' as const,
+          caseId: item.id,
+          caseName: item.name,
+          variantIndex: globalIndex,
+          seed: variantSeed,
+          graphPath: paths[(localIndex + Math.floor(random() * paths.length)) % paths.length],
+          expectedOutcome: graph.terminalOutcome ?? graph.terminalOutcomes ?? 'approved_outcome',
+          groundedFacts: graph.facts ?? graph.groundedFacts ?? [],
+          constrainedValues: graph.slots ?? graph.constrainedValues ?? {},
+          riskTags: riskTags(graph, environment),
+          lexicalDirective,
+          voice,
+          timing,
+          environment,
+          judgePolicy: config.judgePolicy,
+          impairment: profiles[environment] ?? profiles.clean,
+          variationPolicy: policy,
+          agentConfig: config.agentConfigs ? agentConfig : undefined,
+        };
+        manifests.push({ ...manifestWithoutSignature, uniquenessSignature: hash({ ...manifestWithoutSignature, agentConfigId: agentConfig.id }) });
+        globalIndex += 1;
+      }
     }
   }
   const signatures = new Set(manifests.map((manifest) => manifest.uniquenessSignature));

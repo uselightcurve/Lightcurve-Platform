@@ -67,6 +67,7 @@ export async function POST(req: Request) {
       playbookId: body.playbookId,
       guardrailIds: body.guardrailIds,
       scenarioIds: body.scenarioIds,
+      agentConfigs: body.agentConfigs,
     });
     await assertUsageAvailable(account.userId, { actions: Math.max(config.replayCount, cases.length) });
     const result = await createCompiledExperiment({

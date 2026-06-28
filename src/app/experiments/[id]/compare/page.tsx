@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
+import { OpenAI, Anthropic, Gemini, DeepMind, Meta, ElevenLabs, Mistral, Microsoft } from '@lobehub/icons';
 
-type RunSummary = { id: string; caseId?: string | null; variantIndex?: number | null; status: string; replayManifest?: { environment?: string } | null };
+type RunSummary = { id: string; caseId?: string | null; variantIndex?: number | null; status: string; replayManifest?: { environment?: string, agentConfig?: { id: string, name: string, stt: string, llm: string, tts: string } } | null };
 type ExperimentData = {
   experiment: { name: string };
   runs: RunSummary[];
@@ -17,6 +18,20 @@ type RunDetail = {
 };
 
 function label(value: string) { return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); }
+
+function ModelIcon({ name }: { name: string }) {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  if (lower.includes('gpt') || lower.includes('openai')) return <OpenAI size={16} />;
+  if (lower.includes('claude') || lower.includes('anthropic')) return <Anthropic size={16} />;
+  if (lower.includes('gemini') || lower.includes('google')) return <Gemini size={16} />;
+  if (lower.includes('llama') || lower.includes('meta')) return <Meta size={16} />;
+  if (lower.includes('elevenlabs')) return <ElevenLabs size={16} />;
+  if (lower.includes('mistral')) return <Mistral size={16} />;
+  if (lower.includes('deepmind')) return <DeepMind size={16} />;
+  if (lower.includes('azure') || lower.includes('microsoft')) return <Microsoft size={16} />;
+  return null;
+}
 
 export default function CompareRunsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -51,14 +66,23 @@ export default function CompareRunsPage({ params }: { params: Promise<{ id: stri
 
   const renderRunSide = (runId: string, setRunId: (v: string) => void, runDetail: RunDetail | null) => {
     const scores = new Map(runDetail?.scores?.flatMap(s => s.metricName && typeof s.value === 'number' ? [[s.metricName, s.value]] : []) || []);
+    const meta = expData.runs?.find(r => r.id === runId);
+    
     return (
       <div className="flex-1 min-w-0 space-y-4">
         <select className="input-field w-full" value={runId} onChange={(e) => setRunId(e.target.value)}>
-          {expData.runs?.map(r => <option key={r.id} value={r.id}>#{ (r.variantIndex ?? 0) + 1 } · {cases.get(r.caseId || '') || 'Case'} · {label(r.replayManifest?.environment ?? 'clean')}</option>)}
+          {expData.runs?.map(r => <option key={r.id} value={r.id}>{r.replayManifest?.agentConfig?.name ? `${r.replayManifest.agentConfig.name} · ` : ''}#{ (r.variantIndex ?? 0) + 1 } · {cases.get(r.caseId || '') || 'Case'} · {label(r.replayManifest?.environment ?? 'clean')}</option>)}
         </select>
         
         {!runDetail ? <div className="p-4 text-sm text-slate-500">Loading run details...</div> : (
           <div className="space-y-4">
+            {meta?.replayManifest?.agentConfig && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1 text-slate-600"><span className="text-slate-400">STT</span> <ModelIcon name={meta.replayManifest.agentConfig.stt} /> {meta.replayManifest.agentConfig.stt}</div>
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1 text-slate-600"><span className="text-slate-400">LLM</span> <ModelIcon name={meta.replayManifest.agentConfig.llm} /> {meta.replayManifest.agentConfig.llm}</div>
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1 text-slate-600"><span className="text-slate-400">TTS</span> <ModelIcon name={meta.replayManifest.agentConfig.tts} /> {meta.replayManifest.agentConfig.tts}</div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="card p-3"><p className="text-xs text-slate-500">DNSMOS</p><p className="mt-1 text-xl font-semibold">{scores.get('dnsmos_overall')?.toFixed(2) ?? '—'}</p></div>
               <div className="card p-3"><p className="text-xs text-slate-500">Quality</p><p className="mt-1 text-xl font-semibold">{scores.get('gemini_conversation_quality')?.toFixed(2) ?? '—'}</p></div>

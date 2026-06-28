@@ -85,6 +85,7 @@ const navigation = [
   },
   {
     section: 'Data',
+    items: [
       { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') },
     ]
   }
