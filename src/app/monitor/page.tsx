@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 export default function CallAnalysisPage() {
-  const [tab, setTab] = useState('what'); // 'what' | 'how'
   const [runData, setRunData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,10 +57,6 @@ export default function CallAnalysisPage() {
           <h1 className="page-title text-[1.4rem]">Monitor</h1>
         </div>
         <div className="flex items-center gap-3">
-          <div className="segmented-tabs">
-            <button className={`segmented-tab px-4 py-1.5 text-sm ${tab === 'what' ? 'segmented-tab-active font-semibold' : 'font-medium'}`} onClick={() => setTab('what')}>What happened</button>
-            <button className={`segmented-tab px-4 py-1.5 text-sm ${tab === 'how' ? 'segmented-tab-active font-semibold' : 'font-medium'}`} onClick={() => setTab('how')}>How it happened</button>
-          </div>
           <button className="btn-secondary h-[36px] w-[36px] p-0 flex items-center justify-center bg-white border-slate-200">
             <svg className="w-[18px] h-[18px] text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             <span className="sr-only">Export</span>
@@ -70,10 +65,10 @@ export default function CallAnalysisPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
-        {/* Left Column: What happened */}
+        {/* Left Column: Call Summary */}
         <div className={`card overflow-hidden ${isPass ? 'border-emerald-200 bg-emerald-50/50' : 'border-[#fecaca] bg-[#fff5f5]'}`}>
           <div className={`p-6 border-b ${isPass ? 'border-emerald-200' : 'border-[#fecaca]'}`}>
-            <h2 className={`text-lg font-semibold ${isPass ? 'text-emerald-800' : 'text-[#7f1d1d]'}`}>What happened</h2>
+            <h2 className={`text-lg font-semibold ${isPass ? 'text-emerald-800' : 'text-[#7f1d1d]'}`}>Call Summary</h2>
           </div>
           
           <div className="p-6 space-y-6">

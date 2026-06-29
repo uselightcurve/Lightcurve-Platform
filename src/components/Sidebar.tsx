@@ -84,7 +84,7 @@ const navigation = [
     ]
   },
   {
-    section: 'Data',
+    section: '',
     items: [
       { label: 'Settings', href: '/settings/profile', icon: icons.settings, active: (path: string) => path.startsWith('/settings') },
     ]
@@ -118,10 +118,10 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen?
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-hide">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300">
           {navigation.map((group, index) => (
-            <div key={group.section} className={index > 0 ? "mt-6" : ""}>
-              {group.section !== 'Core' && (
+            <div key={group.section || index} className={index > 0 ? "mt-6" : ""}>
+              {group.section && group.section !== 'Core' && (
                 <h3 className="px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{group.section}</h3>
               )}
               <div className="space-y-0.5">

@@ -97,7 +97,7 @@ export default function DatasetsPage() {
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             Select Audio File
-            <input type="file" className="hidden" accept="audio/*" onChange={handleFileUpload} disabled={uploading} />
+            <input type="file" className="hidden" accept=".wav,.mp3,audio/wav,audio/mpeg" onChange={handleFileUpload} disabled={uploading} />
           </label>
         </div>
       </div>

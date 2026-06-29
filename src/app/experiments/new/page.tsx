@@ -119,8 +119,8 @@ export default function NewExperimentPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="page-title">Run a voice graph</h1>
-        <p className="page-subtitle">Run automated tests using your saved datasets and scenarios.</p>
+        <h1 className="page-title">Run a Voice Test</h1>
+        <p className="page-subtitle">Test your agent against saved datasets and edge cases.</p>
       </div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       <form onSubmit={createExperiment} className="space-y-6 rounded-xl border border-slate-200 bg-white p-6">
@@ -128,7 +128,7 @@ export default function NewExperimentPage() {
         
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-slate-600">Dataset<select className="input-field mt-2" value={datasetId} onChange={(event) => setDatasetId(event.target.value)}>{datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.name} · {dataset.caseCount} Cases · v{dataset.currentVersion}</option>)}</select></label>
-          <label className="block text-sm text-slate-600">Connected agent runtime<select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>{runtimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''} · {runtime.status}</option>)}</select></label>
+          <label className="block text-sm text-slate-600">Agent Configuration<select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>{runtimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''} · {runtime.status}</option>)}</select></label>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-[1fr_2fr] pt-4 border-t border-slate-100">
@@ -168,7 +168,7 @@ export default function NewExperimentPage() {
         </div>
 
         <fieldset>
-          <legend className="text-sm font-medium text-slate-800">Coverage preset</legend>
+          <legend className="text-sm font-medium text-slate-800">Test Size</legend>
           <div className="mt-3 grid grid-cols-3 gap-3">
             {(Object.keys(presets) as Preset[]).map((key) => (
               <button key={key} type="button" onClick={() => choosePreset(key)} className={`rounded-xl border p-4 text-left ${preset === key ? 'border-[#2f5ae0] bg-[#f6f8ff] ring-1 ring-[#2f5ae0]' : 'border-slate-200 hover:bg-slate-50'}`}>

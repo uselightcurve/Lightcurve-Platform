@@ -73,23 +73,23 @@ export default function ExperimentDetailPage({ params }: { params: Promise<{ id:
       </section>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Pass rate" value={percent(data.summary.passRate)} detail="Graph and hard-constraint result" />
-        <Metric title="Graph coverage" value={percent(data.summary.edgeCoverage)} detail={`${data.summary.edgeCount}/${data.summary.expectedEdgeCount || data.summary.edgeCount} grounded edges`} />
-        <Metric title="ViSQOL caller" value={mos(data.summary.visqol.average)} detail="Reference-based channel MOS" />
-        <Metric title="DNSMOS agent" value={mos(data.summary.dnsmos.average)} detail="P.835 agent-output MOS" />
-        <Metric title="Gemini quality" value={mos(data.summary.geminiQuality.average)} detail="Multimodal conversation score" />
-        <Metric title="Latency handling" value={percent(data.summary.latencyBehavior)} detail="Behavior under timing pressure" />
-        <Metric title="Interruptions" value={percent(data.summary.interruptionHandling)} detail="Barge-in and recovery behavior" />
-        <Metric title="Active calls" value={String(data.summary.effectiveConcurrency)} detail="Capacity-aware concurrency" />
-        <Metric title="Preset" value={label(data.experiment.config?.preset ?? 'release')} detail={`${data.summary.total} immutable manifests`} />
+        <Metric title="Success Rate" value={percent(data.summary.passRate)} detail="Completed tasks and rules followed" />
+        <Metric title="Conversation Explored" value={percent(data.summary.edgeCoverage)} detail={`${data.summary.edgeCount}/${data.summary.expectedEdgeCount || data.summary.edgeCount} conversation paths explored`} />
+        <Metric title="Call Audio Quality" value={mos(data.summary.visqol.average)} detail="Simulated caller voice clarity" />
+        <Metric title="Agent Voice Quality" value={mos(data.summary.dnsmos.average)} detail="How natural the AI sounds" />
+        <Metric title="AI Logic Quality" value={mos(data.summary.geminiQuality.average)} detail="LLM judge evaluation score" />
+        <Metric title="Speed Under Pressure" value={percent(data.summary.latencyBehavior)} detail="Response time consistency" />
+        <Metric title="Barge-in Handling" value={percent(data.summary.interruptionHandling)} detail="How well it handles being cut off" />
+        <Metric title="Concurrent Calls" value={String(data.summary.effectiveConcurrency)} detail="How many calls it handles at once" />
+        <Metric title="Test Configuration" value={label(data.experiment.config?.preset ?? 'release')} detail={`${data.summary.total} locked test environments`} />
       </div>
 
       {data.summary.failuresByEnvironment.length ? <section className="card p-5"><h2 className="font-semibold text-slate-900">Failures by environment</h2><div className="mt-4 flex flex-wrap gap-2">{data.summary.failuresByEnvironment.map((item) => <span key={item.environment} className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">{label(item.environment)} · {item.count}</span>)}</div></section> : null}
 
-      {(data.summary.failureClusters.graphNodes.length || data.summary.failureClusters.pressurePoints.length || data.summary.failureClusters.taxonomy.length) ? <section className="card p-5"><h2 className="font-semibold text-slate-900">Failure clusters</h2><div className="mt-4 grid gap-5 md:grid-cols-3">{([['Graph nodes', data.summary.failureClusters.graphNodes], ['Pressure points', data.summary.failureClusters.pressurePoints], ['Gemini taxonomy', data.summary.failureClusters.taxonomy]] as const).map(([title, items]) => <div key={title}><p className="text-xs font-medium uppercase text-slate-400">{title}</p><div className="mt-2 space-y-2">{items.slice(0, 5).map((item) => <div key={item.label} className="flex justify-between text-sm"><span className="text-slate-700">{label(item.label)}</span><span className="text-slate-400">{item.count}</span></div>)}</div></div>)}</div></section> : null}
+      {(data.summary.failureClusters.graphNodes.length || data.summary.failureClusters.pressurePoints.length || data.summary.failureClusters.taxonomy.length) ? <section className="card p-5"><h2 className="font-semibold text-slate-900">Common Issues</h2><div className="mt-4 grid gap-5 md:grid-cols-3">{([['Conversation Steps', data.summary.failureClusters.graphNodes], ['Stress Triggers', data.summary.failureClusters.pressurePoints], ['AI Mistakes', data.summary.failureClusters.taxonomy]] as const).map(([title, items]) => <div key={title}><p className="text-xs font-medium uppercase text-slate-400">{title}</p><div className="mt-2 space-y-2">{items.slice(0, 5).map((item) => <div key={item.label} className="flex justify-between text-sm"><span className="text-slate-700">{label(item.label)}</span><span className="text-slate-400">{item.count}</span></div>)}</div></div>)}</div></section> : null}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">Replay calls</h2><p className="mt-1 text-xs text-slate-500">Every row has its own deterministic manifest, graph path, voice, timing, and environment.</p></div>
+        <div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">Test Call Recordings</h2><p className="mt-1 text-xs text-slate-500">Each row is a unique simulated call with different voices, networks, and behaviors.</p></div>
         {data.runs.map((run) => {
           const item = run.caseId ? cases.get(run.caseId) : undefined;
           const runMetrics = metrics.get(run.id);

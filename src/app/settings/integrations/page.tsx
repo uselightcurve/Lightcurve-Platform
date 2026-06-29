@@ -58,6 +58,36 @@ export default function IntegrationsPage() {
               <button type="submit" className="btn-primary w-full sm:w-auto justify-center">{saved ? 'Saved!' : 'Save Connection'}</button>
             </form>
           </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mt-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900">Bring Your Own Key (BYOK)</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">Add your keys to test your agent configuration against different STT, LLM, and TTS models in the <strong>Compare Models</strong> feature.</p>
+            
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-700">OpenAI API Key
+                  <input type="password" className="input-field mt-1 w-full" placeholder="sk-..." />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">Anthropic API Key
+                  <input type="password" className="input-field mt-1 w-full" placeholder="sk-ant-..." />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">Deepgram API Key
+                  <input type="password" className="input-field mt-1 w-full" placeholder="Token" />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">ElevenLabs API Key
+                  <input type="password" className="input-field mt-1 w-full" placeholder="Token" />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">Cartesia API Key
+                  <input type="password" className="input-field mt-1 w-full" placeholder="Token" />
+                </label>
+              </div>
+              <button type="submit" className="btn-primary w-full sm:w-auto justify-center">Save Keys</button>
+            </form>
+          </div>
         </section>
       </div>
     </div>

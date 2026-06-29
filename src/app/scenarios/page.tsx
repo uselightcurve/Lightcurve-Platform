@@ -13,6 +13,7 @@ export default function ScenariosPage() {
   const [datasetId, setDatasetId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState<Scenario | null>(null);
 
   const loadScenarios = () => fetch('/api/scenarios').then((r) => r.json()).then((data) => {
     if (data.scenarios) setScenarios(data.scenarios);
@@ -52,6 +53,27 @@ export default function ScenariosPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={() => setSelected(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className={`p-6 border-b flex items-center justify-between ${selected.type === 'jailbreak' ? 'border-rose-100 bg-rose-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-semibold text-slate-900">{selected.name}</h2>
+                  <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full ${selected.type === 'jailbreak' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>{selected.type}</span>
+                </div>
+              </div>
+              <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{selected.prompt}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-end justify-between">
         <div>
           <h1 className="page-title">Scenarios</h1>
@@ -74,7 +96,7 @@ export default function ScenariosPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {scenarios.map((s) => (
-                <div key={s.id} className={`group relative rounded-xl border p-5 shadow-sm transition-all hover:shadow-md ${s.type === 'jailbreak' ? 'border-rose-200 bg-gradient-to-b from-rose-50/50 to-white' : 'border-slate-200 bg-white'}`}>
+                <div key={s.id} onClick={() => setSelected(s)} className={`group relative rounded-xl border p-5 shadow-sm transition-all hover:shadow-md cursor-pointer ${s.type === 'jailbreak' ? 'border-rose-200 bg-gradient-to-b from-rose-50/50 to-white hover:border-rose-300' : 'border-slate-200 bg-white hover:border-indigo-200'}`}>
                   <div className="flex items-start justify-between">
                     <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{s.name}</h3>
                     <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full ${s.type === 'jailbreak' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>{s.type}</span>
