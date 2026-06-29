@@ -6,8 +6,24 @@ import { eq } from 'drizzle-orm';
 
 export async function GET(req: Request) {
   try {
-    const account = await requireAccount();
-    const userId = account.userId;
+    const url = new URL(req.url);
+    const mockEmail = url.searchParams.get('email');
+
+    let userId: string;
+    if (mockEmail) {
+      // Find or create mock user
+      const { users } = await import('@/db/schema');
+      const usersList = await db.select().from(users).where(eq(users.email, mockEmail));
+      if (!usersList.length) {
+         userId = 'mock_' + Date.now();
+         await db.insert(users).values({ id: userId, email: mockEmail, name: 'Demo Account', updatedAt: new Date() });
+      } else {
+         userId = usersList[0].id;
+      }
+    } else {
+      const account = await requireAccount();
+      userId = account.userId;
+    }
 
     // Clear existing mock data to avoid duplicates for this user
     await db.delete(playbooks).where(eq(playbooks.ownerUserId, userId));

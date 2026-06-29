@@ -156,7 +156,7 @@ export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}
     }
   };
 
-  const highestUnlocked = completedOrbits.length > 0 ? Math.max(...completedOrbits) + 1 : 0;
+  const highestUnlocked = 99; // Demo mode: unlock all orbits
 
   useEffect(() => {
     if ((completedOrbits.includes(7) || activeOrbit === 7) && onReachEnd) {
