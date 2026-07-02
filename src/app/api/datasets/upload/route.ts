@@ -71,7 +71,7 @@ Keep PII redacted as [EMAIL], [PHONE], etc.
     );
 
     if (!modelResult.text) {
-      throw new Error('Audio analysis failed to return a valid response.');
+      throw new Error(modelResult.error || 'Audio analysis failed to return a valid response.');
     }
 
     const rawJson = modelResult.text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();

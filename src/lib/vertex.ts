@@ -92,31 +92,65 @@ export async function generateMultimodalWithLightcurveModelResult(
 ): Promise<LightcurveModelResult> {
   const project = vertexProject();
   const location = vertexLocation();
-  if (!project) return { text: null, provider: 'none', model: modelName, error: 'Vertex AI is not configured.' };
-  try {
-    const vertex = new VertexAI({ project, location });
-    const model = vertex.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          ...files.filter((file) => file.uri.startsWith('gs://')).map((file) => ({ fileData: { fileUri: file.uri, mimeType: file.mimeType } })),
-        ],
-      }],
-    });
-    const text = extractVertexText(result);
-    return text
-      ? { text, provider: 'vertex-ai', model: modelName, project, location }
-      : { text: null, provider: 'none', model: modelName, error: 'Vertex AI returned no multimodal judgment.' };
-  } catch (error) {
-    return {
-      text: null,
-      provider: 'none',
-      model: modelName,
-      error: error instanceof Error ? error.message : 'Vertex AI multimodal generation failed.',
-    };
+  
+  if (project) {
+    try {
+      const vertex = new VertexAI({ project, location });
+      const model = vertex.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: prompt },
+            ...files.filter((file) => file.uri.startsWith('gs://')).map((file) => ({ fileData: { fileUri: file.uri, mimeType: file.mimeType } })),
+          ],
+        }],
+      });
+      const text = extractVertexText(result);
+      if (text) {
+        return { text, provider: 'vertex-ai', model: modelName, project, location };
+      }
+    } catch (error) {
+      console.warn('Vertex AI multimodal generation failed; attempting configured fallback.', error);
+    }
   }
+
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy_key') {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
+      const { downloadPrivateGcsObject } = await import('@/lib/captureStorage');
+
+      const parts: any[] = [{ text: prompt }];
+      for (const file of files) {
+        if (file.uri.startsWith('gs://')) {
+          const bytes = await downloadPrivateGcsObject(file.uri);
+          parts.push({
+            inlineData: {
+              data: bytes.toString('base64'),
+              mimeType: file.mimeType,
+            }
+          });
+        }
+      }
+
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts }]
+      });
+
+      return { text: result.response.text().trim(), provider: 'gemini-api', model: modelName };
+    } catch (error) {
+      return {
+        text: null,
+        provider: 'none',
+        model: modelName,
+        error: error instanceof Error ? error.message : 'Gemini API multimodal generation failed.',
+      };
+    }
+  }
+
+  return { text: null, provider: 'none', model: modelName, error: 'No multimodal AI provider is configured.' };
 }
 
 export async function generateTextEmbedding(text: string) {
