@@ -65,7 +65,7 @@ Keep PII redacted as [EMAIL], [PHONE], etc.
 `;
 
     const modelResult = await generateMultimodalWithLightcurveModelResult(
-      'gemini-1.5-pro-002',
+      process.env.LIGHTCURVE_PRO_JUDGE_MODEL || 'gemini-1.5-pro',
       prompt,
       [{ uri: gcsUri, mimeType: file.type }]
     );
