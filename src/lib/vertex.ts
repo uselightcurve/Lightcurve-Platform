@@ -92,6 +92,7 @@ export async function generateMultimodalWithLightcurveModelResult(
 ): Promise<LightcurveModelResult> {
   const project = vertexProject();
   const location = vertexLocation();
+  let vertexError: string | undefined;
   
   if (project) {
     try {
@@ -109,8 +110,11 @@ export async function generateMultimodalWithLightcurveModelResult(
       const text = extractVertexText(result);
       if (text) {
         return { text, provider: 'vertex-ai', model: modelName, project, location };
+      } else {
+        vertexError = `Vertex AI returned empty text. Raw result: ${JSON.stringify(result)}`;
       }
     } catch (error) {
+      vertexError = error instanceof Error ? error.message : String(error);
       console.warn('Vertex AI multimodal generation failed; attempting configured fallback.', error);
     }
   }
@@ -150,7 +154,7 @@ export async function generateMultimodalWithLightcurveModelResult(
     }
   }
 
-  return { text: null, provider: 'none', model: modelName, error: 'No multimodal AI provider is configured.' };
+  return { text: null, provider: 'none', model: modelName, error: vertexError ? `Vertex AI failed: ${vertexError}` : 'No multimodal AI provider is configured.' };
 }
 
 export async function generateTextEmbedding(text: string) {
