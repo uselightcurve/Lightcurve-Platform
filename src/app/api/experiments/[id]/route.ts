@@ -3,6 +3,8 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { agentRuntimes, datasetCases, datasets, experiments, runs, scores } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { isMockMode, mockExperimentDetail } from '@/lib/mockData';
+
 
 function object(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -40,9 +42,14 @@ function counted(values: string[]) {
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (isMockMode()) {
+    const detail = mockExperimentDetail(id);
+    if (!detail) return NextResponse.json({ error: 'Experiment not found.' }, { status: 404 });
+    return NextResponse.json(detail);
+  }
   try {
     const account = await requireAccount();
-    const { id } = await params;
     const [row] = await db.select({ experiment: experiments, dataset: datasets, runtime: agentRuntimes })
       .from(experiments)
       .innerJoin(datasets, eq(datasets.id, experiments.datasetId))

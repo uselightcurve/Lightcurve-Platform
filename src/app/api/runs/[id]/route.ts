@@ -4,11 +4,17 @@ import { db } from '@/db';
 import { datasetCases, experiments, replayJobs, replayResults, runs, scores, traces } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { signedPrivateAudioUrl } from '@/lib/captureStorage';
+import { isMockMode, mockRunDetail } from '@/lib/mockData';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (isMockMode()) {
+    const detail = mockRunDetail(id);
+    if (!detail) return NextResponse.json({ error: 'Run not found.' }, { status: 404 });
+    return NextResponse.json(detail);
+  }
   try {
     const account = await requireAccount();
-    const { id } = await params;
     const [row] = await db.select({ run: runs, case: datasetCases, experiment: experiments })
       .from(runs)
       .leftJoin(datasetCases, eq(datasetCases.id, runs.caseId))

@@ -3,8 +3,10 @@ import { desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { agentRuntimes, datasetCases, experiments, runs, scores, traces } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { isMockMode, mockRuns } from '@/lib/mockData';
 
 export async function GET() {
+  if (isMockMode()) return NextResponse.json({ runs: mockRuns });
   try {
     const account = await requireAccount();
     const rows = await db.select({ run: runs, case: datasetCases, experiment: experiments, runtime: agentRuntimes })

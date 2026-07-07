@@ -4,13 +4,19 @@ import { db } from '@/db';
 import { datasetCases, datasetContributions, datasets } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { requireSdkAccount } from '@/lib/sdkAuth';
+import { isMockMode, mockDatasetDetail } from '@/lib/mockData';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (isMockMode()) {
+    const detail = mockDatasetDetail(id);
+    if (!detail) return NextResponse.json({ error: 'Dataset not found.' }, { status: 404 });
+    return NextResponse.json(detail, { headers: { 'Cache-Control': 'no-store' } });
+  }
   try {
     const account = req.headers.get('authorization')?.startsWith('Bearer ')
       ? await requireSdkAccount(req)
       : await requireAccount();
-    const { id } = await params;
     const [dataset] = await db.select().from(datasets).where(and(
       eq(datasets.id, id),
       eq(datasets.ownerUserId, account.userId),
