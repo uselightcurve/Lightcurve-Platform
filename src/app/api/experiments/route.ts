@@ -5,8 +5,10 @@ import { agentRuntimes, datasetCases, datasets, experiments, runs } from '@/db/s
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { createCompiledExperiment } from '@/lib/experimentRuns';
 import { normalizeReplayConfig } from '@/lib/replayCompiler';
+import { isMockMode, mockExperiments } from '@/lib/mockData';
 
 export async function GET() {
+  if (isMockMode()) return NextResponse.json({ experiments: mockExperiments });
   try {
     const account = await requireAccount();
     const rows = await db.select({

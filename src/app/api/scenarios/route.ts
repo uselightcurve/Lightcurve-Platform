@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { scenarios, datasetCases } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { requireSdkAccount } from '@/lib/sdkAuth';
+import { isMockMode, mockScenarios } from '@/lib/mockData';
 
 async function requestAccount(req: Request) {
   return req.headers.get('authorization')?.startsWith('Bearer ')
@@ -12,6 +13,7 @@ async function requestAccount(req: Request) {
 }
 
 export async function GET(req: Request) {
+  if (isMockMode()) return NextResponse.json({ scenarios: mockScenarios }, { headers: { 'Cache-Control': 'no-store' } });
   try {
     const account = await requestAccount(req);
     const rows = await db

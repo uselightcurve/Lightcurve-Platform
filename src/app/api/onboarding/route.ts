@@ -3,8 +3,10 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { agentRuntimes, apiKeys } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { isMockMode, mockOnboarding } from '@/lib/mockData';
 
 export async function GET() {
+  if (isMockMode()) return NextResponse.json(mockOnboarding, { headers: { 'Cache-Control': 'no-store' } });
   try {
     const account = await requireAccount();
     const [runtimes, keys] = await Promise.all([

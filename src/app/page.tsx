@@ -47,8 +47,12 @@ export default function Home() {
   const [error, setError] = useState('');
   const [onboarding, setOnboarding] = useState<{ sdkEverRegistered: boolean; onlineRuntimeCount: number } | null>(null);
   const [onboardingFinishedLocally, setOnboardingFinishedLocally] = useState(false);
+  const [isLocalhost, setIsLocalhost] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    }
     const load = async () => {
       setLoading(true);
       const onboardingResponse = await fetch('/api/onboarding', { cache: 'no-store' });

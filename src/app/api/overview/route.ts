@@ -3,6 +3,7 @@ import { desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { datasetCases, experiments, runs, scores } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
+import { isMockMode, mockOverview } from '@/lib/mockData';
 
 function average(values: number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
@@ -13,6 +14,7 @@ function series(values: number[], fallback = 0) {
 }
 
 export async function GET() {
+  if (isMockMode()) return NextResponse.json(mockOverview);
   try {
     const account = await requireAccount();
     const runRows = await db.select({ run: runs, case: datasetCases }).from(runs)

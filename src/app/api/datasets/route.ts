@@ -5,6 +5,7 @@ import { datasetCases, datasets } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { ensurePlaygroundDataset } from '@/lib/humanDatasets';
 import { requireSdkAccount } from '@/lib/sdkAuth';
+import { isMockMode, mockDatasets } from '@/lib/mockData';
 
 async function requestAccount(req: Request) {
   return req.headers.get('authorization')?.startsWith('Bearer ')
@@ -13,6 +14,7 @@ async function requestAccount(req: Request) {
 }
 
 export async function GET(req: Request) {
+  if (isMockMode()) return NextResponse.json({ datasets: mockDatasets }, { headers: { 'Cache-Control': 'no-store' } });
   try {
     const account = await requestAccount(req);
     await ensurePlaygroundDataset(account.userId);
