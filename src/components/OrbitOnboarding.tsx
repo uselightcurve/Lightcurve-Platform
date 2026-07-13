@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+const ONBOARDING_PROGRESS_KEY = 'lightcurve_onboarding_progress';
+const ONBOARDING_COMPLETED_KEY = 'lightcurve_onboarding_completed';
+
 const ORBITS = [
   { id: 0, radius: 60, color: '#f1f5f9', activeColor: '#64748b', label: 'SDK Integration' },
   { id: 1, radius: 95, color: '#fef3c7', activeColor: '#d97706', label: 'Agent Playbooks' },
@@ -132,37 +135,57 @@ lightcurve.monitor(agent)`}
 export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}) {
   const [activeOrbit, setActiveOrbit] = useState(0);
   const [completedOrbits, setCompletedOrbits] = useState<number[]>([]);
+  const [completionNotified, setCompletionNotified] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('lightcurve_onboarding_progress');
+    const alreadyCompleted = localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
+    if (alreadyCompleted) {
+      setCompletionNotified(true);
+      onReachEnd?.();
+      return;
+    }
+
+    const stored = localStorage.getItem(ONBOARDING_PROGRESS_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
         setCompletedOrbits(parsed);
+        if (Array.isArray(parsed) && parsed.includes(ORBITS.length - 1)) {
+          localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+          setCompletionNotified(true);
+          onReachEnd?.();
+          return;
+        }
         const max = Math.max(...parsed);
         if (max >= 0 && max < ORBITS.length - 1) {
           setActiveOrbit(max + 1);
         }
       } catch (e) {}
     }
-  }, []);
+  }, [onReachEnd]);
 
   const handleComplete = (id: number) => {
     const newCompleted = Array.from(new Set([...completedOrbits, id]));
     setCompletedOrbits(newCompleted);
-    localStorage.setItem('lightcurve_onboarding_progress', JSON.stringify(newCompleted));
+    localStorage.setItem(ONBOARDING_PROGRESS_KEY, JSON.stringify(newCompleted));
     if (id < ORBITS.length - 1) {
       setActiveOrbit(id + 1);
+    } else {
+      localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      setCompletionNotified(true);
+      onReachEnd?.();
     }
   };
 
   const highestUnlocked = 99; // Demo mode: unlock all orbits
 
   useEffect(() => {
-    if ((completedOrbits.includes(7) || activeOrbit === 7) && onReachEnd) {
+    if (!completionNotified && completedOrbits.includes(ORBITS.length - 1) && onReachEnd) {
+      localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      setCompletionNotified(true);
       onReachEnd();
     }
-  }, [completedOrbits, activeOrbit, onReachEnd]);
+  }, [completedOrbits, completionNotified, onReachEnd]);
 
   const detail = ORBIT_DETAILS[activeOrbit];
 
@@ -206,8 +229,14 @@ export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}
                     fill="none"
                     stroke="none"
                   />
-                  {orbit.radius > 60 && (
-                    <text className={`pointer-events-none select-none text-[11px] font-semibold tracking-wide transition-all duration-300 ${isActive ? 'fill-white' : 'fill-slate-600'}`} opacity={isLocked ? 0.3 : (isActive ? 1 : 0.8)}>
+                  {orbit.radius > 60 && orbit.id !== 7 && (
+                    <text
+                      className={`pointer-events-none select-none text-[12px] font-bold tracking-wide transition-all duration-300 ${isActive ? 'fill-white' : 'fill-slate-700'}`}
+                      opacity={isLocked ? 0.3 : (isActive ? 1 : 0.95)}
+                      stroke={isActive ? 'none' : '#ffffff'}
+                      strokeWidth={isActive ? 0 : 3}
+                      style={{ paintOrder: 'stroke fill' }}
+                    >
                       <textPath href={`#path-${orbit.id}`} startOffset="50%" textAnchor="middle">
                         {orbit.label}
                       </textPath>
@@ -216,6 +245,17 @@ export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}
                 </g>
               );
             })}
+            <text
+              x="0"
+              y="-286"
+              textAnchor="middle"
+              className={`pointer-events-none select-none text-[15px] font-extrabold tracking-wide ${activeOrbit === 7 ? 'fill-white' : 'fill-slate-800'}`}
+              stroke={activeOrbit === 7 ? 'none' : '#ffffff'}
+              strokeWidth={activeOrbit === 7 ? 0 : 4}
+              style={{ paintOrder: 'stroke fill' }}
+            >
+              Actionable Fixes
+            </text>
             
             {/* Center Agent Node */}
             <circle cx="0" cy="0" r="30" fill="url(#agentGradient)" stroke="#ffffff" strokeWidth="3" className="shadow-lg" />

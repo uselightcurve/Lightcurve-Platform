@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScoreBar, StatusChip } from '@/components/PageActions';
 import { OverviewMetricGrid } from '@/components/OverviewMetricGrid';
 import { OrbitOnboarding } from '@/components/OrbitOnboarding';
+
+const ONBOARDING_PROGRESS_KEY = 'lightcurve_onboarding_progress';
+const ONBOARDING_COMPLETED_KEY = 'lightcurve_onboarding_completed';
 
 type OverviewResponse = {
   panels: {
@@ -81,10 +84,15 @@ export default function Home() {
     load();
     
     try {
-      const stored = localStorage.getItem('lightcurve_onboarding_progress');
+      if (localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true') {
+        setOnboardingFinishedLocally(true);
+        return;
+      }
+      const stored = localStorage.getItem(ONBOARDING_PROGRESS_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.includes(7)) {
+          localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
           setOnboardingFinishedLocally(true);
         }
       }
@@ -92,6 +100,11 @@ export default function Home() {
   }, []);
 
   const showOverview = onboarding?.sdkEverRegistered || onboardingFinishedLocally;
+
+  const completeOnboardingLocally = useCallback(() => {
+    localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+    setOnboardingFinishedLocally(true);
+  }, []);
 
   const panels = useMemo(() => [
     {
@@ -163,7 +176,7 @@ export default function Home() {
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      {!loading && onboarding && !showOverview ? <div className="mb-6"><OrbitOnboarding onReachEnd={() => setOnboardingFinishedLocally(true)} /></div> : null}
+      {!loading && onboarding && !showOverview ? <div className="mb-6"><OrbitOnboarding onReachEnd={completeOnboardingLocally} /></div> : null}
 
       {showOverview && onboarding?.onlineRuntimeCount === 0 && !onboarding.sdkEverRegistered ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
