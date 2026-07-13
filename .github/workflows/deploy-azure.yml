@@ -1,0 +1,93 @@
+name: Deploy Azure
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: lightcurve-azure-production
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'lightcurve-production' }}
+  AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME || 'web' }}
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME || 'lightcurveprod0472' }}
+  IMAGE_NAME: lightcurve-web
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'https://app.uselightcurve.com' }}
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+  NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: /
+  NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: /
+
+jobs:
+  deploy:
+    name: Build web image and deploy Container App
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Azure deployment configuration
+        run: |
+          required=(
+            AZURE_RESOURCE_GROUP
+            AZURE_CONTAINER_APP_NAME
+            AZURE_ACR_NAME
+            NEXT_PUBLIC_APP_URL
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+          )
+
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "Missing GitHub Actions variable or secret for $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build web image in Azure Container Registry
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          az acr build \
+            --registry "$AZURE_ACR_NAME" \
+            --image "$IMAGE_NAME:$IMAGE_TAG" \
+            --image "$IMAGE_NAME:latest" \
+            --build-arg NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" \
+            --build-arg NEXT_PUBLIC_CLERK_SIGN_IN_URL="$NEXT_PUBLIC_CLERK_SIGN_IN_URL" \
+            --build-arg NEXT_PUBLIC_CLERK_SIGN_UP_URL="$NEXT_PUBLIC_CLERK_SIGN_UP_URL" \
+            --build-arg NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="$NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL" \
+            --build-arg NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="$NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL" \
+            --no-logs \
+            .
+
+      - name: Deploy web Container App
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          az containerapp update \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP_NAME" \
+            --image "$AZURE_ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Show deployed revision
+        run: |
+          az containerapp show \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP_NAME" \
+            --query "{latestRevision:properties.latestRevisionName,latestReadyRevision:properties.latestReadyRevisionName,provisioningState:properties.provisioningState}" \
+            --output table
