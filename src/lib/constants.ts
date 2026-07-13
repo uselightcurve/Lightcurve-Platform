@@ -25,3 +25,21 @@ export const STT_CONFIG = {
   enableWordTimeOffsets: true,
   enableAutomaticPunctuation: true,
 };
+
+export const SUPPORTED_CASE_LANGUAGES = [
+  { code: 'en-US', label: 'English (US)', sttLanguage: 'en' },
+  { code: 'cs-CZ', label: 'Czech', sttLanguage: 'cs' },
+] as const;
+
+export type SupportedCaseLanguage = typeof SUPPORTED_CASE_LANGUAGES[number]['code'];
+
+export function normalizeCaseLanguage(value: unknown): SupportedCaseLanguage {
+  return SUPPORTED_CASE_LANGUAGES.some((language) => language.code === value)
+    ? value as SupportedCaseLanguage
+    : 'en-US';
+}
+
+export function sttLanguageForCaseLanguage(value: unknown) {
+  const code = normalizeCaseLanguage(value);
+  return SUPPORTED_CASE_LANGUAGES.find((language) => language.code === code)?.sttLanguage ?? 'en';
+}

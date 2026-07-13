@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { compileTemporalScenario, type TemporalScenarioClone } from '@/lib/temporalScenario';
 
 export type ExperimentPreset = 'quick' | 'release' | 'stress';
 
@@ -23,13 +24,14 @@ export type ReplayCaseInput = {
   language: string;
   domain: string;
   behaviorGraph: unknown;
+  provenance?: unknown;
   riskWeight?: number | null;
   variationPolicy?: unknown;
   historicalFailureRate?: number;
 };
 
 export type ReplayManifest = {
-  schema: 'lightcurve.replay_manifest.v2';
+  schema: 'lightcurve.replay_manifest.v3';
   caseId: string;
   caseName: string;
   variantIndex: number;
@@ -47,6 +49,7 @@ export type ReplayManifest = {
   };
   voice: { family: string; speakingRate: number; pitch: number };
   timing: { pauseScale: number; responseDelayMs: number; interruptionOffsetMs: number | null };
+  scenarioClone: TemporalScenarioClone;
   environment: string;
   judgePolicy: 'flash-pro-review' | 'pro' | 'flash';
   impairment: ImpairmentProfile;
@@ -277,14 +280,22 @@ export function compileReplayManifests(cases: ReplayCaseInput[], rawConfig: Repl
         responseDelayMs: Math.round(80 + random() * 950),
         interruptionOffsetMs: random() < 0.28 ? Math.round(120 + random() * 1200) : null,
       };
+      const graphPath = paths[(localIndex + Math.floor(random() * paths.length)) % paths.length];
+      const scenarioClone = compileTemporalScenario({
+        graph,
+        provenance: item.provenance,
+        variationPolicy: policy,
+        timing,
+        graphPath,
+      });
       for (const agentConfig of agentConfigs) {
         const manifestWithoutSignature = {
-          schema: 'lightcurve.replay_manifest.v2' as const,
+          schema: 'lightcurve.replay_manifest.v3' as const,
           caseId: item.id,
           caseName: item.name,
           variantIndex: globalIndex,
           seed: variantSeed,
-          graphPath: paths[(localIndex + Math.floor(random() * paths.length)) % paths.length],
+          graphPath,
           expectedOutcome: graph.terminalOutcome ?? graph.terminalOutcomes ?? 'approved_outcome',
           groundedFacts: graph.facts ?? graph.groundedFacts ?? [],
           constrainedValues: graph.slots ?? graph.constrainedValues ?? {},
@@ -292,6 +303,7 @@ export function compileReplayManifests(cases: ReplayCaseInput[], rawConfig: Repl
           lexicalDirective,
           voice,
           timing,
+          scenarioClone,
           environment,
           judgePolicy: config.judgePolicy,
           impairment: profiles[environment] ?? profiles.clean,

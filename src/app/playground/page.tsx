@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { SUPPORTED_CASE_LANGUAGES } from '@/lib/constants';
 
 type Runtime = {
   id: string;
@@ -42,6 +43,8 @@ export default function PlaygroundPage() {
   const [state, setState] = useState<'idle' | 'connecting' | 'live' | 'review' | 'saved'>('idle');
   const [capture, setCapture] = useState<Capture | null>(null);
   const [caseName, setCaseName] = useState('');
+  const [caseLanguage, setCaseLanguage] = useState('en-US');
+  const [voiceCloneConsent, setVoiceCloneConsent] = useState(false);
   const [savedDatasetId, setSavedDatasetId] = useState('');
   const [error, setError] = useState('');
   const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -195,7 +198,7 @@ export default function PlaygroundPage() {
       const response = await fetch(`/api/captures/${capture.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: caseName }),
+        body: JSON.stringify({ name: caseName, language: caseLanguage, voiceCloneConsent }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error ?? 'Case could not be saved.');
@@ -289,6 +292,11 @@ export default function PlaygroundPage() {
               <p className="mt-1 text-sm text-slate-500">Lightcurve will preserve this call’s behavior graph and generate controlled replay variations.</p>
             </div>
             <label className="block text-sm text-slate-600">Case name<input className="input-field mt-2" value={caseName} onChange={(event) => setCaseName(event.target.value)} /></label>
+            <label className="block text-sm text-slate-600">Call language<select className="input-field mt-2" value={caseLanguage} onChange={(event) => setCaseLanguage(event.target.value)}>{SUPPORTED_CASE_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}</select></label>
+            <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5" checked={voiceCloneConsent} onChange={(event) => setVoiceCloneConsent(event.target.checked)} />
+              <span><strong>Use my recorded voice in private test variants.</strong><span className="mt-1 block text-xs leading-5 text-slate-500">This permits Lightcurve to create synthetic caller speech from this recording only for your private agent tests. You can turn it off in the dataset replay policy.</span></span>
+            </label>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               Saved privately to <strong>Playground Captures</strong>. Raw audio and complete transcripts are never made public automatically.
             </div>
@@ -301,7 +309,7 @@ export default function PlaygroundPage() {
             <p className="mt-2 text-sm text-slate-500">It is ready for behavioral replay across agent versions.</p>
             <div className="mt-6 flex justify-center gap-3">
               <Link href={`/datasets/${savedDatasetId}`} className="btn-primary">View dataset</Link>
-              <button type="button" className="btn-secondary" onClick={() => { setCapture(null); setState('idle'); }}>Record another call</button>
+              <button type="button" className="btn-secondary" onClick={() => { setCapture(null); setVoiceCloneConsent(false); setCaseLanguage('en-US'); setState('idle'); }}>Record another call</button>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { replayUtterances, runs } from '@/db/schema';
-import { generateTextEmbedding } from '@/lib/vertex';
+import { generateTextEmbedding } from '@/lib/llm';
 
 function vector(value: unknown) {
   return Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : [];

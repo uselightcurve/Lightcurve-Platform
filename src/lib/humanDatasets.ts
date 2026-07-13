@@ -7,7 +7,8 @@ import {
   datasetCaseVersions,
   datasets,
 } from '@/db/schema';
-import { generateWithLightcurveModel } from '@/lib/vertex';
+import { normalizeCaseLanguage } from '@/lib/constants';
+import { generateWithLightcurveModel } from '@/lib/llm';
 
 type TranscriptTurn = {
   speaker: 'human' | 'agent';
@@ -55,6 +56,7 @@ async function buildBehaviorGraph(
   turns: TranscriptTurn[],
   events: Array<typeof captureEvents.$inferSelect>,
   outcome: unknown,
+  language: string,
 ): Promise<Record<string, unknown>> {
   const observedNodes = turns.map((turn, index) => ({
     id: `turn_${index + 1}`,
@@ -71,7 +73,7 @@ async function buildBehaviorGraph(
     condition: 'observed_transition',
   }));
   const shared = {
-    schema: 'lightcurve.human_behavior_graph.v2',
+    schema: 'lightcurve.human_behavior_graph.v3',
     source: 'human_playground_call',
     observedPath: observedNodes,
     allowedPaths: [observedNodes.filter((node) => node.speaker === 'human').map((node) => node.id)],
@@ -109,12 +111,15 @@ async function buildBehaviorGraph(
   };
 
   const redactedTranscript = turns.map((turn) => `${turn.speaker}: ${redactText(turn.text)}`).join('\n');
-  const modelResult = await generateWithLightcurveModel('gemini-2.5-flash', `
+  const modelResult = await generateWithLightcurveModel(process.env.LIGHTCURVE_FLASH_JUDGE_MODEL || 'lightcurve-reasoner', `
 Convert this real human-to-agent voice call into a constrained behavioral test graph.
+The call language is ${language}; preserve that language in observed states and summaries.
 Return JSON only with: nodes, edges, semanticStates, humanGoal, facts, pressurePoints,
 agentObligations, allowedBranches, allowedPaths, terminalOutcomes, variationAxes,
 temporalProfile, and successCriteria. Nodes need id, kind, speaker, intentOrResponseClass,
-state, constraints, and sourceNodeId. Edges need from, to, condition, and observedSupport.
+state, constraints, sourceNodeId, emotion, startedAtMs, and endedAtMs. Edges need from,
+to, condition, observedSupport, and expectedDelayMs. temporalProfile must describe the
+observed emotional arc, turn durations, pauses, overlaps, corrections, and escalation pace.
 Every allowedPath must contain only human node IDs from an observed or directly supported
 branch. Preserve observed human
 behavior and facts. Add alternate branches only when they are direct behavioral
@@ -156,6 +161,7 @@ export async function deriveCaseFromCapture(params: {
   domain?: string;
   riskWeight?: number;
   variationPolicy?: Record<string, unknown>;
+  voiceCloneConsent?: boolean;
 }) {
   const [capture] = await db
     .select()
@@ -181,6 +187,7 @@ export async function deriveCaseFromCapture(params: {
     .where(eq(captureEvents.captureSessionId, capture.id))
     .orderBy(captureEvents.sequence);
   const turns = asTurns(capture.transcript);
+  const language = normalizeCaseLanguage(params.language);
   if (!turns.some((turn) => turn.speaker === 'human') || !turns.some((turn) => turn.speaker === 'agent')) {
     throw new Error('A complete human and agent transcript is required before this call can become a dataset Case.');
   }
@@ -188,6 +195,7 @@ export async function deriveCaseFromCapture(params: {
     turns,
     events,
     (capture.metadata as Record<string, unknown> | null)?.outcome,
+    language,
   );
   const inferredCriteria = Array.isArray(behaviorGraph.successCriteria) ? behaviorGraph.successCriteria : [];
   const successCriteria = inferredCriteria.length ? inferredCriteria : [
@@ -203,7 +211,7 @@ export async function deriveCaseFromCapture(params: {
       datasetId: targetDataset.id,
       sourceCaptureId: capture.id,
       name: params.name?.trim() || `Human call ${new Date().toISOString().slice(0, 10)}`,
-      language: params.language || 'en-US',
+      language,
       domain: params.domain || 'general',
       status: 'approved',
       visibility: 'private',
@@ -214,6 +222,8 @@ export async function deriveCaseFromCapture(params: {
         captureSessionId: capture.id,
         humanDerived: true,
         derivedAt: new Date().toISOString(),
+        voiceCloneConsent: params.voiceCloneConsent === true,
+        voiceReferenceUri: params.voiceCloneConsent === true ? capture.humanAudioUrl : undefined,
       },
       riskWeight: Math.max(1, Math.min(10, Math.round(params.riskWeight ?? 1))),
       variationPolicy: params.variationPolicy ?? {
@@ -225,6 +235,7 @@ export async function deriveCaseFromCapture(params: {
         allowPacingVariation: true,
         allowInterruptionVariation: true,
         allowVoiceVariation: true,
+        allowVoiceCloning: params.voiceCloneConsent === true && Boolean(capture.humanAudioUrl),
         environmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
       },
     }).returning();

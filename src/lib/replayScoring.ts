@@ -4,6 +4,7 @@ import { datasetCases, replayJobs, replayResults, runs, scores, scoringJobs, tra
 import { refreshExperimentProgress } from '@/lib/experimentRuns';
 import { anonymizeBehaviorGraph } from '@/lib/humanDatasets';
 import { scoreVoiceReplay } from '@/lib/voiceScoring';
+import { evaluateStoredConversation } from '@/lib/modelOrbitBackend';
 
 function retryAt(attempt: number) {
   return new Date(Date.now() + Math.min(15 * 60_000, 15_000 * 2 ** Math.max(0, attempt - 1)));
@@ -57,6 +58,9 @@ export async function scoreStoredReplay(runId: string) {
     hardConstraintFailure: final.hardConstraintFailure,
     failingGraphNode: final.failingGraphNode,
     pressurePoint: final.pressurePoint,
+    rationale: final.rationale,
+    actionableFixes: final.actionableFixes,
+    decisionTrace: final.decisionTrace,
     flash: result.flash,
     pro: result.pro,
     flashModel: result.flashModel,
@@ -66,13 +70,13 @@ export async function scoreStoredReplay(runId: string) {
   await db.transaction(async (tx) => {
     await tx.delete(scores).where(eq(scores.runId, runId));
     await tx.insert(scores).values([
-      { runId, metricName: 'outcome_match', value: final.outcomeMatch, method: 'gemini-voice-graph-judge', rationale: final.rationale, metadata },
-      { runId, metricName: 'behavioral_path', value: final.behavioralPath, method: 'gemini-voice-graph-judge', rationale: final.rationale, metadata },
-      { runId, metricName: 'tool_correctness', value: final.toolCorrectness, method: 'gemini-voice-graph-judge', rationale: final.rationale, metadata },
-      { runId, metricName: 'safety', value: final.safety, method: 'gemini-voice-graph-judge', rationale: final.rationale, metadata },
-      { runId, metricName: 'latency_behavior', value: final.latencyBehavior, method: 'gemini-voice-graph-judge', rationale: final.rationale, metadata },
-      { runId, metricName: 'interruption_handling', value: final.interruptionHandling, method: 'gemini-voice-graph-judge', rationale: final.rationale, metadata },
-      { runId, metricName: 'gemini_conversation_quality', value: final.conversationalQuality, method: 'gemini-multimodal', rationale: final.rationale, metadata },
+      { runId, metricName: 'outcome_match', value: final.outcomeMatch, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
+      { runId, metricName: 'behavioral_path', value: final.behavioralPath, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
+      { runId, metricName: 'tool_correctness', value: final.toolCorrectness, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
+      { runId, metricName: 'safety', value: final.safety, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
+      { runId, metricName: 'latency_behavior', value: final.latencyBehavior, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
+      { runId, metricName: 'interruption_handling', value: final.interruptionHandling, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
+      { runId, metricName: 'gemini_conversation_quality', value: final.conversationalQuality, method: 'qwen-transcript', rationale: final.rationale, metadata },
       { runId, metricName: 'visqol_mos', value: result.mos.visqol.mosLqo, method: 'visqol', metadata: { pairCount: result.mos.visqol.pairCount } },
       { runId, metricName: 'dnsmos_overall', value: result.mos.dnsmos.overall, method: 'dnsmos-p835' },
       { runId, metricName: 'dnsmos_signal', value: result.mos.dnsmos.signal, method: 'dnsmos-p835' },
@@ -94,6 +98,11 @@ export async function scoreStoredReplay(runId: string) {
     }).where(eq(runs.id, runId));
     await tx.update(scoringJobs).set({ status: 'complete', lastError: null, updatedAt: new Date() }).where(eq(scoringJobs.runId, runId));
   });
+  await evaluateStoredConversation({
+    ownerUserId: row.run.ownerUserId,
+    runId,
+    force: true,
+  }).catch((error) => console.warn('Conversation evaluation will be retried when opened.', error));
   if (row.run.experimentId) await refreshExperimentProgress(row.run.experimentId);
   return result;
 }

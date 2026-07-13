@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { SUPPORTED_CASE_LANGUAGES } from '@/lib/constants';
 
 type DatasetSummary = {
   id: string;
@@ -14,15 +15,28 @@ type DatasetSummary = {
   updatedAt?: string | null;
 };
 
+function audioDuration(file: File) {
+  return new Promise<number>((resolve, reject) => {
+    const audio = document.createElement('audio');
+    const url = URL.createObjectURL(file);
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(audio.duration); };
+    audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('This audio file could not be read.')); };
+    audio.src = url;
+  });
+}
+
 export default function DatasetsPage() {
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [uploadLanguage, setUploadLanguage] = useState('en-US');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
     fetch('/api/datasets', { cache: 'no-store' })
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
@@ -38,11 +52,15 @@ export default function DatasetsPage() {
     if (!file) return;
     
     setUploading(true);
+    setUploadingFileName(file.name);
     setError('');
+    setNotice('');
     
     try {
+      if (await audioDuration(file) > 300) throw new Error('Choose an audio file that is 5 minutes or shorter.');
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('language', uploadLanguage);
       
       const response = await fetch('/api/datasets/upload', {
         method: 'POST',
@@ -52,11 +70,13 @@ export default function DatasetsPage() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error ?? 'File upload failed.');
       
+      setNotice(typeof body.warning === 'string' ? body.warning : 'Recording added to Playground Captures.');
       setRefreshTrigger((prev) => prev + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'An error occurred during upload.');
     } finally {
       setUploading(false);
+      setUploadingFileName('');
       // Reset input
       event.target.value = '';
     }
@@ -69,8 +89,8 @@ export default function DatasetsPage() {
           <div className="flex flex-col items-center gap-4 rounded-lg bg-white p-8 shadow-xl border border-slate-100">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#cfd8ff] border-t-indigo-600"></div>
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-slate-900">Analyzing Call</h3>
-              <p className="mt-1 text-sm text-slate-500">Extracting transcript, behavior graph, and accent...</p>
+              <h3 className="text-lg font-semibold text-slate-900">Adding recording</h3>
+              <p className="mt-1 text-sm text-slate-500">{uploadingFileName || 'Saving audio and building the first review.'}</p>
             </div>
           </div>
         </div>
@@ -87,22 +107,29 @@ export default function DatasetsPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Upload New Dataset</h2>
-        <p className="mt-1 text-sm text-slate-500">Upload an audio file to extract transcript, behavior graph, and accent parameters.</p>
-        <div className="mt-4">
+        <h2 className="text-lg font-semibold text-slate-900">Add Recording</h2>
+        <p className="mt-1 text-sm text-slate-500">Turn a call recording up to 5 minutes long into a reusable test case.</p>
+        <div className="mt-4 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="block text-sm text-slate-600">
+            Call language
+            <select className="input-field mt-1 min-w-48" value={uploadLanguage} onChange={(event) => setUploadLanguage(event.target.value)} disabled={uploading}>
+              {SUPPORTED_CASE_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
+            </select>
+          </label>
           <label className="btn-secondary inline-flex cursor-pointer items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            Select Audio File
+            Choose recording
             <input type="file" className="hidden" accept=".wav,.mp3,audio/wav,audio/mpeg" onChange={handleFileUpload} disabled={uploading} />
           </label>
         </div>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {notice && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{notice}</div>}
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Loading datasets…</div>
       ) : (

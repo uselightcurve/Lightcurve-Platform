@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { datasetCases, noiseAssets, replayJobs, runs } from '@/db/schema';
-import { synthesizeCallerPcm } from '@/lib/gcp';
+import { synthesizeCallerPcm } from '@/lib/speech';
 import { applyServerImpairments, pcm16ToWave, wavePcm16 } from '@/lib/audioImpairments';
-import { downloadPrivateGcsObject, storeReplayAudio } from '@/lib/captureStorage';
+import { downloadPrivateAudioObject, storeReplayAudio } from '@/lib/captureStorage';
 import type { ReplayManifest } from '@/lib/replayCompiler';
 import { anonymizeBehaviorGraph } from '@/lib/humanDatasets';
 import { requireSdkAccount, sdkUnauthorizedJson } from '@/lib/sdkAuth';
-import { generateWithLightcurveModel } from '@/lib/vertex';
+import { generateWithLightcurveModel } from '@/lib/llm';
 import { checkAndStoreReplayUtterance } from '@/lib/utteranceDiversity';
 
 function record(value: unknown) {
@@ -36,6 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!row) return NextResponse.json({ error: 'Replay job not found.' }, { status: 404 });
     const graph = record(row.case.behaviorGraph);
     const manifest = record(row.run.replayManifest) as Partial<ReplayManifest>;
+    const scenarioClone = record(manifest.scenarioClone);
     const observedPath = Array.isArray(graph.observedPath) ? graph.observedPath : Array.isArray(graph.nodes) ? graph.nodes : [];
     const node = observedPath.map(record).find((item) => item.id === body.nodeId && item.speaker === 'human');
     if (!node || typeof node.observedText !== 'string') {
@@ -43,17 +44,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const baseline = safeCallerText(node.observedText);
     const previousAgentText = typeof body.previousAgentText === 'string' ? body.previousAgentText.slice(-1500) : '';
+    const scenarioTurns = Array.isArray(scenarioClone.turns) ? scenarioClone.turns.map(record) : [];
+    const temporalTurn = scenarioTurns.find((turn) => turn.nodeId === body.nodeId) ?? {};
     const rejected: string[] = [];
     let text = '';
     let nearestSimilarity = 0;
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const generated = await generateWithLightcurveModel(process.env.LIGHTCURVE_FLASH_JUDGE_MODEL || 'gemini-2.5-flash', `
+      const generated = await generateWithLightcurveModel(process.env.LIGHTCURVE_FLASH_JUDGE_MODEL || 'lightcurve-reasoner', `
 Write the next caller utterance for a voice-agent evaluation. Return only the utterance.
-It must preserve the exact intent and facts of the human-observed baseline, respond
-naturally to the latest agent response, and stay inside the supplied behavior graph.
-Do not add a new goal, fact, request, or persona. Keep it under 60 words.
+  It must preserve the exact intent and facts of the human-observed baseline, respond
+  naturally to the latest agent response, and stay inside the supplied temporal scenario.
+  Recreate the supplied speaking style and emotional state without copying the baseline
+  sentence word-for-word. Do not add a new goal, fact, request, or persona. Keep it under 60 words.
 Replay seed: ${row.job.replaySeed}
-Replay manifest: ${JSON.stringify(manifest)}
+  Replay manifest: ${JSON.stringify(manifest)}
+  Temporal scenario turn: ${JSON.stringify(temporalTurn)}
 Behavior graph: ${JSON.stringify(anonymizeBehaviorGraph(graph))}
 Human-observed baseline: ${baseline}
 Latest agent response: ${previousAgentText || '[opening turn]'}
@@ -76,7 +81,11 @@ ${rejected.length ? `Do not repeat these semantically similar versions: ${JSON.s
       rejected.push(candidate);
     }
     if (!text) throw new Error('A meaningfully distinct grounded caller utterance could not be compiled.');
-    const audio = await synthesizeCallerPcm(text, row.case.language, manifest.voice);
+    const audio = await synthesizeCallerPcm(text, row.case.language, {
+      ...record(manifest.voice),
+      emotion: typeof temporalTurn.emotion === 'string' ? temporalTurn.emotion : undefined,
+      voiceClone: record(scenarioClone.voiceClone),
+    });
     const impairment = manifest.impairment ?? { id: 'clean', label: 'Clean', server: {}, transport: {} };
     const requestedNoise = impairment.server?.noiseCategory === 'compound'
       ? (row.job.replaySeed % 2 ? 'office_cafe' : 'car_street')
@@ -87,7 +96,7 @@ ${rejected.length ? `Do not repeat these semantically similar versions: ${JSON.s
       const catalog = await db.select().from(noiseAssets).where(and(eq(noiseAssets.category, requestedNoise), eq(noiseAssets.enabled, 1)));
       if (!catalog.length) throw new Error(`Licensed noise catalog has no ${requestedNoise} asset.`);
       selectedNoise = catalog[row.job.replaySeed % catalog.length];
-      noisePcm = wavePcm16(await downloadPrivateGcsObject(selectedNoise.gcsUri));
+      noisePcm = wavePcm16(await downloadPrivateAudioObject(selectedNoise.gcsUri));
     }
     const impaired = applyServerImpairments(audio.audio, audio.sampleRate, impairment, row.job.replaySeed + String(node.id).length, noisePcm);
     const safeNode = String(node.id).replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -109,6 +118,8 @@ ${rejected.length ? `Do not repeat these semantically similar versions: ${JSON.s
       channels: audio.channels,
       transport: manifest.impairment?.transport ?? {},
       timing: manifest.timing ?? {},
+      temporalTurn,
+      scenarioFingerprint: typeof scenarioClone.sourceFingerprint === 'string' ? scenarioClone.sourceFingerprint : null,
       artifacts: { cleanAudioUrl, impairedAudioUrl, nearestSimilarity, noiseAsset: selectedNoise ? { key: selectedNoise.key, license: selectedNoise.license, checksum: selectedNoise.checksum } : null },
     });
   } catch (error) {
