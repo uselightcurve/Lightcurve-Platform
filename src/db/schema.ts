@@ -196,6 +196,20 @@ export const scores = pgTable('scores', {
   computedAt: timestamp('computed_at', { withTimezone: true }).defaultNow(),
 });
 
+export const conversationEvaluations = pgTable('conversation_evaluations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerUserId: text('owner_user_id').notNull().references(() => users.id),
+  runId: uuid('run_id').notNull().references(() => runs.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('processing'),
+  rubricVersion: text('rubric_version').notNull(),
+  sourceHash: text('source_hash').notNull(),
+  result: jsonb('result').notNull().default({}),
+  voiceSignals: jsonb('voice_signals').notNull().default({}),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [uniqueIndex('conversation_evaluations_run_rubric_idx').on(table.runId, table.rubricVersion)]);
+
 export const replayJobs = pgTable('replay_jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
   ownerUserId: text('owner_user_id').notNull().references(() => users.id),

@@ -15,6 +15,12 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
   ),
+  modelOrbit: (
+    <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="2.5" strokeWidth="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.5 8.5c2.2-3.8 7.7-5.2 11.7-2.9 4 2.3 5.5 7.6 3.3 11.4M19.5 15.5c-2.2 3.8-7.7 5.2-11.7 2.9-4-2.3-5.5-7.6-3.3-11.4" />
+    </svg>
+  ),
   logs: (
     <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -65,6 +71,7 @@ const navigation = [
     items: [
       { label: 'Overview', href: '/', icon: icons.overview, active: (path: string) => path === '/' },
       { label: 'Monitor', href: '/monitor', icon: icons.monitor, active: (path: string) => path.startsWith('/monitor') },
+      { label: 'Evaluate', href: '/evaluate', icon: icons.modelOrbit, active: (path: string) => path.startsWith('/evaluate') },
     ]
   },
   {
