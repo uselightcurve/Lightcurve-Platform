@@ -51,6 +51,9 @@ test('ModelOrbit includes measured voice signals when call audio is available', 
 
   assert.deepEqual(evaluation.voice.human, humanVoice);
   assert.equal(evaluation.voice.agent, null);
+  assert.equal(evaluation.nodes[0].attributes.anger.evaluatorCount, 3);
+  assert.ok(evaluation.nodes[0].attributes.anger.evaluators.includes('modelorbit.audio.v1'));
+  assert.ok(evaluation.nodes[0].attributes.anger.evidence.some((item) => item.startsWith('audio human')));
   assert.ok(evaluation.summary.limitations.some((item) => item.includes('Agent voice patterns')));
   assert.ok(!evaluation.summary.limitations.some((item) => item === 'Voice patterns are unavailable for this call.'));
 });

@@ -19,7 +19,6 @@ type DatasetCase = {
 type DatasetDetail = {
   dataset: { id: string; name: string; description?: string | null; currentVersion: number; visibility: string };
   cases: DatasetCase[];
-  contributions: Array<{ caseId: string; status: string }>;
 };
 
 const environments = [
@@ -66,20 +65,6 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
   const [data, setData] = useState<DatasetDetail | null>(null);
   const [error, setError] = useState('');
   const [savingCase, setSavingCase] = useState('');
-
-  async function contribute(caseId: string) {
-    const confirmed = window.confirm('Contribute only the anonymized behavior graph to the community benchmark? Raw audio and the full transcript stay private.');
-    if (!confirmed) return;
-    const response = await fetch(`/api/datasets/cases/${caseId}/contribute`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consent: true }),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) { setError(body.error ?? 'Case could not be contributed.'); return; }
-    setData((current) => current ? {
-      ...current,
-      contributions: [...current.contributions.filter((item) => item.caseId !== caseId), { caseId, status: body.contribution.status }],
-    } : current);
-  }
 
   async function savePolicy(item: DatasetCase, riskWeight: number, environmentProfiles: string[]) {
     setSavingCase(item.id);
@@ -150,9 +135,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               <div><p className="font-medium text-slate-900">{item.name}</p><p className="mt-1 text-sm text-slate-500">{item.domain} · {item.language} · {item.behaviorGraph?.nodes?.length ?? 0} graph nodes · risk {item.riskWeight}/10</p></div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700">human-derived</span>
-                {data.contributions.some((contribution) => contribution.caseId === item.id)
-                  ? <span className="rounded-full bg-[#eef2ff] px-2 py-1 text-[11px] text-[#2448bb]">benchmark review</span>
-                  : <button type="button" className="text-xs font-medium text-[#2f5ae0]" onClick={() => void contribute(item.id)}>Contribute anonymized</button>}
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600">private</span>
               </div>
             </div>
             <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">

@@ -20,7 +20,7 @@ const paired = (id: string, label: string, definition: string, low: string, midd
   subjects: ['human', 'agent'],
   unit: 'intensity_0_4',
   definition,
-  evidence: 'Transcript language, discourse form, and eventually calibrated acoustic evidence.',
+  evidence: 'Transcript language, discourse form, timing, and available acoustic delivery evidence.',
   anchors: { low, middle, high },
 });
 

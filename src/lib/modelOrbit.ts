@@ -67,6 +67,7 @@ export type ModelOrbitEvaluation = {
 };
 
 type Signal = { value: number; confidence: number; evaluator: string; evidence: string[] };
+type VoiceFeature = { speaker: 'human' | 'agent'; voice: ModelOrbitVoiceSignals };
 
 const behaviorLexicons: Record<string, { positive: RegExp[]; negative?: RegExp[]; baseline: number }> = {
   politeness: { baseline: 2, positive: [/\bplease\b/i, /\bthank(?:s| you)\b/i, /\bwould you\b/i, /\bkindly\b/i, /\bappreciate\b/i], negative: [/\bidiot\b/i, /\bstupid\b/i, /\bshut up\b/i, /\buseless\b/i] },
@@ -156,6 +157,64 @@ function discourseSignal(attributeId: string, text: string): Signal {
   if (ellipses) evidence.push(`${ellipses} hesitation marker${ellipses === 1 ? '' : 's'}`);
   evidence.push(`${tokenCount} words`);
   return { value, confidence: clamp(0.3 + Math.min(0.2, tokenCount / 100), 0.3, 0.5), evaluator: 'modelorbit.discourse.v1', evidence };
+}
+
+function acousticSignal(attributeId: string, feature: VoiceFeature | undefined): Signal | null {
+  if (!feature || feature.voice.confidence <= 0) return null;
+  const { voice, speaker } = feature;
+  const pitchRange = voice.pitchRangeHz == null ? null : clamp(voice.pitchRangeHz / 120, 0, 1);
+  const pitchVariation = voice.pitchVariationHz == null ? null : clamp(voice.pitchVariationHz / 45, 0, 1);
+  const energyMovement = clamp(voice.rmsVariation / Math.max(0.015, voice.rmsMean), 0, 1);
+  const pause = clamp(voice.pauseRatio, 0, 1);
+  const voiced = clamp(voice.voicedRatio, 0, 1);
+  const movement = [pitchRange, pitchVariation, energyMovement].filter((value): value is number => value != null);
+  const averageMovement = movement.length ? movement.reduce((sum, value) => sum + value, 0) / movement.length : energyMovement;
+  const evidence = [
+    `audio ${speaker} pause ratio ${Math.round(pause * 100)}%`,
+    `audio ${speaker} voiced ratio ${Math.round(voiced * 100)}%`,
+    ...(voice.pitchRangeHz == null ? [] : [`audio pitch range ${Math.round(voice.pitchRangeHz)} Hz`]),
+    `audio energy movement ${Math.round(energyMovement * 100)}%`,
+  ];
+  const confidence = clamp(voice.confidence * 0.62, 0.25, 0.72);
+  let value: number | null = null;
+  switch (attributeId) {
+    case 'anger':
+      value = clamp(averageMovement * 2.5 + energyMovement * 1.2 - pause * 0.35, 0, 4);
+      break;
+    case 'frustration':
+      value = clamp(averageMovement * 1.8 + pause * 1.35 + energyMovement * 0.8, 0, 4);
+      break;
+    case 'confusion':
+      value = clamp(pause * 2.4 + (1 - voiced) * 0.8, 0, 4);
+      break;
+    case 'urgency':
+      value = clamp((1 - pause) * 1.4 + averageMovement * 2.1 + voiced * 0.4, 0, 4);
+      break;
+    case 'assertiveness':
+      value = clamp(1.1 + voiced * 1.2 + energyMovement * 1.0 - pause * 1.0, 0, 4);
+      break;
+    case 'confidence':
+      value = clamp(1.1 + voiced * 1.5 + (1 - pause) * 1.0 - averageMovement * 0.4, 0, 4);
+      break;
+    case 'hesitation':
+      value = clamp(pause * 3.2 + (1 - voiced) * 0.8, 0, 4);
+      break;
+    case 'clarity':
+      value = clamp(1.3 + voiced * 1.4 + (1 - pause) * 0.9 - energyMovement * 0.45, 0, 4);
+      break;
+    case 'cooperation':
+      value = clamp(1.6 + voiced * 0.8 + (1 - pause) * 0.5, 0, 4);
+      break;
+    case 'politeness':
+    case 'empathy':
+    case 'respect':
+    case 'flexibility':
+    case 'persuasiveness':
+    case 'defensiveness':
+    case 'curiosity':
+      return null;
+  }
+  return value == null ? null : { value, confidence, evaluator: 'modelorbit.audio.v1', evidence };
 }
 
 function combineSignals(signals: Signal[], unit: ModelOrbitUnit, sourceNodeIds: string[]): ModelOrbitObservation {
@@ -347,7 +406,10 @@ export function buildModelOrbitEvaluation(params: {
       combineSignals([
         lexicalSignal(attribute.id, node.text),
         discourseSignal(attribute.id, node.text),
-      ], attribute.unit, [node.id]),
+        acousticSignal(attribute.id, node.speaker === 'human'
+          ? params.voice?.human ? { speaker: 'human', voice: params.voice.human } : undefined
+          : params.voice?.agent ? { speaker: 'agent', voice: params.voice.agent } : undefined),
+      ].filter((signal): signal is Signal => signal != null), attribute.unit, [node.id]),
     ])),
   }));
   const profiles = Object.fromEntries((['human', 'agent'] as const).map((speaker) => {
@@ -369,6 +431,9 @@ export function buildModelOrbitEvaluation(params: {
   const present = all.filter((observation) => observation.value != null);
   const disagreements = present.flatMap((observation) => observation.disagreement == null ? [] : [observation.disagreement]);
   const limitations = [
+    params.voice?.human || params.voice?.agent
+      ? 'Behavior results combine transcript evidence with available audio delivery signals.'
+      : "Behavior results are transcript-first because call audio signals are unavailable.",
     "Behavior results are an initial review and should be confirmed against your team's standards.",
     ...(nodes.some((node) => node.timingEstimated) ? ['Some timing is estimated because the original call did not include complete timestamps.'] : []),
     ...(!params.voice?.human && !params.voice?.agent ? ['Voice patterns are unavailable for this call.'] : []),

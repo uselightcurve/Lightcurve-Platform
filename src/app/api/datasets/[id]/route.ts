@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { datasetCases, datasetContributions, datasets } from '@/db/schema';
+import { datasetCases, datasets } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { requireSdkAccount } from '@/lib/sdkAuth';
 import { isMockMode, mockDatasetDetail } from '@/lib/mockData';
@@ -27,12 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       .from(datasetCases)
       .where(eq(datasetCases.datasetId, dataset.id))
       .orderBy(desc(datasetCases.createdAt));
-    const contributions = cases.length
-      ? await db.select({ caseId: datasetContributions.caseId, status: datasetContributions.status })
-          .from(datasetContributions)
-          .where(eq(datasetContributions.ownerUserId, account.userId))
-      : [];
-    return NextResponse.json({ dataset, cases, contributions }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ dataset, cases }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
