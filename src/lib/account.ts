@@ -94,11 +94,15 @@ export async function getBillingSummary(userId: string) {
   }
 
   const billableUsageRows = usageRows.filter((event) => !event.sourceRunId || completedRunIds.has(event.sourceRunId));
-  const minutesUsed = billableUsageRows.reduce((sum, event) => sum + Number(event.minutes ?? 0), 0);
-  const actionsUsed = billableUsageRows.reduce((sum, event) => sum + Number(event.actions ?? 0), 0);
+  const minutesUsed = billableUsageRows.reduce((sum, event) => sum + Math.max(0, Number(event.minutes ?? 0)), 0);
+  const actionsUsed = billableUsageRows.reduce((sum, event) => sum + Math.max(0, Number(event.actions ?? 0)), 0);
+  const minutesCredits = billableUsageRows.reduce((sum, event) => sum + Math.max(0, -Number(event.minutes ?? 0)), 0);
+  const actionsCredits = billableUsageRows.reduce((sum, event) => sum + Math.max(0, -Number(event.actions ?? 0)), 0);
   const fixesUsed = billableUsageRows.reduce((sum, event) => sum + (event.eventType === 'fix_generated' ? 1 : 0), 0);
-  const minutesRemaining = plan.minutesLimit === null ? null : Math.max(0, plan.minutesLimit - minutesUsed);
-  const actionsRemaining = plan.actionsLimit === null ? null : Math.max(0, plan.actionsLimit - actionsUsed);
+  const effectiveMinutesLimit = plan.minutesLimit === null ? null : plan.minutesLimit + minutesCredits;
+  const effectiveActionsLimit = plan.actionsLimit === null ? null : plan.actionsLimit + actionsCredits;
+  const minutesRemaining = effectiveMinutesLimit === null ? null : Math.max(0, effectiveMinutesLimit - minutesUsed);
+  const actionsRemaining = effectiveActionsLimit === null ? null : Math.max(0, effectiveActionsLimit - actionsUsed);
   const fixesRemaining = plan.fixesLimit === null ? null : Math.max(0, plan.fixesLimit - fixesUsed);
 
   return {
@@ -106,12 +110,14 @@ export async function getBillingSummary(userId: string) {
     subscription,
     minutesUsed,
     actionsUsed,
+    minutesCredits,
+    actionsCredits,
     fixesUsed,
     minutesRemaining,
     actionsRemaining,
     fixesRemaining,
-    minutesPercent: plan.minutesLimit === null ? 0 : Math.min(100, Math.round((minutesUsed / plan.minutesLimit) * 100)),
-    actionsPercent: plan.actionsLimit === null ? 0 : Math.min(100, Math.round((actionsUsed / plan.actionsLimit) * 100)),
+    minutesPercent: effectiveMinutesLimit === null || effectiveMinutesLimit === 0 ? 0 : Math.min(100, Math.round((minutesUsed / effectiveMinutesLimit) * 100)),
+    actionsPercent: effectiveActionsLimit === null || effectiveActionsLimit === 0 ? 0 : Math.min(100, Math.round((actionsUsed / effectiveActionsLimit) * 100)),
     fixesPercent: plan.fixesLimit === null ? 0 : Math.min(100, Math.round((fixesUsed / plan.fixesLimit) * 100)),
   };
 }
@@ -124,14 +130,14 @@ export async function assertUsageAvailable(
   if (
     summary.plan.actionsLimit !== null &&
     !summary.plan.overageEnabled &&
-    summary.actionsUsed + (required.actions ?? 0) > summary.plan.actionsLimit
+    summary.actionsUsed + (required.actions ?? 0) > summary.plan.actionsLimit + summary.actionsCredits
   ) {
     throw new Response('Eval action limit reached. Upgrade to Pro to continue.', { status: 402 });
   }
   if (
     summary.plan.minutesLimit !== null &&
     !summary.plan.overageEnabled &&
-    summary.minutesUsed + (required.minutes ?? 0) > summary.plan.minutesLimit
+    summary.minutesUsed + (required.minutes ?? 0) > summary.plan.minutesLimit + summary.minutesCredits
   ) {
     throw new Response('Sandbox minute limit reached. Upgrade to Pro to continue.', { status: 402 });
   }

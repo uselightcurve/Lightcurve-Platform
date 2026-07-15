@@ -11,7 +11,8 @@
     "db:push": "drizzle-kit push --force",
     "db:migrate": "node scripts/migrate-voice-graph-v2.mjs && node scripts/verify-human-grounded-schema.mjs",
     "smoke:production": "node scripts/smoke-production.mjs",
-    "release-gate": "node scripts/release-gate.mjs"
+    "release-gate": "node scripts/release-gate.mjs",
+    "admin:grant-credits": "node scripts/grant-credits.mjs"
   },
   "dependencies": {
     "@amplitude/unified": "^1.1.10",
