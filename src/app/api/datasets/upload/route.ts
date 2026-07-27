@@ -3,11 +3,10 @@ import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { storeImportedAudio } from '@/lib/captureStorage';
 import { generateWithLightcurveModelResult, stripModelJsonFence } from '@/lib/llm';
 import { transcribeAudio, type SpeechTranscriptionResult } from '@/lib/speech';
-import { ensurePlaygroundDataset } from '@/lib/humanDatasets';
 import { normalizeCaseLanguage, sttLanguageForCaseLanguage } from '@/lib/constants';
 import { db } from '@/db';
 import { datasetCases, datasetCaseVersions, datasets } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export const maxDuration = 300;
 
@@ -26,44 +25,10 @@ type ModelAnalysisResult = {
 };
 
 const GRAPH_ANALYSIS_TIMEOUT_MS = 45_000;
+const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 60_000;
 
 function importedAudioName(filename: string) {
   return filename.replace(/\.[^/.]+$/, '') || `Imported call ${new Date().toISOString().slice(0, 10)}`;
-}
-
-function createDraftAnalysis(filename: string): Required<Pick<ImportedAudioAnalysis, 'transcript' | 'callerProfile' | 'behaviorGraph' | 'successCriteria'>> {
-  const nodeId = 'audio_review_required';
-  return {
-    transcript: [],
-    callerProfile: {
-      accent: 'pending AI analysis',
-      dialect: 'pending AI analysis',
-    },
-    behaviorGraph: {
-      schema: 'lightcurve.human_behavior_graph.v3',
-      source: 'imported_audio',
-      nodes: [{
-        id: nodeId,
-        kind: 'human_behavior',
-        speaker: 'human',
-        state: 'Audio imported for review',
-        observedText: `Transcript pending for ${filename}.`,
-      }],
-      edges: [],
-      semanticStates: [{
-        id: nodeId,
-        speaker: 'human',
-        state: 'Audio imported for review',
-      }],
-      allowedPaths: [[nodeId]],
-      terminalOutcome: 'review_required',
-    },
-    successCriteria: [{
-      type: 'behavioral_path',
-      description: 'Review the saved audio and replace this draft graph with transcript-derived behavior.',
-      weight: 1,
-    }],
-  };
 }
 
 function transcriptTurns(transcription: SpeechTranscriptionResult): Array<{ speaker: 'human' | 'agent'; text: string }> {
@@ -74,6 +39,37 @@ function transcriptTurns(transcription: SpeechTranscriptionResult): Array<{ spea
       .map((text) => ({ speaker: 'human' as const, text }));
   }
   return [{ speaker: 'human', text: transcription.text }];
+}
+
+async function transcribeUploadedAudio(params: {
+  bytes: Buffer;
+  mimeType: string;
+  filename: string;
+  language: string;
+}) {
+  const requestedLanguage = sttLanguageForCaseLanguage(params.language);
+  try {
+    return await transcribeAudio({
+      bytes: params.bytes,
+      mimeType: params.mimeType,
+      filename: params.filename,
+      language: requestedLanguage,
+      timeoutMs: UPLOAD_TRANSCRIPTION_TIMEOUT_MS,
+    });
+  } catch (firstError) {
+    if (!requestedLanguage) throw firstError;
+    try {
+      return await transcribeAudio({
+        bytes: params.bytes,
+        mimeType: params.mimeType,
+        filename: params.filename,
+        timeoutMs: UPLOAD_TRANSCRIPTION_TIMEOUT_MS,
+      });
+    } catch (fallbackError) {
+      const reason = fallbackError instanceof Error ? fallbackError.message : firstError instanceof Error ? firstError.message : 'Unknown transcription failure.';
+      throw new Error(`Audio transcription failed. ${reason}`);
+    }
+  }
 }
 
 function createTranscriptAnalysis(filename: string, transcription: SpeechTranscriptionResult): Required<Pick<ImportedAudioAnalysis, 'transcript' | 'callerProfile' | 'behaviorGraph' | 'successCriteria'>> {
@@ -163,31 +159,44 @@ export async function POST(req: Request) {
     const account = await requireAccount();
     const formData = await req.formData();
     const file = formData.get('file') as File;
+    const datasetId = formData.get('datasetId');
     const language = normalizeCaseLanguage(formData.get('language'));
     
     if (!file || !file.type.startsWith('audio/')) {
       return NextResponse.json({ error: 'A valid audio file is required.' }, { status: 400 });
     }
+    if (typeof datasetId !== 'string' || !datasetId) {
+      return NextResponse.json({ error: 'Choose a dataset group before uploading a recording.' }, { status: 400 });
+    }
+
+    const [targetDataset] = await db.select().from(datasets).where(and(
+      eq(datasets.id, datasetId),
+      eq(datasets.ownerUserId, account.userId),
+    )).limit(1);
+    if (!targetDataset) return NextResponse.json({ error: 'Dataset group not found.' }, { status: 404 });
 
     const bytes = Buffer.from(await file.arrayBuffer());
+    let transcription: SpeechTranscriptionResult;
+    try {
+      transcription = await transcribeUploadedAudio({
+        bytes,
+        mimeType: file.type,
+        filename: file.name,
+        language,
+      });
+    } catch (error) {
+      console.error('Audio transcription failed; recording was not saved as a dataset case.', error);
+      return NextResponse.json({
+        error: error instanceof Error ? error.message : 'Audio transcription failed. No dataset case was created.',
+      }, { status: 502 });
+    }
+
     const audioUri = await storeImportedAudio({
       ownerUserId: account.userId,
       filename: file.name,
       contentType: file.type,
       bytes,
     });
-
-    let transcription: SpeechTranscriptionResult | null = null;
-    try {
-      transcription = await transcribeAudio({
-        bytes,
-        mimeType: file.type,
-        filename: file.name,
-        language: sttLanguageForCaseLanguage(language),
-      });
-    } catch (error) {
-      console.warn('Audio transcription unavailable; saving draft dataset case instead.', error);
-    }
 
     const prompt = `
 You are analyzing a locally transcribed recorded voice call between a human caller and an agent.
@@ -245,39 +254,29 @@ ${transcription?.text ?? '[transcription unavailable]'}
       text: null,
       provider: transcription ? 'deterministic' : 'none',
       model: transcription ? 'transcript-graph-v1' : analysisModel,
-      error: 'Local speech transcription is unavailable.',
     };
 
     let analysis: ImportedAudioAnalysis;
-    let analysisStatus: 'complete' | 'draft' = 'complete';
     let warning: string | undefined;
 
     if (modelResult.text) {
       const rawJson = stripModelJsonFence(modelResult.text);
       try {
         analysis = JSON.parse(rawJson) as ImportedAudioAnalysis;
-        if (!analysis.transcript?.length && transcription) analysis.transcript = transcriptTurns(transcription);
+        if (!analysis.transcript?.length) analysis.transcript = transcriptTurns(transcription);
       } catch {
         console.error('Failed to parse LLM output:', rawJson);
-        analysisStatus = 'draft';
-        analysis = createDraftAnalysis(file.name);
-        if (transcription) analysis.transcript = transcriptTurns(transcription);
+        analysis = createTranscriptAnalysis(file.name, transcription);
         modelResult.error = 'Audio analysis returned invalid JSON.';
-        warning = 'The recording and transcript were saved, but call graph analysis needs review. This case remains a draft.';
+        warning = 'The recording was transcribed and saved using transcript-based analysis because AI graph analysis returned invalid JSON.';
       }
     } else {
-      if (transcription) {
-        analysis = createTranscriptAnalysis(file.name, transcription);
-        modelResult.error = useLlmGraphAnalysis ? modelResult.error : undefined;
-      } else {
-        analysisStatus = 'draft';
-        analysis = createDraftAnalysis(file.name);
-        warning = 'The audio was saved, but transcription did not finish. This case remains a draft.';
-        console.warn('Audio analysis unavailable; saved draft dataset case instead.', modelResult.error);
+      analysis = createTranscriptAnalysis(file.name, transcription);
+      if (useLlmGraphAnalysis && modelResult.error) {
+        warning = 'The recording was transcribed and saved using transcript-based analysis because AI graph analysis did not finish.';
       }
     }
 
-    const targetDataset = await ensurePlaygroundDataset(account.userId);
     const nextDatasetVersion = targetDataset.currentVersion + 1;
     const behaviorGraph = analysis.behaviorGraph || {};
     const successCriteria = analysis.successCriteria || [];
@@ -288,7 +287,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
         name: importedAudioName(file.name),
         language,
         domain: 'general',
-        status: analysisStatus === 'complete' ? 'approved' : 'draft',
+        status: 'approved',
         visibility: 'private',
         behaviorGraph,
         successCriteria,
@@ -297,10 +296,10 @@ ${transcription?.text ?? '[transcription unavailable]'}
           audioUri,
           humanDerived: true,
           derivedAt: new Date().toISOString(),
-          analysisStatus,
+          analysisStatus: 'complete',
           analysisProvider: modelResult.provider,
           analysisModel: modelResult.model,
-          analysisError: analysisStatus === 'draft' ? modelResult.error : undefined,
+          analysisError: modelResult.error,
           transcriptionProvider: transcription?.provider,
           transcriptionModel: transcription?.model,
           transcriptionLanguage: transcription?.language,

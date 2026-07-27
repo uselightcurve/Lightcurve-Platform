@@ -200,6 +200,7 @@ export async function transcribeAudio(params: {
   filename?: string;
   language?: string;
   quality?: boolean;
+  timeoutMs?: number;
 }): Promise<SpeechTranscriptionResult> {
   const bytes = params.bytes ?? (params.uri ? await downloadPrivateAudioObject(params.uri) : null);
   if (!bytes) throw new Error('Audio bytes or a private audio URI are required for transcription.');
@@ -216,24 +217,36 @@ export async function transcribeAudio(params: {
   form.append('response_format', 'json');
   if (params.language) form.append('language', params.language);
 
-  const response = await fetch(`${speechEndpoint()}/v1/audio/transcriptions`, {
-    method: 'POST',
-    headers: speechHeaders(),
-    body: form,
-    cache: 'no-store',
-  });
-  const raw = await response.text();
-  const parsed = raw.trim().startsWith('{') ? JSON.parse(raw) as unknown : raw;
-  if (!response.ok) throw new Error(transcriptionText(parsed) || `Speech service returned ${response.status}.`);
-  const text = transcriptionText(parsed);
-  if (!text) throw new Error('Speech service returned an empty transcript.');
-  return {
-    text,
-    provider: 'speaches',
-    model,
-    language: params.language,
-    segments: transcriptionSegments(parsed),
-  };
+  const controller = params.timeoutMs ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), params.timeoutMs) : null;
+  try {
+    const response = await fetch(`${speechEndpoint()}/v1/audio/transcriptions`, {
+      method: 'POST',
+      headers: speechHeaders(),
+      body: form,
+      cache: 'no-store',
+      signal: controller?.signal,
+    });
+    const raw = await response.text();
+    const parsed = raw.trim().startsWith('{') ? JSON.parse(raw) as unknown : raw;
+    if (!response.ok) throw new Error(transcriptionText(parsed) || `Speech service returned ${response.status}.`);
+    const text = transcriptionText(parsed);
+    if (!text) throw new Error('Speech service returned an empty transcript.');
+    return {
+      text,
+      provider: 'speaches',
+      model,
+      language: params.language,
+      segments: transcriptionSegments(parsed),
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Speech transcription timed out.');
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 export async function smokeTestTTS() {
