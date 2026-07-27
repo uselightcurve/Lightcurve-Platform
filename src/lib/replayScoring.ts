@@ -1,13 +1,149 @@
-import { and, eq, lte, or } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, eq, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { datasetCases, replayJobs, replayResults, runs, scores, scoringJobs, traces } from '@/db/schema';
 import { refreshExperimentProgress } from '@/lib/experimentRuns';
 import { anonymizeBehaviorGraph } from '@/lib/humanDatasets';
 import { scoreVoiceReplay } from '@/lib/voiceScoring';
 import { evaluateStoredConversation } from '@/lib/modelOrbitBackend';
+import { downloadPrivateAudioObject, isPrivateAudioUri } from '@/lib/captureStorage';
 
 function retryAt(attempt: number) {
   return new Date(Date.now() + Math.min(15 * 60_000, 15_000 * 2 ** Math.max(0, attempt - 1)));
+}
+
+function stableJson(value: unknown): string {
+  if (value == null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+    .join(',')}}`;
+}
+
+function sha256(value: Buffer | string) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+async function audioHash(uri: unknown) {
+  if (typeof uri !== 'string' || !isPrivateAudioUri(uri)) return null;
+  return sha256(await downloadPrivateAudioObject(uri));
+}
+
+async function callerPairHashes(params: {
+  artifacts: unknown;
+  cleanCallerUri: unknown;
+  impairedCallerUri: unknown;
+}) {
+  const artifacts = params.artifacts && typeof params.artifacts === 'object' && !Array.isArray(params.artifacts)
+    ? params.artifacts as Record<string, unknown>
+    : {};
+  const turns = Array.isArray(artifacts.callerTurns) ? artifacts.callerTurns : [];
+  const pairs = turns.flatMap((item) => {
+    const turn = item && typeof item === 'object' && !Array.isArray(item) ? item as Record<string, unknown> : {};
+    const clean = typeof turn.cleanAudioUrl === 'string' && isPrivateAudioUri(turn.cleanAudioUrl) ? turn.cleanAudioUrl : null;
+    const impaired = typeof turn.impairedAudioUrl === 'string' && isPrivateAudioUri(turn.impairedAudioUrl) ? turn.impairedAudioUrl : null;
+    return clean && impaired
+      ? [{ clean, impaired }]
+      : [];
+  });
+  const sourcePairs = pairs.length
+    ? pairs
+    : typeof params.cleanCallerUri === 'string'
+      && typeof params.impairedCallerUri === 'string'
+      && isPrivateAudioUri(params.cleanCallerUri)
+      && isPrivateAudioUri(params.impairedCallerUri)
+      ? [{ clean: params.cleanCallerUri, impaired: params.impairedCallerUri }]
+      : [];
+  return Promise.all(sourcePairs.map(async (pair) => ({
+    cleanSha256: await audioHash(pair.clean),
+    impairedSha256: await audioHash(pair.impaired),
+  })));
+}
+
+async function scoringInputHash(params: {
+  graph: unknown;
+  successCriteria: unknown;
+  manifest: unknown;
+  transcript: Array<{ speaker: string; text: string }>;
+  cleanCallerUri: unknown;
+  impairedCallerUri: unknown;
+  agentUri: unknown;
+  artifacts: unknown;
+  judgePolicy: string;
+}) {
+  const callerPairs = await callerPairHashes(params);
+  const agentSha256 = await audioHash(params.agentUri);
+  const hasAudioIdentity = Boolean(agentSha256 || callerPairs.some((pair) => pair.cleanSha256 || pair.impairedSha256));
+  return sha256(stableJson({
+    version: 1,
+    graph: params.graph,
+    successCriteria: params.successCriteria,
+    manifest: params.manifest,
+    ...(!hasAudioIdentity ? { transcript: params.transcript } : {}),
+    judgePolicy: params.judgePolicy,
+    callerPairs,
+    agentSha256,
+  }));
+}
+
+async function copyCachedScores(params: {
+  ownerUserId: string;
+  runId: string;
+  caseId: string | null;
+  inputHash: string;
+}) {
+  const [cached] = await db.select({
+    runId: scores.runId,
+    status: runs.status,
+    failureSummary: runs.failureSummary,
+    judgeMetadata: runs.judgeMetadata,
+  })
+    .from(scores)
+    .innerJoin(runs, eq(runs.id, scores.runId))
+    .where(and(
+      eq(runs.ownerUserId, params.ownerUserId),
+      params.caseId ? eq(runs.caseId, params.caseId) : sql`true`,
+      eq(scores.metricName, 'outcome_match'),
+      sql`${scores.metadata}->>'scoringInputHash' = ${params.inputHash}`,
+    ))
+    .limit(1);
+  if (!cached?.runId || cached.runId === params.runId) return false;
+  const cachedRows = await db.select().from(scores).where(eq(scores.runId, cached.runId));
+  if (!cachedRows.length) return false;
+  const metricValues = Object.fromEntries(cachedRows.flatMap((score) => (
+    score.metricName && typeof score.value === 'number' ? [[score.metricName, score.value]] : []
+  )));
+  const judgeMetadata = cached.judgeMetadata as Record<string, unknown>;
+  const final = {
+    ...(judgeMetadata.pro && typeof judgeMetadata.pro === 'object' ? judgeMetadata.pro as Record<string, unknown> : {}),
+    ...(judgeMetadata.flash && typeof judgeMetadata.flash === 'object' ? judgeMetadata.flash as Record<string, unknown> : {}),
+    ...judgeMetadata,
+    metrics: metricValues,
+    cached: true,
+    copiedFromRunId: cached.runId,
+    scoringInputHash: params.inputHash,
+  };
+  await db.transaction(async (tx) => {
+    await tx.delete(scores).where(eq(scores.runId, params.runId));
+    await tx.insert(scores).values(cachedRows.map((score) => ({
+      runId: params.runId,
+      metricName: score.metricName,
+      value: score.value,
+      method: score.method,
+      rationale: score.rationale,
+      metadata: { ...(score.metadata as Record<string, unknown>), scoringInputHash: params.inputHash, copiedFromRunId: cached.runId },
+    })));
+    await tx.update(runs).set({
+      status: cached.status,
+      scoringStatus: 'complete',
+      failureSummary: cached.failureSummary,
+      judgeMetadata: { ...(cached.judgeMetadata as Record<string, unknown>), scoringInputHash: params.inputHash, copiedFromRunId: cached.runId },
+      endedAt: new Date(),
+    }).where(eq(runs.id, params.runId));
+    await tx.update(scoringJobs).set({ status: 'complete', lastError: null, updatedAt: new Date() }).where(eq(scoringJobs.runId, params.runId));
+  });
+  return final;
 }
 
 export async function queueReplayScoring(runId: string, message?: string) {
@@ -34,8 +170,13 @@ export async function scoreStoredReplay(runId: string) {
       return typeof turn.speaker === 'string' && typeof turn.text === 'string' ? [{ speaker: turn.speaker, text: turn.text }] : [];
     })
     : [];
-  const result = await scoreVoiceReplay({
-    graph: anonymizeBehaviorGraph(row.case.behaviorGraph),
+  const judgePolicy = (() => {
+    const manifest = row.run.replayManifest && typeof row.run.replayManifest === 'object' ? row.run.replayManifest as Record<string, unknown> : {};
+    return manifest.judgePolicy === 'pro' || manifest.judgePolicy === 'flash' ? manifest.judgePolicy : 'flash-pro-review';
+  })();
+  const graph = anonymizeBehaviorGraph(row.case.behaviorGraph);
+  const inputHash = await scoringInputHash({
+    graph,
     successCriteria: row.case.successCriteria,
     manifest: row.run.replayManifest,
     transcript,
@@ -43,10 +184,23 @@ export async function scoreStoredReplay(runId: string) {
     impairedCallerUri: row.run.audioImpairedCallerUrl,
     agentUri: row.run.audioAgentUrl,
     artifacts: row.result.artifacts,
-    judgePolicy: (() => {
-      const manifest = row.run.replayManifest && typeof row.run.replayManifest === 'object' ? row.run.replayManifest as Record<string, unknown> : {};
-      return manifest.judgePolicy === 'pro' || manifest.judgePolicy === 'flash' ? manifest.judgePolicy : 'flash-pro-review';
-    })(),
+    judgePolicy,
+  });
+  const cachedFinal = await copyCachedScores({ ownerUserId: row.run.ownerUserId, runId, caseId: row.run.caseId, inputHash });
+  if (cachedFinal) {
+    if (row.run.experimentId) await refreshExperimentProgress(row.run.experimentId);
+    return { cached: true, scoringInputHash: inputHash, final: cachedFinal };
+  }
+  const result = await scoreVoiceReplay({
+    graph,
+    successCriteria: row.case.successCriteria,
+    manifest: row.run.replayManifest,
+    transcript,
+    cleanCallerUri: row.run.audioCleanCallerUrl,
+    impairedCallerUri: row.run.audioImpairedCallerUrl,
+    agentUri: row.run.audioAgentUrl,
+    artifacts: row.result.artifacts,
+    judgePolicy,
   });
   const final = result.final;
   const traceRows = await db.select({ latency: traces.totalLatencyMs }).from(traces).where(eq(traces.runId, runId));
@@ -66,6 +220,7 @@ export async function scoreStoredReplay(runId: string) {
     flashModel: result.flashModel,
     proModel: result.proModel,
     mosServiceVersion: result.mos.serviceVersion,
+    scoringInputHash: inputHash,
   };
   await db.transaction(async (tx) => {
     await tx.delete(scores).where(eq(scores.runId, runId));
@@ -77,11 +232,11 @@ export async function scoreStoredReplay(runId: string) {
       { runId, metricName: 'latency_behavior', value: final.latencyBehavior, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
       { runId, metricName: 'interruption_handling', value: final.interruptionHandling, method: 'qwen-transcript-voice-graph-judge', rationale: final.rationale, metadata },
       { runId, metricName: 'gemini_conversation_quality', value: final.conversationalQuality, method: 'qwen-transcript', rationale: final.rationale, metadata },
-      { runId, metricName: 'visqol_mos', value: result.mos.visqol.mosLqo, method: 'visqol', metadata: { pairCount: result.mos.visqol.pairCount } },
-      { runId, metricName: 'dnsmos_overall', value: result.mos.dnsmos.overall, method: 'dnsmos-p835' },
-      { runId, metricName: 'dnsmos_signal', value: result.mos.dnsmos.signal, method: 'dnsmos-p835' },
-      { runId, metricName: 'dnsmos_background', value: result.mos.dnsmos.background, method: 'dnsmos-p835' },
-      ...(latencyP95 == null ? [] : [{ runId, metricName: 'latency_p95', value: latencyP95, method: 'sdk-measured' }]),
+      { runId, metricName: 'visqol_mos', value: result.mos.visqol.mosLqo, method: 'visqol', metadata: { pairCount: result.mos.visqol.pairCount, scoringInputHash: inputHash } },
+      { runId, metricName: 'dnsmos_overall', value: result.mos.dnsmos.overall, method: 'dnsmos-p835', metadata: { scoringInputHash: inputHash } },
+      { runId, metricName: 'dnsmos_signal', value: result.mos.dnsmos.signal, method: 'dnsmos-p835', metadata: { scoringInputHash: inputHash } },
+      { runId, metricName: 'dnsmos_background', value: result.mos.dnsmos.background, method: 'dnsmos-p835', metadata: { scoringInputHash: inputHash } },
+      ...(latencyP95 == null ? [] : [{ runId, metricName: 'latency_p95', value: latencyP95, method: 'sdk-measured', metadata: { scoringInputHash: inputHash } }]),
     ]);
     await tx.update(replayResults).set({
       status: final.passed ? 'pass' : 'fail',
