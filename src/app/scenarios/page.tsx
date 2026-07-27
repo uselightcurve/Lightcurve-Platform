@@ -77,7 +77,7 @@ export default function ScenariosPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="page-title">Scenarios</h1>
-          <p className="page-subtitle">Create custom edge cases and adversarial payloads to test your agent's resilience.</p>
+          <p className="page-subtitle">Create custom edge cases and adversarial payloads to test your agent&apos;s resilience.</p>
         </div>
       </div>
 

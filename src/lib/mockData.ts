@@ -118,7 +118,6 @@ export function mockExperimentDetail(id: string) {
 export const mockDatasets = [
   { id: 'ds-001', name: 'Healthcare Edge Cases', description: 'Scenarios testing PII and medical advice guardrails',              currentVersion: 3, caseCount: 14, visibility: 'private', createdAt: new Date('2026-06-20').toISOString() },
   { id: 'ds-002', name: 'Voice Booking Agent',   description: 'Hotel booking flows with multi-room and child pricing scenarios', currentVersion: 1, caseCount: 22, visibility: 'private', createdAt: new Date('2026-07-01').toISOString() },
-  { id: 'ds-003', name: 'Playground Captures',   description: 'Human-grounded voice cases captured in the Playground.',          currentVersion: 1, caseCount: 1,  visibility: 'private', createdAt: new Date('2026-07-07').toISOString() },
 ];
 
 // ─── Dataset detail ────────────────────────────────────────────────────────
@@ -133,9 +132,6 @@ const MOCK_DATASET_CASES: Record<string, unknown[]> = {
     { id: 'case-012', datasetId: 'ds-002', name: 'Multi-room with child pricing',  status: 'approved', language: 'en-US', domain: 'booking', riskWeight: 6, createdAt: new Date('2026-07-01').toISOString(), behaviorGraph: { nodes: [] }, successCriteria: [], provenance: { source: 'human_capture' } },
     { id: 'case-013', datasetId: 'ds-002', name: 'Cancellation and refund policy', status: 'approved', language: 'en-US', domain: 'booking', riskWeight: 5, createdAt: new Date('2026-07-02').toISOString(), behaviorGraph: { nodes: [] }, successCriteria: [], provenance: { source: 'human_capture' } },
     { id: 'case-014', datasetId: 'ds-002', name: 'Late checkout request',          status: 'approved', language: 'en-US', domain: 'booking', riskWeight: 3, createdAt: new Date('2026-07-02').toISOString(), behaviorGraph: { nodes: [] }, successCriteria: [], provenance: { source: 'human_capture' } },
-  ],
-  'ds-003': [
-    { id: 'case-021', datasetId: 'ds-003', name: 'Playground Capture #1', status: 'approved', language: 'en-US', domain: 'general', riskWeight: 1, createdAt: new Date('2026-07-07').toISOString(), behaviorGraph: { nodes: [] }, successCriteria: [], provenance: { source: 'playground' } },
   ],
 };
 

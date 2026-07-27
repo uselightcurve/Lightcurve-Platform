@@ -180,7 +180,7 @@ export default function Home() {
 
       {showOverview && onboarding?.onlineRuntimeCount === 0 && !onboarding.sdkEverRegistered ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span>You've explored all evaluation orbits. Start your sandbox testing environment with the SDK to record real data.</span>
+          <span>You&apos;ve explored all evaluation orbits. Start your sandbox testing environment with the SDK to record real data.</span>
           <Link href="/settings/sdk" className="font-medium underline">SDK setup</Link>
         </div>
       ) : showOverview && onboarding?.onlineRuntimeCount === 0 ? (
