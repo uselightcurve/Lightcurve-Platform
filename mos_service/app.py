@@ -3,6 +3,12 @@ import os
 import re
 import subprocess
 import tempfile
+import base64
+import email.utils
+import hashlib
+import hmac
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 import librosa
@@ -10,14 +16,30 @@ import numpy as np
 import onnxruntime as ort
 import soundfile as sf
 from flask import Flask, jsonify, request
-from google.cloud import storage
 
 app = Flask(__name__)
-gcs = storage.Client()
+
+
 VISQOL_BIN = os.getenv("VISQOL_BIN", "/opt/visqol/visqol")
 VISQOL_MODEL = os.getenv("VISQOL_MODEL", "/opt/visqol/lattice_tcditugenmeetpackhref_ls2_nl60_lr12_bs2048_learn.005_ep2400_train1_7_raw.tflite")
 DNSMOS_MODEL = os.getenv("DNSMOS_MODEL", "/opt/dnsmos/sig_bak_ovr.onnx")
 SERVICE_TOKEN = os.getenv("MOS_SERVICE_TOKEN")
+
+
+def local_storage_root() -> Path:
+    return Path(os.getenv("LOCAL_STORAGE_DIR", "/data/lightcurve")).resolve()
+
+
+def local_audio_path(object_name: str) -> Path:
+    root = local_storage_root()
+    target = (root / object_name).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as error:
+        raise ValueError("Invalid local audio object path.") from error
+    if not target.exists():
+        raise ValueError("Local audio object does not exist.")
+    return target
 
 
 def require_token():
@@ -26,13 +48,98 @@ def require_token():
     return None
 
 
-def localize(uri: str, directory: str, name: str) -> str:
-    if not isinstance(uri, str) or not uri.startswith("gs://"):
-        raise ValueError("Audio artifacts must use private gs:// URIs.")
-    bucket_name, object_name = uri[5:].split("/", 1)
+def azure_connection_parts() -> dict[str, str]:
+    raw = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+    parts = {}
+    for item in raw.split(";"):
+        if "=" in item:
+            key, value = item.split("=", 1)
+            parts[key] = value
+    return parts
+
+
+def azure_config() -> dict[str, str]:
+    parts = azure_connection_parts()
+    account = os.getenv("AZURE_STORAGE_ACCOUNT") or parts.get("AccountName")
+    key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY") or parts.get("AccountKey")
+    protocol = parts.get("DefaultEndpointsProtocol", "https")
+    endpoint = os.getenv("AZURE_STORAGE_BLOB_ENDPOINT") or parts.get("BlobEndpoint") or f"{protocol}://{account}.blob.core.windows.net"
+    if not account or not key:
+        raise ValueError("Azure Blob storage credentials are not configured.")
+    return {"account": account, "key": key, "endpoint": endpoint.rstrip("/")}
+
+
+def canonicalized_headers(headers: dict[str, str]) -> str:
+    values = []
+    for key, value in headers.items():
+        lower = key.lower()
+        if lower.startswith("x-ms-"):
+            values.append((lower, " ".join(str(value).strip().split())))
+    return "".join(f"{key}:{value}\n" for key, value in sorted(values))
+
+
+def canonicalized_resource(account: str, parsed: urllib.parse.ParseResult) -> str:
+    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    canonical_query = "".join(f"\n{key.lower()}:{value}" for key, value in sorted(query))
+    return f"/{account}{parsed.path}{canonical_query}"
+
+
+def shared_key_authorization(method: str, url: str, headers: dict[str, str], account: str, key: str) -> str:
+    lower_headers = {name.lower(): str(value) for name, value in headers.items()}
+
+    def header(name: str) -> str:
+        return lower_headers.get(name, "")
+
+    content_length = "" if header("content-length") == "0" else header("content-length")
+    standard = "\n".join([
+        method.upper(),
+        header("content-encoding"),
+        header("content-language"),
+        content_length,
+        header("content-md5"),
+        header("content-type"),
+        "",
+        header("if-modified-since"),
+        header("if-match"),
+        header("if-none-match"),
+        header("if-unmodified-since"),
+        header("range"),
+    ])
+    parsed = urllib.parse.urlparse(url)
+    string_to_sign = f"{standard}\n{canonicalized_headers(headers)}{canonicalized_resource(account, parsed)}"
+    signature = base64.b64encode(hmac.new(base64.b64decode(key), string_to_sign.encode("utf-8"), hashlib.sha256).digest()).decode("ascii")
+    return f"SharedKey {account}:{signature}"
+
+
+def azure_blob_url(endpoint: str, container: str, object_name: str) -> str:
+    quoted = "/".join(urllib.parse.quote(part, safe="") for part in object_name.split("/"))
+    return f"{endpoint}/{container}/{quoted}"
+
+
+def download_azure_blob(uri: str, directory: str, name: str) -> str:
+    container, object_name = uri[len("azblob://"):].split("/", 1)
+    config = azure_config()
+    url = azure_blob_url(config["endpoint"], container, object_name)
+    headers = {
+        "x-ms-date": email.utils.formatdate(usegmt=True),
+        "x-ms-version": "2023-11-03",
+    }
+    headers["Authorization"] = shared_key_authorization("GET", url, headers, config["account"], config["key"])
     output = str(Path(directory) / name)
-    gcs.bucket(bucket_name).blob(object_name).download_to_filename(output)
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(req, timeout=90) as response, open(output, "wb") as handle:
+        handle.write(response.read())
     return output
+
+
+def localize(uri: str, directory: str, name: str) -> str:
+    if not isinstance(uri, str):
+        raise ValueError("Audio artifacts must use private azblob:// or local:// URIs.")
+    if uri.startswith("local://"):
+        return str(local_audio_path(uri[len("local://"):]))
+    if uri.startswith("azblob://"):
+        return download_azure_blob(uri, directory, name)
+    raise ValueError("Audio artifacts must use private azblob:// or local:// URIs.")
 
 
 def mono_16k(path: str) -> tuple[np.ndarray, int]:

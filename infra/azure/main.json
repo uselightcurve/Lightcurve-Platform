@@ -1,0 +1,836 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.6.27763",
+      "templateHash": "17048744577694701008"
+    }
+  },
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "defaultValue": "lightcurve",
+      "minLength": 3,
+      "metadata": {
+        "description": "Short application name used as a resource prefix."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources."
+      }
+    },
+    "containerRegistryName": {
+      "type": "string",
+      "defaultValue": "[take(replace(format('{0}{1}', parameters('appName'), uniqueString(resourceGroup().id, parameters('appName'))), '-', ''), 50)]",
+      "metadata": {
+        "description": "Azure Container Registry name. Create this first if you want to build images before the full deployment."
+      }
+    },
+    "webImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Container image for the public Next.js app."
+      }
+    },
+    "mosImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Container image for the MOS service."
+      }
+    },
+    "embeddingImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Container image for the embedding service."
+      }
+    },
+    "modelOrbitImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Container image for the private conversation evaluation service."
+      }
+    },
+    "voiceCloneImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Container image for the private open-source voice cloning service."
+      }
+    },
+    "qwenImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Versioned private reasoning image with Qwen weights included."
+      }
+    },
+    "speechImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Versioned Speaches image with the approved STT and TTS models included."
+      }
+    },
+    "nextPublicAppUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Public app URL. Use your custom domain when available; otherwise redeploy with the emitted webUrl after first deployment."
+      }
+    },
+    "postgresAdminPassword": {
+      "type": "securestring"
+    },
+    "clerkSecretKey": {
+      "type": "securestring"
+    },
+    "clerkPublishableKey": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "lightcurveCredentialSecret": {
+      "type": "securestring"
+    },
+    "speechServiceToken": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "mosServiceToken": {
+      "type": "securestring"
+    },
+    "embeddingServiceToken": {
+      "type": "securestring"
+    },
+    "modelOrbitServiceToken": {
+      "type": "securestring"
+    },
+    "voiceCloneServiceToken": {
+      "type": "securestring"
+    },
+    "scoringIngestToken": {
+      "type": "securestring"
+    },
+    "adminCreditsToken": {
+      "type": "securestring"
+    },
+    "livekitApiKey": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "livekitApiSecret": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "livekitUrl": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "dodoPaymentsApiKey": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "dodoWebhookKey": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "dodoEnvironment": {
+      "type": "string",
+      "defaultValue": "test_mode"
+    },
+    "dodoProProductId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "dodoReturnUrl": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "dodoWebhookUrl": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "lightcurveStunUrl": {
+      "type": "string",
+      "defaultValue": "stun:stun.uselightcurve.com:3478"
+    },
+    "lightcurveTurnUrl": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "lightcurveTurnUsername": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "lightcurveTurnCredential": {
+      "type": "securestring",
+      "defaultValue": ""
+    }
+  },
+  "variables": {
+    "suffix": "[uniqueString(resourceGroup().id, parameters('appName'))]",
+    "acrName": "[parameters('containerRegistryName')]",
+    "storageName": "[take(replace(format('{0}{1}st', parameters('appName'), variables('suffix')), '-', ''), 24)]",
+    "postgresName": "[format('{0}-pg-{1}', parameters('appName'), variables('suffix'))]",
+    "databaseName": "lightcurve",
+    "storageContainerName": "lightcurve-audio",
+    "postgresUser": "lightcurve",
+    "databaseUrl": "[format('postgresql://{0}:{1}@{2}.postgres.database.azure.com:5432/{3}?sslmode=require', variables('postgresUser'), parameters('postgresAdminPassword'), variables('postgresName'), variables('databaseName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[format('{0}-logs-{1}', parameters('appName'), variables('suffix'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('acrName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('storageName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "allowBlobPublicAccess": false,
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('storageName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageName'), 'default', variables('storageContainerName'))]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[variables('postgresName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_B1ms",
+        "tier": "Burstable"
+      },
+      "properties": {
+        "administratorLogin": "[variables('postgresUser')]",
+        "administratorLoginPassword": "[parameters('postgresAdminPassword')]",
+        "version": "16",
+        "storage": {
+          "storageSizeGB": 32
+        },
+        "backup": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        },
+        "highAvailability": {
+          "mode": "Disabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[format('{0}/{1}', variables('postgresName'), variables('databaseName'))]",
+      "properties": {
+        "charset": "UTF8",
+        "collation": "en_US.utf8"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[format('{0}/{1}', variables('postgresName'), 'allow-azure-services')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-env-{1}', parameters('appName'), variables('suffix'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs-{1}', parameters('appName'), variables('suffix'))), '2023-09-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs-{1}', parameters('appName'), variables('suffix'))), '2023-09-01').primarySharedKey]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs-{1}', parameters('appName'), variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "qwen",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": false,
+            "targetPort": 8000,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "qwen",
+              "image": "[parameters('qwenImage')]",
+              "args": [
+                "-m",
+                "/models/qwen3-4b-q4_k_m.gguf",
+                "--alias",
+                "lightcurve-reasoner",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--ctx-size",
+                "8192",
+                "--threads",
+                "4",
+                "--jinja"
+              ],
+              "resources": {
+                "cpu": "[json('4.0')]",
+                "memory": "8Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "speech",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": false,
+            "targetPort": 8000,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "speech-service-token",
+              "value": "[parameters('speechServiceToken')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "speech",
+              "image": "[parameters('speechImage')]",
+              "resources": {
+                "cpu": "[json('4.0')]",
+                "memory": "8Gi"
+              },
+              "env": [
+                {
+                  "name": "STT_MODEL",
+                  "value": "distil-large-v3"
+                },
+                {
+                  "name": "STT_QUALITY_MODEL",
+                  "value": "large-v3-turbo"
+                },
+                {
+                  "name": "TTS_MODEL",
+                  "value": "kokoro"
+                },
+                {
+                  "name": "TTS_FALLBACK_MODEL",
+                  "value": "piper"
+                },
+                {
+                  "name": "TTS_VOICE",
+                  "value": "af_heart"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "mos",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": false,
+            "targetPort": 8080,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "mos-service-token",
+              "value": "[parameters('mosServiceToken')]"
+            },
+            {
+              "name": "azure-storage-connection-string",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageName')), '2023-05-01').keys[0].value, environment().suffixes.storage)]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "mos",
+              "image": "[parameters('mosImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "MOS_SERVICE_TOKEN",
+                  "secretRef": "mos-service-token"
+                },
+                {
+                  "name": "AZURE_STORAGE_CONNECTION_STRING",
+                  "secretRef": "azure-storage-connection-string"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "embedding",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": false,
+            "targetPort": 8080,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "embedding-service-token",
+              "value": "[parameters('embeddingServiceToken')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "embedding",
+              "image": "[parameters('embeddingImage')]",
+              "resources": {
+                "cpu": "[json('1.0')]",
+                "memory": "2Gi"
+              },
+              "env": [
+                {
+                  "name": "EMBEDDING_MODEL",
+                  "value": "sentence-transformers/all-MiniLM-L6-v2"
+                },
+                {
+                  "name": "EMBEDDING_SERVICE_TOKEN",
+                  "secretRef": "embedding-service-token"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "evaluate",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": false,
+            "targetPort": 8080,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "modelorbit-service-token",
+              "value": "[parameters('modelOrbitServiceToken')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "evaluate",
+              "image": "[parameters('modelOrbitImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "MODELORBIT_SERVICE_TOKEN",
+                  "secretRef": "modelorbit-service-token"
+                }
+              ],
+              "probes": [
+                {
+                  "type": "Liveness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8080,
+                    "scheme": "HTTP"
+                  },
+                  "initialDelaySeconds": 5,
+                  "periodSeconds": 30
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "voice-clone",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": false,
+            "targetPort": 8080,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "voice-clone-service-token",
+              "value": "[parameters('voiceCloneServiceToken')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "voice-clone",
+              "image": "[parameters('voiceCloneImage')]",
+              "resources": {
+                "cpu": "[json('4.0')]",
+                "memory": "8Gi"
+              },
+              "env": [
+                {
+                  "name": "VOICE_CLONE_SERVICE_TOKEN",
+                  "secretRef": "voice-clone-service-token"
+                },
+                {
+                  "name": "VOICE_CLONE_DEVICE",
+                  "value": "cpu"
+                }
+              ],
+              "probes": [
+                {
+                  "type": "Liveness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8080,
+                    "scheme": "HTTP"
+                  },
+                  "initialDelaySeconds": 15,
+                  "periodSeconds": 30
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "web",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "transport": "auto"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": "[flatten(createArray(createArray(createObject('name', 'acr-password', 'value', listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value), createObject('name', 'database-url', 'value', variables('databaseUrl')), createObject('name', 'clerk-secret-key', 'value', parameters('clerkSecretKey')), createObject('name', 'lightcurve-credential-secret', 'value', parameters('lightcurveCredentialSecret')), createObject('name', 'speech-service-token', 'value', parameters('speechServiceToken')), createObject('name', 'mos-service-token', 'value', parameters('mosServiceToken')), createObject('name', 'embedding-service-token', 'value', parameters('embeddingServiceToken')), createObject('name', 'modelorbit-service-token', 'value', parameters('modelOrbitServiceToken')), createObject('name', 'voice-clone-service-token', 'value', parameters('voiceCloneServiceToken')), createObject('name', 'scoring-ingest-token', 'value', parameters('scoringIngestToken')), createObject('name', 'admin-credits-token', 'value', parameters('adminCreditsToken'))), if(not(empty(parameters('livekitUrl'))), createArray(createObject('name', 'livekit-url', 'value', parameters('livekitUrl'))), createArray()), if(not(empty(parameters('livekitApiKey'))), createArray(createObject('name', 'livekit-api-key', 'value', parameters('livekitApiKey'))), createArray()), if(not(empty(parameters('livekitApiSecret'))), createArray(createObject('name', 'livekit-api-secret', 'value', parameters('livekitApiSecret'))), createArray()), createArray(createObject('name', 'azure-storage-connection-string', 'value', format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageName')), '2023-05-01').keys[0].value, environment().suffixes.storage))), if(not(empty(parameters('dodoPaymentsApiKey'))), createArray(createObject('name', 'dodo-payments-api-key', 'value', parameters('dodoPaymentsApiKey'))), createArray()), if(not(empty(parameters('dodoWebhookKey'))), createArray(createObject('name', 'dodo-webhook-key', 'value', parameters('dodoWebhookKey'))), createArray()), if(not(empty(parameters('lightcurveTurnCredential'))), createArray(createObject('name', 'turn-credential', 'value', parameters('lightcurveTurnCredential'))), createArray())))]"
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "web",
+              "image": "[parameters('webImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": "[flatten(createArray(createArray(createObject('name', 'NODE_ENV', 'value', 'production'), createObject('name', 'DATABASE_URL', 'secretRef', 'database-url'), createObject('name', 'NEXT_PUBLIC_APP_URL', 'value', parameters('nextPublicAppUrl')), createObject('name', 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'value', parameters('clerkPublishableKey')), createObject('name', 'NEXT_PUBLIC_CLERK_SIGN_IN_URL', 'value', '/sign-in'), createObject('name', 'NEXT_PUBLIC_CLERK_SIGN_UP_URL', 'value', '/sign-up'), createObject('name', 'NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL', 'value', '/'), createObject('name', 'NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL', 'value', '/'), createObject('name', 'CLERK_SECRET_KEY', 'secretRef', 'clerk-secret-key'), createObject('name', 'LIGHTCURVE_LLM_PROVIDER', 'value', 'qwen'), createObject('name', 'LIGHTCURVE_LLM_BASE_URL', 'value', format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'qwen'), '2024-03-01').configuration.ingress.fqdn)), createObject('name', 'LIGHTCURVE_FLASH_JUDGE_MODEL', 'value', 'lightcurve-reasoner'), createObject('name', 'LIGHTCURVE_PRO_JUDGE_MODEL', 'value', 'lightcurve-reasoner'), createObject('name', 'LIGHTCURVE_LLM_TIMEOUT_MS', 'value', '240000'), createObject('name', 'SPEECH_SERVICE_URL', 'value', format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'speech'), '2024-03-01').configuration.ingress.fqdn)), createObject('name', 'SPEECH_SERVICE_TOKEN', 'secretRef', 'speech-service-token'), createObject('name', 'STT_MODEL', 'value', 'distil-large-v3'), createObject('name', 'STT_QUALITY_MODEL', 'value', 'large-v3-turbo'), createObject('name', 'TTS_MODEL', 'value', 'kokoro'), createObject('name', 'TTS_FALLBACK_MODEL', 'value', 'piper'), createObject('name', 'TTS_VOICE', 'value', 'af_heart'), createObject('name', 'EMBEDDING_SERVICE_URL', 'value', format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'embedding'), '2024-03-01').configuration.ingress.fqdn)), createObject('name', 'EMBEDDING_SERVICE_TOKEN', 'secretRef', 'embedding-service-token'), createObject('name', 'LIGHTCURVE_EMBEDDING_MODEL', 'value', 'sentence-transformers/all-MiniLM-L6-v2'), createObject('name', 'MODELORBIT_SERVICE_URL', 'value', format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'evaluate'), '2024-03-01').configuration.ingress.fqdn)), createObject('name', 'MODELORBIT_SERVICE_TOKEN', 'secretRef', 'modelorbit-service-token'), createObject('name', 'VOICE_CLONE_SERVICE_URL', 'value', format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'voice-clone'), '2024-03-01').configuration.ingress.fqdn)), createObject('name', 'VOICE_CLONE_SERVICE_TOKEN', 'secretRef', 'voice-clone-service-token'), createObject('name', 'MOS_SERVICE_URL', 'value', format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'mos'), '2024-03-01').configuration.ingress.fqdn)), createObject('name', 'MOS_SERVICE_TOKEN', 'secretRef', 'mos-service-token'), createObject('name', 'SCORING_INGEST_TOKEN', 'secretRef', 'scoring-ingest-token'), createObject('name', 'ADMIN_CREDITS_TOKEN', 'secretRef', 'admin-credits-token')), if(not(empty(parameters('livekitUrl'))), createArray(createObject('name', 'LIVEKIT_URL', 'secretRef', 'livekit-url')), createArray()), if(not(empty(parameters('livekitApiKey'))), createArray(createObject('name', 'LIVEKIT_API_KEY', 'secretRef', 'livekit-api-key')), createArray()), if(not(empty(parameters('livekitApiSecret'))), createArray(createObject('name', 'LIVEKIT_API_SECRET', 'secretRef', 'livekit-api-secret')), createArray()), createArray(createObject('name', 'LIGHTCURVE_AUDIO_STORAGE', 'value', 'azure'), createObject('name', 'AZURE_STORAGE_CONNECTION_STRING', 'secretRef', 'azure-storage-connection-string'), createObject('name', 'AZURE_STORAGE_CONTAINER', 'value', variables('storageContainerName')), createObject('name', 'LIGHTCURVE_CREDENTIAL_SECRET', 'secretRef', 'lightcurve-credential-secret')), if(not(empty(parameters('dodoPaymentsApiKey'))), createArray(createObject('name', 'DODO_PAYMENTS_API_KEY', 'secretRef', 'dodo-payments-api-key')), createArray()), if(not(empty(parameters('dodoWebhookKey'))), createArray(createObject('name', 'DODO_WEBHOOK_KEY', 'secretRef', 'dodo-webhook-key')), createArray()), createArray(createObject('name', 'DODO_ENVIRONMENT', 'value', parameters('dodoEnvironment')), createObject('name', 'DODO_PRO_PRODUCT_ID', 'value', parameters('dodoProProductId')), createObject('name', 'DODO_RETURN_URL', 'value', parameters('dodoReturnUrl')), createObject('name', 'DODO_WEBHOOK_URL', 'value', parameters('dodoWebhookUrl')), createObject('name', 'LIGHTCURVE_STUN_URL', 'value', parameters('lightcurveStunUrl')), createObject('name', 'LIGHTCURVE_TURN_URL', 'value', parameters('lightcurveTurnUrl')), createObject('name', 'LIGHTCURVE_TURN_USERNAME', 'value', parameters('lightcurveTurnUsername'))), if(not(empty(parameters('lightcurveTurnCredential'))), createArray(createObject('name', 'LIGHTCURVE_TURN_CREDENTIAL', 'secretRef', 'turn-credential')), createArray()), createArray(createObject('name', 'LIGHTCURVE_GATE_MIN_MOS', 'value', '3.8'), createObject('name', 'LIGHTCURVE_GATE_MIN_TASK', 'value', '0.8'))))]"
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2,
+            "rules": [
+              {
+                "name": "http",
+                "http": {
+                  "metadata": {
+                    "concurrentRequests": "50"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/containerApps', 'embedding')]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env-{1}', parameters('appName'), variables('suffix')))]",
+        "[resourceId('Microsoft.App/containerApps', 'evaluate')]",
+        "[resourceId('Microsoft.App/containerApps', 'mos')]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresName'))]",
+        "[resourceId('Microsoft.App/containerApps', 'qwen')]",
+        "[resourceId('Microsoft.App/containerApps', 'speech')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]",
+        "[resourceId('Microsoft.App/containerApps', 'voice-clone')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[variables('storageName')]"
+    },
+    "postgresServerName": {
+      "type": "string",
+      "value": "[variables('postgresName')]"
+    },
+    "webUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'web'), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "speechInternalUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'speech'), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "mosInternalUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'mos'), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "embeddingInternalUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'embedding'), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "evaluateInternalUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'evaluate'), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "voiceCloneInternalUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'voice-clone'), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "qwenInternalUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'qwen'), '2024-03-01').configuration.ingress.fqdn)]"
+    }
+  }
+}

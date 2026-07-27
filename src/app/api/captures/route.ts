@@ -40,6 +40,9 @@ export async function POST(req: Request) {
     if (!runtime) {
       return NextResponse.json({ error: 'Agent runtime is offline. Start the app with Lightcurve enabled.' }, { status: 409 });
     }
+    if (runtime.framework === 'livekit') {
+      return NextResponse.json({ error: 'LiveKit simulated calls run from automated evaluations, not browser voice capture.' }, { status: 409 });
+    }
     const [capture] = await db.insert(captureSessions).values({
       ownerUserId: account.userId,
       runtimeId: runtime.id,

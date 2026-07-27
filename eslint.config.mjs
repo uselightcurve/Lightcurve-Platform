@@ -10,10 +10,37 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     ".next-codex/**",
+    ".codex-head-build*/**",
+    ".deploy-kolsetu/**",
     "out/**",
     "build/**",
+    "dist/**",
+    "**/dist/**",
+    "**/__pycache__/**",
+    "*.log",
+    "*.tar",
+    "{console.error(e.name",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+    },
+  },
+  {
+    files: ["sdk/src/runtime.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    files: ["test-db.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

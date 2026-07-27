@@ -14,6 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       name: typeof body.name === 'string' ? body.name : undefined,
       language: typeof body.language === 'string' ? body.language : undefined,
       domain: typeof body.domain === 'string' ? body.domain : undefined,
+      voiceCloneConsent: body.voiceCloneConsent === true,
     });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

@@ -125,7 +125,7 @@ async function synthesizeWithVoiceClone(params: {
 
 export async function synthesizeCallerPcm(
   text: string,
-  _languageCode: string,
+  languageCode: string,
   options?: {
     family?: string;
     speakingRate?: number;
@@ -138,6 +138,7 @@ export async function synthesizeCallerPcm(
     };
   },
 ) {
+  const requiresClonedVoice = languageCode === 'cs-CZ' || languageCode === 'cs';
   if (options?.voiceClone?.enabled && options.voiceClone.consentVerified && options.voiceClone.referenceAudioUri) {
     try {
       return pcmDataFromWave(await synthesizeWithVoiceClone({
@@ -147,8 +148,14 @@ export async function synthesizeCallerPcm(
         emotion: options.emotion,
       }));
     } catch (error) {
+      if (requiresClonedVoice) {
+        throw new Error('Czech simulated calls require the consented voice clone path, but voice cloning failed.');
+      }
       console.warn('Consent-gated voice cloning failed; using the standard open-source voice.', error);
     }
+  }
+  if (requiresClonedVoice) {
+    throw new Error('Czech simulated calls require a consented Czech reference recording for cloned caller speech.');
   }
   const primary = speechModel(process.env.TTS_MODEL || 'kokoro', ttsModelAliases);
   const fallback = speechModel(process.env.TTS_FALLBACK_MODEL || 'piper', ttsModelAliases);
@@ -193,6 +200,15 @@ function transcriptionSegments(body: unknown) {
   });
 }
 
+function transcriptionLanguage(body: unknown) {
+  const value = body && typeof body === 'object' ? body as Record<string, unknown> : {};
+  return typeof value.language === 'string'
+    ? value.language
+    : typeof value.detected_language === 'string'
+      ? value.detected_language
+      : undefined;
+}
+
 export async function transcribeAudio(params: {
   bytes?: Buffer;
   uri?: string;
@@ -200,6 +216,7 @@ export async function transcribeAudio(params: {
   filename?: string;
   language?: string;
   quality?: boolean;
+  timeoutMs?: number;
 }): Promise<SpeechTranscriptionResult> {
   const bytes = params.bytes ?? (params.uri ? await downloadPrivateAudioObject(params.uri) : null);
   if (!bytes) throw new Error('Audio bytes or a private audio URI are required for transcription.');
@@ -216,24 +233,36 @@ export async function transcribeAudio(params: {
   form.append('response_format', 'json');
   if (params.language) form.append('language', params.language);
 
-  const response = await fetch(`${speechEndpoint()}/v1/audio/transcriptions`, {
-    method: 'POST',
-    headers: speechHeaders(),
-    body: form,
-    cache: 'no-store',
-  });
-  const raw = await response.text();
-  const parsed = raw.trim().startsWith('{') ? JSON.parse(raw) as unknown : raw;
-  if (!response.ok) throw new Error(transcriptionText(parsed) || `Speech service returned ${response.status}.`);
-  const text = transcriptionText(parsed);
-  if (!text) throw new Error('Speech service returned an empty transcript.');
-  return {
-    text,
-    provider: 'speaches',
-    model,
-    language: params.language,
-    segments: transcriptionSegments(parsed),
-  };
+  const controller = new AbortController();
+  const timeout = params.timeoutMs ? setTimeout(() => controller.abort(), params.timeoutMs) : null;
+  try {
+    const response = await fetch(`${speechEndpoint()}/v1/audio/transcriptions`, {
+      method: 'POST',
+      headers: speechHeaders(),
+      body: form,
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    const raw = await response.text();
+    const parsed = raw.trim().startsWith('{') ? JSON.parse(raw) as unknown : raw;
+    if (!response.ok) throw new Error(transcriptionText(parsed) || `Speech service returned ${response.status}.`);
+    const text = transcriptionText(parsed);
+    if (!text) throw new Error('Speech service returned an empty transcript.');
+    return {
+      text,
+      provider: 'speaches',
+      model,
+      language: params.language ?? transcriptionLanguage(parsed),
+      segments: transcriptionSegments(parsed),
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`Speech transcription timed out after ${params.timeoutMs}ms.`);
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 export async function smokeTestTTS() {

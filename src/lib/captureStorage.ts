@@ -212,7 +212,7 @@ export async function storeImportedAudio(params: {
   bytes: Buffer;
 }) {
   return storeAudio({
-    objectName: `imports/${params.ownerUserId}/${Date.now()}_${safeName(params.filename)}`,
+    objectName: `audio-library/${params.ownerUserId}/${Date.now()}_${safeName(params.filename)}`,
     bytes: params.bytes,
     contentType: params.contentType,
   });

@@ -2,7 +2,7 @@
 
 The Lightcurve Python SDK provides **auto-instrumentation** for the most popular Voice AI frameworks, including **Pipecat** and **LiveKit**. 
 
-With just two lines of code, the SDK hooks deeply into your agent's runtime. It automatically captures audio streams, intercepts tool/function calls, and tracks latency metrics with millisecond precision—enabling you to instantly use Lightcurve's Playground Captures and Automated Replays without restructuring your application.
+With just two lines of code, the SDK hooks deeply into your agent's runtime. It automatically captures audio streams, intercepts tool/function calls, and tracks latency metrics with millisecond precision—enabling you to instantly use Lightcurve's Audio Library and automated replays without restructuring your application.
 
 ## 1. Installation
 

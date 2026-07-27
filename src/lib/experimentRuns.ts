@@ -24,6 +24,7 @@ export async function createCompiledExperiment(params: {
     language: item.language,
     domain: item.domain,
     behaviorGraph: item.behaviorGraph,
+    provenance: item.provenance,
     riskWeight: item.riskWeight,
     variationPolicy: item.variationPolicy,
     historicalFailureRate: historyByCase.get(item.id) ?? 0,
@@ -39,7 +40,9 @@ export async function createCompiledExperiment(params: {
       status: 'queued',
       config: {
         ...compiled.config,
-        graphSchema: 'lightcurve.human_behavior_graph.v2',
+        graphSchema: 'lightcurve.human_behavior_graph.v3',
+        replaySchema: 'lightcurve.replay_manifest.v3',
+        metricCatalog: 'lightcurve.metrics.v1',
         judgeThresholds: { confidence: 0.8, borderlineDistance: 0.1, pass: 0.75 },
       },
       totalRuns: compiled.manifests.length,

@@ -19,6 +19,40 @@ type Capture = {
   transcript?: Array<{ speaker: string; text: string }>;
 };
 
+type LiveKitConfig = {
+  id?: string;
+  customerEmail: string;
+  customerName: string;
+  runtimeName: string;
+  serverUrl: string;
+  roomName: string;
+  agentIdentity: string;
+  agentName: string;
+  participantMetadata: string;
+  lightcurveLiveKit?: { url: string; configured: boolean };
+};
+
+type ReadinessCheck = { name: string; ok: boolean; detail?: unknown; error?: string };
+type Readiness = { ok: boolean; checkedAt: string; checks: ReadinessCheck[] };
+type LiveKitSession = {
+  capture: Capture;
+  completeUrl: string;
+  room: { url: string; name: string };
+  caller: { identity: string; token: string };
+  agent: { identity: string; name: string; token: string; workerToken?: string; metadata: string };
+};
+
+const defaultLiveKitConfig: LiveKitConfig = {
+  customerEmail: 'shivam@kolsetu.com',
+  customerName: 'Kolsetu',
+  runtimeName: 'Kolsetu LiveKit agent',
+  serverUrl: '',
+  roomName: 'lightcurve-kolsetu-shivam',
+  agentIdentity: 'kolsetu-agent',
+  agentName: 'Kolsetu agent',
+  participantMetadata: '',
+};
+
 function waitForIceGathering(peer: RTCPeerConnection) {
   if (peer.iceGatheringState === 'complete') return Promise.resolve();
   return new Promise<void>((resolve) => {
@@ -47,6 +81,15 @@ export default function PlaygroundPage() {
   const [voiceCloneConsent, setVoiceCloneConsent] = useState(false);
   const [savedDatasetId, setSavedDatasetId] = useState('');
   const [error, setError] = useState('');
+  const [liveKitAllowed, setLiveKitAllowed] = useState(false);
+  const [liveKitOpen, setLiveKitOpen] = useState(false);
+  const [liveKitConfig, setLiveKitConfig] = useState<LiveKitConfig>(defaultLiveKitConfig);
+  const [savingLiveKit, setSavingLiveKit] = useState(false);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [liveKitNotice, setLiveKitNotice] = useState('');
+  const [creatingLiveKitSession, setCreatingLiveKitSession] = useState(false);
+  const [liveKitSession, setLiveKitSession] = useState<LiveKitSession | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -60,8 +103,12 @@ export default function PlaygroundPage() {
       if (!response.ok) throw new Error(body.error ?? 'Agent runtimes could not be loaded.');
       const loaded = (Array.isArray(body.runtimes) ? body.runtimes : []) as Runtime[];
       setRuntimes(loaded);
-      const firstOnline = loaded.find((runtime) => runtime.status === 'online');
-      setRuntimeId((current) => current || firstOnline?.id || loaded[0]?.id || '');
+      const capturable = loaded.filter((runtime) => runtime.framework !== 'livekit');
+      const firstOnline = capturable.find((runtime) => runtime.status === 'online');
+      setRuntimeId((current) => {
+        if (current && capturable.some((runtime) => runtime.id === current)) return current;
+        return firstOnline?.id || capturable[0]?.id || '';
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Agent runtimes could not be loaded.');
     } finally {
@@ -70,12 +117,24 @@ export default function PlaygroundPage() {
   }, []);
 
   useEffect(() => {
-    void loadRuntimes();
+    const firstLoad = window.setTimeout(() => void loadRuntimes(), 0);
     const timer = window.setInterval(() => void loadRuntimes(), 5000);
     return () => {
+      window.clearTimeout(firstLoad);
       window.clearInterval(timer);
     };
   }, [loadRuntimes]);
+
+  useEffect(() => {
+    fetch('/api/integrations/livekit', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((body) => {
+        setLiveKitAllowed(Boolean(body.eligible));
+        if (body.eligible && body.config) setLiveKitConfig((current) => ({ ...current, ...body.config }));
+        if (body.eligible) void checkReadiness();
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => () => {
     peerRef.current?.close();
@@ -209,19 +268,193 @@ export default function PlaygroundPage() {
     }
   }
 
-  const online = runtimes.filter((runtime) => runtime.status === 'online');
-  const selectedRuntime = runtimes.find((runtime) => runtime.id === runtimeId);
+  function updateLiveKitConfig<K extends keyof LiveKitConfig>(key: K, value: LiveKitConfig[K]) {
+    setLiveKitConfig((current) => ({ ...current, [key]: value }));
+  }
+
+  async function saveLiveKitConfig(event: React.FormEvent) {
+    event.preventDefault();
+    setSavingLiveKit(true);
+    setLiveKitNotice('');
+    setError('');
+    try {
+      const response = await fetch('/api/integrations/livekit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(liveKitConfig),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? 'LiveKit configuration could not be saved.');
+      setLiveKitConfig((current) => ({ ...current, ...body.config }));
+      setLiveKitNotice('Kolsetu agent details saved. Simulated-call tests can now use this runtime.');
+      setLiveKitSession(null);
+      await loadRuntimes();
+      await checkReadiness();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'LiveKit configuration could not be saved.');
+    } finally {
+      setSavingLiveKit(false);
+    }
+  }
+
+  async function checkReadiness() {
+    setCheckingReadiness(true);
+    setLiveKitNotice('');
+    try {
+      const response = await fetch('/api/integrations/livekit/readiness', { cache: 'no-store' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? 'Readiness could not be checked.');
+      setReadiness(body as Readiness);
+    } catch {
+      setReadiness(null);
+    } finally {
+      setCheckingReadiness(false);
+    }
+  }
+
+  async function createLiveKitSession() {
+    setCreatingLiveKitSession(true);
+    setLiveKitNotice('');
+    setError('');
+    try {
+      const response = await fetch('/api/integrations/livekit/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomName: liveKitConfig.roomName, purpose: 'kolsetu_manual_connection_test' }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? 'LiveKit room could not be created.');
+      setLiveKitSession(body as LiveKitSession);
+      setLiveKitNotice('LiveKit room created. Shivam can connect the Kolsetu agent with the details shown in the popup.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'LiveKit room could not be created.');
+    } finally {
+      setCreatingLiveKitSession(false);
+    }
+  }
+
+  async function copyText(value: string) {
+    await navigator.clipboard?.writeText(value).catch(() => undefined);
+  }
+
+  const captureRuntimes = runtimes.filter((runtime) => runtime.framework !== 'livekit');
+  const liveKitRuntimes = runtimes.filter((runtime) => runtime.framework === 'livekit');
+  const online = captureRuntimes.filter((runtime) => runtime.status === 'online');
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-6">
-      <div>
-        <h1 className="page-title">Playground</h1>
-        <p className="page-subtitle">Talk to your agent to test it and save the recording as a test case.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="page-title">Playground</h1>
+          <p className="page-subtitle">Talk to your agent to test it and save the recording as a test case.</p>
+        </div>
+        {liveKitAllowed ? (
+          <button type="button" className="btn-secondary" onClick={() => { setLiveKitOpen(true); void checkReadiness(); }}>
+            Kolsetu LiveKit
+          </button>
+        ) : null}
       </div>
 
       <audio ref={remoteAudioRef} autoPlay />
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm">{error}</div>}
+      {liveKitNotice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">{liveKitNotice}</div>}
+
+      {liveKitOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm" onClick={() => setLiveKitOpen(false)}>
+          <form onSubmit={saveLiveKitConfig} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">Kolsetu simulated-call setup</h2>
+                <p className="mt-1 text-sm text-slate-500">Paste the Kolsetu agent details here. Lightcurve handles LiveKit rooms, Czech caller voice, evaluation, and suggested fixes.</p>
+              </div>
+              <button type="button" className="btn-quiet px-2" onClick={() => setLiveKitOpen(false)} aria-label="Close LiveKit configuration">x</button>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm text-slate-600">Runtime name in Lightcurve
+                <input className="input-field mt-2" value={liveKitConfig.runtimeName} onChange={(event) => updateLiveKitConfig('runtimeName', event.target.value)} placeholder="Kolsetu LiveKit agent" required />
+              </label>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                <p className="font-medium text-slate-900">Lightcurve LiveKit project</p>
+                <p className="mt-1 break-all font-mono text-xs">{liveKitConfig.lightcurveLiveKit?.url || liveKitConfig.serverUrl || 'Configured by Lightcurve'}</p>
+              </div>
+              <label className="block text-sm text-slate-600">Base room prefix
+                <input className="input-field mt-2" value={liveKitConfig.roomName} onChange={(event) => updateLiveKitConfig('roomName', event.target.value)} placeholder="lightcurve-kolsetu-shivam" required />
+              </label>
+              <label className="block text-sm text-slate-600">Kolsetu agent identity
+                <input className="input-field mt-2" value={liveKitConfig.agentIdentity} onChange={(event) => updateLiveKitConfig('agentIdentity', event.target.value)} placeholder="Exact identity used by their LiveKit agent" required />
+              </label>
+              <label className="block text-sm text-slate-600">Agent display name
+                <input className="input-field mt-2" value={liveKitConfig.agentName} onChange={(event) => updateLiveKitConfig('agentName', event.target.value)} placeholder="Kolsetu agent" />
+              </label>
+              <label className="block text-sm text-slate-600 sm:col-span-2">Participant metadata
+                <textarea className="input-field mt-2 min-h-24 resize-y" value={liveKitConfig.participantMetadata} onChange={(event) => updateLiveKitConfig('participantMetadata', event.target.value)} placeholder='{"tenant":"kolsetu","contact":"shivam@kolsetu.com"}' />
+              </label>
+            </div>
+
+            <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              {liveKitConfig.lightcurveLiveKit?.configured
+                ? 'Shivam should paste his agent identity/name here. Their agent code must join rooms using the same identity. Lightcurve creates per-test rooms and tokens under the hood.'
+                : 'Set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET on Lightcurve before creating Kolsetu rooms.'}
+            </div>
+            <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold">Connect Kolsetu through LiveKit</p>
+                  <p className="mt-1 text-blue-800">Save the agent identity first, then create a room. Use the worker token for livekit.agents /agent connections.</p>
+                </div>
+                <button type="button" className="btn-primary shrink-0" disabled={creatingLiveKitSession} onClick={() => void createLiveKitSession()}>
+                  {creatingLiveKitSession ? 'Creating...' : 'Create test room'}
+                </button>
+              </div>
+              {liveKitSession ? (
+                <div className="mt-4 grid gap-3">
+                  {[
+                    ['LiveKit URL', liveKitSession.room.url],
+                    ['Room name', liveKitSession.room.name],
+                    ['Lightcurve capture ID', liveKitSession.capture.id],
+                    ['Save recording URL', liveKitSession.completeUrl],
+                    ['Agent identity', liveKitSession.agent.identity],
+                    ['Agent display name', liveKitSession.agent.name],
+                    ['Participant metadata', liveKitSession.agent.metadata],
+                    ...(liveKitSession.agent.workerToken ? [['LiveKit Agents worker token', liveKitSession.agent.workerToken]] : []),
+                    ['Room participant token', liveKitSession.agent.token],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-md border border-blue-100 bg-white p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium text-slate-900">{label}</p>
+                        <button type="button" className="btn-secondary py-1 text-xs" onClick={() => void copyText(value)}>Copy</button>
+                      </div>
+                      <p className="mt-2 break-all font-mono text-xs text-slate-700">{value}</p>
+                    </div>
+                  ))}
+                  <p className="text-xs leading-5 text-blue-800">After the connected LiveKit call ends, post the transcript and optional caller/agent audio to the save recording URL. Lightcurve will add it to Audio Library for automated eval.</p>
+                </div>
+              ) : null}
+            </div>
+            <div className={`mt-5 rounded-lg border p-4 text-sm ${readiness?.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className={`font-semibold ${readiness?.ok ? 'text-emerald-950' : 'text-amber-950'}`}>{readiness?.ok ? 'Ready for the Kolsetu test' : 'Readiness checks'}</p>
+                <button type="button" className="btn-secondary py-1 text-xs" disabled={checkingReadiness} onClick={() => void checkReadiness()}>{checkingReadiness ? 'Checking...' : 'Recheck'}</button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {(readiness?.checks ?? []).map((item) => (
+                  <div key={item.name} className="rounded-md border border-white/70 bg-white/70 px-3 py-2">
+                    <p className="font-medium text-slate-900">{item.ok ? 'Ready' : 'Needs attention'}: {item.name}</p>
+                    <p className="mt-1 text-xs text-slate-600">{item.ok ? String(item.detail ?? 'configured') : item.error}</p>
+                  </div>
+                ))}
+                {!readiness ? <p className="text-xs text-amber-800">Open this panel after login to check LiveKit, voice clone, speech, scoring, and eval services.</p> : null}
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" className="btn-secondary" onClick={() => setLiveKitOpen(false)}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={savingLiveKit}>{savingLiveKit ? 'Saving...' : 'Save agent details'}</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="card flex flex-1 items-center justify-center p-8">
         <div className="w-full max-w-lg">
@@ -235,11 +468,11 @@ export default function PlaygroundPage() {
               <p className="mt-2 text-sm text-slate-500">Audio, timing, interruptions, and tool calls will be recorded.</p>
             </div>
 
-            {runtimes.length > 1 && (
+            {captureRuntimes.length > 1 && (
               <label className="block text-sm text-slate-600">
                 Agent version
                 <select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>
-                  {runtimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''}</option>)}
+                  {captureRuntimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''}</option>)}
                 </select>
               </label>
             )}
@@ -255,6 +488,16 @@ export default function PlaygroundPage() {
               >
                 {state === 'connecting' ? 'Starting call…' : 'Start Call'}
               </button>
+            ) : liveKitRuntimes.length ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-emerald-950">Kolsetu LiveKit is configured.</p>
+                    <p className="mt-1 text-sm text-emerald-800">Use automated evaluations to run simulated calls. This voice-capture button is only for SDK agents that answer browser WebRTC calls.</p>
+                  </div>
+                  <Link href="/experiments/new" className="btn-primary shrink-0">Run evaluation</Link>
+                </div>
+              </div>
             ) : (
               <div className="rounded-xl border border-[#cfd8ff] bg-[#f6f8ff] p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -298,7 +541,7 @@ export default function PlaygroundPage() {
               <span><strong>Use my recorded voice in private test variants.</strong><span className="mt-1 block text-xs leading-5 text-slate-500">This permits Lightcurve to create synthetic caller speech from this recording only for your private agent tests. You can turn it off in the dataset replay policy.</span></span>
             </label>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              Saved privately to <strong>Playground Captures</strong>. Raw audio and complete transcripts are never made public automatically.
+              Saved privately to <strong>Audio Library</strong>. Raw audio and complete transcripts are never made public automatically.
             </div>
             <button type="button" className="btn-primary w-full" onClick={() => void approveCase()}>Approve and add to dataset</button>
           </div>

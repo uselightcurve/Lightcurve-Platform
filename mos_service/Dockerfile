@@ -2,9 +2,11 @@ FROM ubuntu:22.04 AS visqol-builder
 
 ARG VISQOL_VERSION=v3.3.3
 ARG BAZEL_VERSION=5.1.0
+ARG TARGETARCH
 COPY visqol-system-armadillo.patch /tmp/visqol-system-armadillo.patch
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git build-essential python3 python3-numpy libarmadillo-dev patch \
-    && curl -fsSL "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-x86_64" -o /usr/local/bin/bazel \
+    && case "${TARGETARCH:-amd64}" in amd64) BAZEL_ARCH=x86_64 ;; arm64) BAZEL_ARCH=arm64 ;; *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; esac \
+    && curl -fsSL "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-${BAZEL_ARCH}" -o /usr/local/bin/bazel \
     && chmod +x /usr/local/bin/bazel \
     && mkdir -p /opt/armadillo/include \
     && cp -a /usr/include/armadillo /usr/include/armadillo_bits /opt/armadillo/include/ \
@@ -35,4 +37,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 
 EXPOSE 8080
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "4", "--timeout", "180", "app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 180 app:app"]

@@ -1,159 +1,110 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { SUPPORTED_CASE_LANGUAGES } from '@/lib/constants';
-
-type DatasetSummary = {
-  id: string;
-  name: string;
-  description?: string | null;
-  visibility: string;
-  sourceType: string;
-  currentVersion: number;
-  caseCount: number;
-  updatedAt?: string | null;
-};
-
-function audioDuration(file: File) {
-  return new Promise<number>((resolve, reject) => {
-    const audio = document.createElement('audio');
-    const url = URL.createObjectURL(file);
-    audio.preload = 'metadata';
-    audio.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(audio.duration); };
-    audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('This audio file could not be read.')); };
-    audio.src = url;
-  });
-}
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export default function DatasetsPage() {
-  const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [uploadingFileName, setUploadingFileName] = useState('');
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [cases, setCases] = useState('');
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [uploadLanguage, setUploadLanguage] = useState('en-US');
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  useEffect(() => {
-    fetch('/api/datasets', { cache: 'no-store' })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.error ?? 'Datasets could not be loaded.');
-        setDatasets(Array.isArray(body.datasets) ? body.datasets : []);
-      })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Datasets could not be loaded.'))
-      .finally(() => setLoading(false));
-  }, [refreshTrigger]);
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    setUploading(true);
-    setUploadingFileName(file.name);
+  async function createDatasetGroup(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError('');
     setNotice('');
-    
+    setSaving(true);
+
     try {
-      if (await audioDuration(file) > 300) throw new Error('Choose an audio file that is 5 minutes or shorter.');
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('language', uploadLanguage);
-      
-      const response = await fetch('/api/datasets/upload', {
+      const caseNames = cases
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (!name.trim()) throw new Error('Give the dataset group a name.');
+      if (!caseNames.length) throw new Error('Add at least one case to the group.');
+
+      const response = await fetch('/api/datasets', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description,
+          cases: caseNames,
+        }),
       });
-      
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error ?? 'File upload failed.');
-      
-      setNotice(typeof body.warning === 'string' ? body.warning : 'Recording added to Playground Captures.');
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'An error occurred during upload.');
+      if (!response.ok) throw new Error(body.error ?? 'Dataset group could not be created.');
+      if (!body.dataset?.id) throw new Error('Dataset group was created, but could not be opened.');
+
+      setNotice('Dataset group created.');
+      router.push(`/datasets/${body.dataset.id}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Dataset group could not be created.');
     } finally {
-      setUploading(false);
-      setUploadingFileName('');
-      // Reset input
-      event.target.value = '';
+      setSaving(false);
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
-      {uploading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 rounded-lg bg-white p-8 shadow-xl border border-slate-100">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#cfd8ff] border-t-indigo-600"></div>
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-slate-900">Adding recording</h3>
-              <p className="mt-1 text-sm text-slate-500">{uploadingFileName || 'Saving audio and building the first review.'}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <div>
+        <h1 className="page-title">Datasets</h1>
+        <p className="page-subtitle">Create a dataset group with a clear name and the cases you want to evaluate.</p>
+      </div>
 
-      <div className="flex items-start justify-between gap-4">
+      <form onSubmit={createDatasetGroup} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <h1 className="page-title">Datasets</h1>
-          <p className="page-subtitle">Voice call recordings saved as test cases for your agents.</p>
+          <h2 className="text-lg font-semibold text-slate-900">Create Dataset Group</h2>
+          <p className="mt-1 text-sm text-slate-500">Group related evaluation cases together so every run has the right scope.</p>
         </div>
-        <div className="flex gap-3">
-          <Link href="/playground" className="btn-primary">Record a call</Link>
-        </div>
-      </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Add Recording</h2>
-        <p className="mt-1 text-sm text-slate-500">Turn a call recording up to 5 minutes long into a reusable test case.</p>
-        <div className="mt-4 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="block text-sm text-slate-600">
-            Call language
-            <select className="input-field mt-1 min-w-48" value={uploadLanguage} onChange={(event) => setUploadLanguage(event.target.value)} disabled={uploading}>
-              {SUPPORTED_CASE_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
-            </select>
+        <div className="mt-5 grid gap-4">
+          <label className="block text-sm font-medium text-slate-700">
+            Group name
+            <input
+              className="input-field mt-2"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Billing escalation checks"
+              disabled={saving}
+            />
           </label>
-          <label className="btn-secondary inline-flex cursor-pointer items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Choose recording
-            <input type="file" className="hidden" accept=".wav,.mp3,audio/wav,audio/mpeg" onChange={handleFileUpload} disabled={uploading} />
+
+          <label className="block text-sm font-medium text-slate-700">
+            Description
+            <textarea
+              className="input-field mt-2 min-h-20"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="What this group should validate"
+              disabled={saving}
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Cases
+            <textarea
+              className="input-field mt-2 min-h-40"
+              value={cases}
+              onChange={(event) => setCases(event.target.value)}
+              placeholder={'Customer asks for a refund outside policy\nCaller gives the wrong account number\nAgent needs to escalate a billing dispute'}
+              disabled={saving}
+            />
+            <span className="mt-2 block text-xs text-slate-500">Add one case per line.</span>
           </label>
         </div>
-      </div>
+
+        <button type="submit" disabled={saving} className="btn-primary mt-5">
+          {saving ? 'Creating group...' : 'Create group'}
+        </button>
+      </form>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      {notice && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{notice}</div>}
-      {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Loading datasets…</div>
-      ) : (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900">Existing Datasets</h2>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {datasets.map((dataset) => (
-            <Link key={dataset.id} href={`/datasets/${dataset.id}`} className="card flex flex-col justify-between p-5 transition hover:border-[#b9c6f7]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-semibold text-slate-950">{dataset.name}</h2>
-                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{dataset.description || 'Human-derived voice evaluation dataset.'}</p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600">{dataset.visibility}</span>
-              </div>
-              <div className="mt-5 flex items-center gap-4 text-xs text-slate-500">
-                <span>{dataset.caseCount} {dataset.caseCount === 1 ? 'case' : 'cases'}</span>
-                <span>Version {dataset.currentVersion}</span>
-              </div>
-            </Link>
-          ))}
-          </div>
-        </div>
-      )}
+      {notice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
     </div>
   );
 }

@@ -60,7 +60,7 @@ export const datasets = pgTable('datasets', {
   name: text('name').notNull(),
   description: text('description'),
   visibility: text('visibility').notNull().default('private'),
-  sourceType: text('source_type').notNull().default('playground_capture'),
+  sourceType: text('source_type').notNull().default('audio_library'),
   currentVersion: integer('current_version').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

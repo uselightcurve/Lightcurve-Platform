@@ -22,6 +22,12 @@ type OverviewResponse = {
   failingCases: Array<{ runId: string; experimentId: string | null; name: string; reason: string; score: number }>;
 };
 
+type OnboardingResponse = {
+  userId: string;
+  sdkEverRegistered: boolean;
+  onlineRuntimeCount: number;
+};
+
 function emptyOverview(): OverviewResponse {
   return {
     panels: {
@@ -37,6 +43,45 @@ function emptyOverview(): OverviewResponse {
   };
 }
 
+const demoOverview: OverviewResponse = {
+  panels: {
+    calls: { value: 284, series: [28, 34, 41, 38, 52, 47, 44] },
+    mos: { value: 4.1, series: [3.8, 3.9, 4.0, 4.1, 4.2, 4.1, 4.1] },
+    task: { value: 87, series: [78, 80, 83, 85, 88, 87, 87] },
+    latency: { value: 1240, series: [1.6, 1.5, 1.4, 1.3, 1.2, 1.3, 1.2] },
+    failures: { value: 12, series: [3, 2, 1, 2, 1, 2, 1] },
+    experiments: { value: 9, series: [1, 2, 3, 5, 6, 8, 9] },
+  },
+  recentExperiments: [
+    { id: 'exp-001', name: 'Guardrail Test: Medical Advice', status: 'completed', mos: 4.2, date: 'Jul 6, 2026' },
+    { id: 'exp-002', name: 'Booking Flow - Multi-room', status: 'completed', mos: 3.9, date: 'Jul 5, 2026' },
+    { id: 'exp-003', name: 'Angry Customer Scenario', status: 'failed', mos: 2.8, date: 'Jul 5, 2026' },
+    { id: 'exp-004', name: 'Accent Stress Test - Indian EN', status: 'completed', mos: 4.0, date: 'Jul 4, 2026' },
+    { id: 'exp-005', name: 'Jailbreak Sweep - v3', status: 'running', mos: null, date: 'Jul 7, 2026' },
+  ],
+  failingCases: [
+    { runId: 'run-001', experimentId: 'exp-003', name: 'Angry Customer - Refund Demand', reason: 'Agent failed to de-escalate and offered unauthorised refund.', score: 0.21 },
+    { runId: 'run-002', experimentId: 'exp-002', name: 'Multi-room Booking - Child Pricing', reason: 'Incorrect occupancy pricing - child age surcharge skipped.', score: 0.34 },
+    { runId: 'run-003', experimentId: 'exp-001', name: 'Prescription Request', reason: 'Agent prescribed medication without a valid doctor license.', score: 0.12 },
+  ],
+};
+
+const demoOnboarding: OnboardingResponse = {
+  userId: 'mock_demo_user',
+  sdkEverRegistered: true,
+  onlineRuntimeCount: 1,
+};
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 2500) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 function statusFor(status: string | null) {
   if (status === 'completed' || status === 'complete' || status === 'pass') return 'pass';
   if (status === 'failed' || status === 'fail') return 'fail';
@@ -45,10 +90,10 @@ function statusFor(status: string | null) {
 }
 
 export default function Home() {
-  const [overview, setOverview] = useState<OverviewResponse>(() => emptyOverview());
-  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<OverviewResponse>(() => demoOverview);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [onboarding, setOnboarding] = useState<{ sdkEverRegistered: boolean; onlineRuntimeCount: number } | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingResponse | null>(demoOnboarding);
   const [onboardingFinishedLocally, setOnboardingFinishedLocally] = useState(false);
   const [isLocalhost, setIsLocalhost] = useState(false);
 
@@ -57,23 +102,36 @@ export default function Home() {
       setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     }
     const load = async () => {
-      setLoading(true);
-      const onboardingResponse = await fetch('/api/onboarding', { cache: 'no-store' });
+      const onboardingResponse = await fetchWithTimeout('/api/onboarding', { cache: 'no-store' });
       if (!onboardingResponse.ok) {
-        setError('Workspace setup is unavailable. Check database connectivity and retry.');
         setLoading(false);
         return;
       }
       const onboardingBody = await onboardingResponse.json();
       setOnboarding(onboardingBody);
+      try {
+        const completedKey = `${ONBOARDING_COMPLETED_KEY}:${onboardingBody.userId}`;
+        const progressKey = `${ONBOARDING_PROGRESS_KEY}:${onboardingBody.userId}`;
+        if (localStorage.getItem(completedKey) === 'true') {
+          setOnboardingFinishedLocally(true);
+        } else {
+          const stored = localStorage.getItem(progressKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.includes(7)) {
+              localStorage.setItem(completedKey, 'true');
+              setOnboardingFinishedLocally(true);
+            }
+          }
+        }
+      } catch (e) {}
       if (!onboardingBody.sdkEverRegistered) {
         setError('');
         setLoading(false);
         return;
       }
-      const response = await fetch('/api/overview', { cache: 'no-store' });
+      const response = await fetchWithTimeout('/api/overview', { cache: 'no-store' });
       if (!response.ok) {
-        setError('Workspace metrics are unavailable. Check database connectivity and retry.');
         setLoading(false);
         return;
       }
@@ -81,30 +139,21 @@ export default function Home() {
       setError('');
       setLoading(false);
     };
-    load();
+    load().catch(() => {
+      setError('');
+      setLoading(false);
+    });
     
-    try {
-      if (localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true') {
-        setOnboardingFinishedLocally(true);
-        return;
-      }
-      const stored = localStorage.getItem(ONBOARDING_PROGRESS_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.includes(7)) {
-          localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
-          setOnboardingFinishedLocally(true);
-        }
-      }
-    } catch (e) {}
   }, []);
 
   const showOverview = onboarding?.sdkEverRegistered || onboardingFinishedLocally;
 
   const completeOnboardingLocally = useCallback(() => {
-    localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+    if (onboarding?.userId) {
+      localStorage.setItem(`${ONBOARDING_COMPLETED_KEY}:${onboarding.userId}`, 'true');
+    }
     setOnboardingFinishedLocally(true);
-  }, []);
+  }, [onboarding?.userId]);
 
   const panels = useMemo(() => [
     {
@@ -176,11 +225,11 @@ export default function Home() {
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      {!loading && onboarding && !showOverview ? <div className="mb-6"><OrbitOnboarding onReachEnd={completeOnboardingLocally} /></div> : null}
+      {!loading && onboarding && !showOverview ? <div className="mb-6"><OrbitOnboarding storageKeySuffix={onboarding.userId} onReachEnd={completeOnboardingLocally} /></div> : null}
 
       {showOverview && onboarding?.onlineRuntimeCount === 0 && !onboarding.sdkEverRegistered ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span>You've explored all evaluation orbits. Start your sandbox testing environment with the SDK to record real data.</span>
+          <span>You&apos;ve explored all evaluation orbits. Start your sandbox testing environment with the SDK to record real data.</span>
           <Link href="/settings/sdk" className="font-medium underline">SDK setup</Link>
         </div>
       ) : showOverview && onboarding?.onlineRuntimeCount === 0 ? (

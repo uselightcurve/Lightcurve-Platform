@@ -18,5 +18,11 @@ export async function GET() {
       telephony: false,
       hostedRunner: false,
     },
+    evaluation: {
+      included: true,
+      externalKeyRequired: false,
+      voiceMeasurementsConfigured: Boolean(process.env.MODELORBIT_SERVICE_URL),
+      storedResults: true,
+    },
   });
 }

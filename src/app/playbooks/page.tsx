@@ -101,7 +101,7 @@ export default function PlaybooksPage() {
               <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Create Playbook
             </h2>
-            <p className="mt-1 text-[13px] text-slate-500 mb-5">Define your agent's core instructions.</p>
+            <p className="mt-1 text-[13px] text-slate-500 mb-5">Define your agent&apos;s core instructions.</p>
             
             {error && <div className="mb-5 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">{error}</div>}
             

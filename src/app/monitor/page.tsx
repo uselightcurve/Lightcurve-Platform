@@ -3,19 +3,33 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
+const waveformHeights = [32, 58, 76, 44, 88, 62, 35, 72, 96, 52, 41, 83, 67, 49, 91, 34, 64, 78, 45, 59, 73, 38, 86, 55, 69, 31, 47, 82, 61, 36, 74, 93, 43, 57, 80, 39, 65, 90, 51, 70];
+
+type RunSummary = { id: string };
+type ScoreRow = { metricName?: string; value?: number; rationale?: string | null };
+type TraceRow = { speaker?: string | null; text?: string | null };
+type RunDetail = {
+  run?: { status?: string | null; failureSummary?: string | null; variantIndex?: number | null };
+  traces?: TraceRow[];
+  scores?: ScoreRow[];
+  audio?: { agent?: string | null };
+  case?: { name?: string | null };
+  experiment?: { name?: string | null; runtimeId?: string | null };
+};
+
 export default function CallAnalysisPage() {
-  const [runData, setRunData] = useState<any>(null);
+  const [runData, setRunData] = useState<RunDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
         const res = await fetch('/api/runs');
-        const data = await res.json();
+        const data = await res.json() as { runs?: RunSummary[] };
         if (data.runs && data.runs.length > 0) {
           const runId = data.runs[0].id;
           const detailsRes = await fetch(`/api/runs/${runId}`);
-          const details = await detailsRes.json();
+          const details = await detailsRes.json() as RunDetail;
           setRunData(details);
         }
       } catch (err) {
@@ -36,7 +50,7 @@ export default function CallAnalysisPage() {
       <div className="p-8 text-center">
         <h2 className="text-base font-medium text-slate-950">No runs available</h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-          Run an experiment to monitor the agent's performance here.
+          Run an experiment to monitor the agent&apos;s performance here.
         </p>
         <Link href="/experiments/new" className="btn-primary mt-5 inline-flex">Create first experiment</Link>
       </div>
@@ -44,7 +58,7 @@ export default function CallAnalysisPage() {
   }
 
   const { run, traces, scores, audio, case: caseData, experiment } = runData;
-  const isPass = run?.status === 'pass' || run?.status === 'completed' || scores?.some((s: any) => s.metricName === 'task_completed' && s.value === 1);
+  const isPass = run?.status === 'pass' || run?.status === 'completed' || scores?.some((s) => s.metricName === 'task_completed' && s.value === 1);
   const verdict = isPass ? 'Pass' : 'Fail';
   const summary = run?.failureSummary || "No summary available for this run.";
   const intent = caseData?.name || experiment?.name || "Unknown Intent";
@@ -92,12 +106,12 @@ export default function CallAnalysisPage() {
               <div className="grid grid-cols-[140px_1fr] gap-4">
                 <span className={`text-sm font-medium ${isPass ? 'text-emerald-800' : 'text-[#991b1b]'}`}>Outcome Breakdown</span>
                 <div className="space-y-2">
-                  {scores.map((score: any, idx: number) => (
+                  {scores.map((score, idx) => (
                     <div key={idx} className={`bg-white border ${isPass ? 'border-emerald-200 hover:border-emerald-300' : 'border-[#fecaca] hover:border-[#fca5a5]'} rounded-lg p-3 flex items-start justify-between gap-4 cursor-pointer transition-colors shadow-sm`}>
                       <span className="text-sm text-slate-800 leading-tight flex-1">{score.rationale || score.metricName}</span>
                       <div className="flex items-center gap-3 shrink-0 mt-0.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${score.value >= 1 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                          {score.value >= 1 ? 'Pass' : 'Fail'}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${(score.value ?? 0) >= 1 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                          {(score.value ?? 0) >= 1 ? 'Pass' : 'Fail'}
                         </span>
                       </div>
                     </div>
@@ -128,7 +142,7 @@ export default function CallAnalysisPage() {
                   <div 
                     key={i} 
                     className={`w-full rounded-full ${i < 15 ? 'bg-blue-600' : 'bg-slate-200'}`}
-                    style={{ height: `${Math.max(20, Math.random() * 100)}%` }}
+                    style={{ height: `${waveformHeights[i] ?? 40}%` }}
                   />
                 ))}
               </div>
@@ -174,7 +188,7 @@ export default function CallAnalysisPage() {
             </button>
             {traces && traces.length > 0 && (
               <div className="p-4 bg-slate-50 space-y-3 max-h-60 overflow-y-auto">
-                {traces.map((trace: any, idx: number) => (
+                {traces.map((trace, idx) => (
                   <div key={idx}>
                     <div className="text-xs font-semibold text-slate-500 mb-1">{trace.speaker}</div>
                     <div className="text-sm text-slate-800">{trace.text}</div>

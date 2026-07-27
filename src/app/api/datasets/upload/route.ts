@@ -3,8 +3,8 @@ import { requireAccount, unauthorizedJson } from '@/lib/account';
 import { storeImportedAudio } from '@/lib/captureStorage';
 import { generateWithLightcurveModelResult, stripModelJsonFence } from '@/lib/llm';
 import { transcribeAudio, type SpeechTranscriptionResult } from '@/lib/speech';
-import { ensurePlaygroundDataset } from '@/lib/humanDatasets';
-import { normalizeCaseLanguage, sttLanguageForCaseLanguage } from '@/lib/constants';
+import { ensureAudioLibraryDataset } from '@/lib/humanDatasets';
+import { caseLanguageFromDetected, normalizeCaseLanguage, sttLanguageForCaseLanguage } from '@/lib/constants';
 import { db } from '@/db';
 import { datasetCases, datasetCaseVersions, datasets } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -26,6 +26,7 @@ type ModelAnalysisResult = {
 };
 
 const GRAPH_ANALYSIS_TIMEOUT_MS = 45_000;
+const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 25_000;
 
 function importedAudioName(filename: string) {
   return filename.replace(/\.[^/.]+$/, '') || `Imported call ${new Date().toISOString().slice(0, 10)}`;
@@ -163,7 +164,10 @@ export async function POST(req: Request) {
     const account = await requireAccount();
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const language = normalizeCaseLanguage(formData.get('language'));
+    const requestedLanguage = formData.get('language');
+    const sttLanguage = sttLanguageForCaseLanguage(requestedLanguage);
+    let language = requestedLanguage && requestedLanguage !== 'auto' ? normalizeCaseLanguage(requestedLanguage) : 'en-US';
+    const voiceCloneConsent = formData.get('voiceCloneConsent') === 'true';
     
     if (!file || !file.type.startsWith('audio/')) {
       return NextResponse.json({ error: 'A valid audio file is required.' }, { status: 400 });
@@ -183,8 +187,10 @@ export async function POST(req: Request) {
         bytes,
         mimeType: file.type,
         filename: file.name,
-        language: sttLanguageForCaseLanguage(language),
+        language: sttLanguage,
+        timeoutMs: UPLOAD_TRANSCRIPTION_TIMEOUT_MS,
       });
+      if (!sttLanguage) language = caseLanguageFromDetected(transcription.language);
     } catch (error) {
       console.warn('Audio transcription unavailable; saving draft dataset case instead.', error);
     }
@@ -277,7 +283,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
       }
     }
 
-    const targetDataset = await ensurePlaygroundDataset(account.userId);
+    const targetDataset = await ensureAudioLibraryDataset(account.userId);
     const nextDatasetVersion = targetDataset.currentVersion + 1;
     const behaviorGraph = analysis.behaviorGraph || {};
     const successCriteria = analysis.successCriteria || [];
@@ -306,7 +312,8 @@ ${transcription?.text ?? '[transcription unavailable]'}
           transcriptionLanguage: transcription?.language,
           callerProfile: analysis.callerProfile,
           transcript: analysis.transcript,
-          voiceCloneConsent: false,
+          voiceCloneConsent,
+          voiceReferenceUri: voiceCloneConsent ? audioUri : undefined,
         },
         riskWeight: 1,
         variationPolicy: {
@@ -318,7 +325,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
           allowPacingVariation: true,
           allowInterruptionVariation: true,
           allowVoiceVariation: true,
-          allowVoiceCloning: false,
+          allowVoiceCloning: voiceCloneConsent,
           environmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
         },
       }).returning();

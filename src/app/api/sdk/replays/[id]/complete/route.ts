@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { replayJobs, replayResults, runs, traces } from '@/db/schema';
 import { requireSdkAccount, sdkUnauthorizedJson } from '@/lib/sdkAuth';
 import { processReplayScoring, queueReplayScoring } from '@/lib/replayScoring';
+
+export const maxDuration = 300;
 
 function record(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -63,17 +66,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }).where(eq(runs.id, row.run.id));
     });
     await queueReplayScoring(row.run.id);
-    try {
-      const scoring = await processReplayScoring(row.run.id);
-      return NextResponse.json({ ok: true, scoringStatus: 'complete', judgment: scoring.final });
-    } catch (error) {
-      return NextResponse.json({
-        ok: true,
-        scoringStatus: 'queued',
-        message: 'Replay captured. Audio and judge scoring will retry automatically.',
-        scoringError: error instanceof Error ? error.message : 'Scoring is temporarily unavailable.',
-      }, { status: 202 });
-    }
+    after(async () => {
+      try {
+        await processReplayScoring(row.run.id);
+      } catch (error) {
+        console.error('Background replay scoring failed', {
+          runId: row.run.id,
+          error: error instanceof Error ? error.message : 'Scoring is temporarily unavailable.',
+        });
+      }
+    });
+    return NextResponse.json({
+      ok: true,
+      scoringStatus: 'queued',
+      message: 'Replay captured. Evaluation is continuing in the background.',
+    }, { status: 202 });
   } catch (error) {
     const unauthorized = sdkUnauthorizedJson(error);
     if (unauthorized) return unauthorized;

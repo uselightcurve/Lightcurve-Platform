@@ -38,9 +38,13 @@ next-dev.out.log
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!.env.oracle.example
+!.env.azure.example
 
 # vercel
 .vercel
+/.vercel-cli-cache/
+/.vercel-cli-home/
 
 # typescript
 *.tsbuildinfo
@@ -48,3 +52,13 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# local Codex diagnostic copies
+/.codex/
+/.codex-gcloud-config-check/
+/.gcloud-cli-home/
+/.vercel-xdg-data/
+/.vercel-xdg-config/
+/.auth-flow/
+/.azure-cli-codex/
+/.docker-cli-codex/

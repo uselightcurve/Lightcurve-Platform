@@ -15,6 +15,7 @@ export async function GET() {
     ]);
     const onlineSince = new Date(Date.now() - 45_000);
     return NextResponse.json({
+      userId: account.userId,
       sdkEverRegistered: runtimes.length > 0,
       onlineRuntimeCount: runtimes.filter((runtime) => runtime.lastSeenAt && runtime.lastSeenAt > onlineSince).length,
       apiKeyCount: keys.length,

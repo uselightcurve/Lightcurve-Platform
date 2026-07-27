@@ -1,0 +1,106 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lightcurve
+      POSTGRES_USER: lightcurve
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set ayushsaxena@gmail.com in .env.oracle}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lightcurve -d lightcurve"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mos:
+    build:
+      context: ./mos_service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      LOCAL_STORAGE_DIR: /data/lightcurve
+      MOS_SERVICE_TOKEN: ${MOS_SERVICE_TOKEN:-}
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}
+      GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GOOGLE_APPLICATION_CREDENTIALS_BASE64:-}
+    volumes:
+      - audio_data:/data/lightcurve
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_URL:-/sign-in}
+        NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_URL:-/sign-up}
+        NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL:-/}
+        NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL:-/}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_initiated
+      mos:
+        condition: service_started
+    ports:
+      - "80:8080"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://lightcurve:${POSTGRES_PASSWORD}@postgres:5432/lightcurve
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_URL:-/sign-in}
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_URL:-/sign-up}
+      NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL:-/}
+      NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL:-/}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LIGHTCURVE_FLASH_JUDGE_MODEL: 
+      LIGHTCURVE_PRO_JUDGE_MODEL: ${LIGHTCURVE_PRO_JUDGE_MODEL:-gemini-2.5-pro}
+      LIGHTCURVE_EMBEDDING_MODEL: ${LIGHTCURVE_EMBEDDING_MODEL:-text-embedding-005}
+      LIGHTCURVE_AUDIO_STORAGE: local
+      LOCAL_STORAGE_DIR: /data/lightcurve
+      LIGHTCURVE_CREDENTIAL_SECRET: ${LIGHTCURVE_CREDENTIAL_SECRET}
+      MOS_SERVICE_URL: https:\8080.com 
+      MOS_SERVICE_TOKEN: ${MOS_SERVICE_TOKEN:-}
+      SCORING_INGEST_TOKEN: ${SCORING_INGEST_TOKEN:-}
+      DODO_PAYMENTS_API_KEY: ${DODO_PAYMENTS_API_KEY:-}
+      DODO_WEBHOOK_KEY: ${DODO_WEBHOOK_KEY:-}
+      DODO_ENVIRONMENT: ${DODO_ENVIRONMENT:-test_mode}
+      DODO_PRO_PRODUCT_ID: ${DODO_PRO_PRODUCT_ID:-}
+      DODO_RETURN_URL: ${DODO_RETURN_URL:-}
+      DODO_WEBHOOK_URL: ${DODO_WEBHOOK_URL:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}
+      GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${GOOGLE_APPLICATION_CREDENTIALS_BASE64:-}
+      GCP_REGION: ${GCP_REGION:-us-central1}
+      VERTEX_AI_LOCATION: ${VERTEX_AI_LOCATION:-us-central1}
+      GCS_BUCKET: ${GCS_BUCKET: some random values here}
+      KMS_KEY_NAME: ${KMS_KEY_NAME:-}
+      LIGHTCURVE_STUN_URL: ${LIGHTCURVE_STUN_URL:-stun:stun.l.google.com:19302}
+      LIGHTCURVE_TURN_URL: ${LIGHTCURVE_TURN_URL:-}
+      LIGHTCURVE_TURN_USERNAME: ${LIGHTCURVE_TURN_USERNAME:-}
+      LIGHTCURVE_TURN_CREDENTIAL: ${LIGHTCURVE_TURN_CREDENTIAL:-}
+      LIGHTCURVE_GATE_MIN_MOS: ${LIGHTCURVE_GATE_MIN_MOS:-3.8}
+      LIGHTCURVE_GATE_MIN_TASK: ${LIGHTCURVE_GATE_MIN_TASK:-0.8}
+    volumes:
+      - audio_data:/data/lightcurve
+
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://lightcurve:${POSTGRES_PASSWORD}@postgres:5432/lightcurve
+    command: sh -c "npm run db:push && npm run db:migrate"
+
+volumes:
+  postgres_data:
+  audio_data:

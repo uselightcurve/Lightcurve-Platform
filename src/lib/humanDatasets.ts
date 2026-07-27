@@ -74,7 +74,7 @@ async function buildBehaviorGraph(
   }));
   const shared = {
     schema: 'lightcurve.human_behavior_graph.v3',
-    source: 'human_playground_call',
+    source: 'human_audio_library_call',
     observedPath: observedNodes,
     allowedPaths: [observedNodes.filter((node) => node.speaker === 'human').map((node) => node.id)],
     semanticStates: observedNodes.map((node) => ({
@@ -84,7 +84,7 @@ async function buildBehaviorGraph(
       sourceNodeId: node.id,
     })),
     sourceProvenance: {
-      kind: 'real_human_playground_call',
+      kind: 'real_human_audio_library_call',
       observedTurnCount: observedNodes.length,
       generatedBranchesRequireObservedSupport: true,
     },
@@ -134,23 +134,40 @@ ${redactedTranscript}
   return { ...inferred, ...shared, derivation: 'model_enriched_redacted' };
 }
 
-export async function ensurePlaygroundDataset(ownerUserId: string) {
+export async function ensureAudioLibraryDataset(ownerUserId: string) {
   const [existing] = await db
+    .select()
+    .from(datasets)
+    .where(and(eq(datasets.ownerUserId, ownerUserId), eq(datasets.name, 'Audio Library')))
+    .limit(1);
+  if (existing) return existing;
+
+  const [legacy] = await db
     .select()
     .from(datasets)
     .where(and(eq(datasets.ownerUserId, ownerUserId), eq(datasets.name, 'Playground Captures')))
     .limit(1);
-  if (existing) return existing;
+  if (legacy) {
+    const [renamed] = await db.update(datasets).set({
+      name: 'Audio Library',
+      description: 'Private call recordings saved as reusable voice-agent test cases.',
+      sourceType: 'audio_library',
+      updatedAt: new Date(),
+    }).where(eq(datasets.id, legacy.id)).returning();
+    return renamed;
+  }
 
   const [created] = await db.insert(datasets).values({
     ownerUserId,
-    name: 'Playground Captures',
-    description: 'Human-grounded voice cases captured in the Playground.',
+    name: 'Audio Library',
+    description: 'Private call recordings saved as reusable voice-agent test cases.',
     visibility: 'private',
-    sourceType: 'playground_capture',
+    sourceType: 'audio_library',
   }).returning();
   return created;
 }
+
+export const ensurePlaygroundDataset = ensureAudioLibraryDataset;
 
 export async function deriveCaseFromCapture(params: {
   ownerUserId: string;
@@ -178,7 +195,7 @@ export async function deriveCaseFromCapture(params: {
         eq(datasets.id, params.datasetId),
         eq(datasets.ownerUserId, params.ownerUserId),
       )).limit(1))[0]
-    : await ensurePlaygroundDataset(params.ownerUserId);
+    : await ensureAudioLibraryDataset(params.ownerUserId);
   if (!targetDataset) throw new Error('Dataset not found.');
 
   const events = await db
@@ -218,7 +235,7 @@ export async function deriveCaseFromCapture(params: {
       behaviorGraph,
       successCriteria,
       provenance: {
-        source: 'playground_capture',
+        source: 'audio_library_capture',
         captureSessionId: capture.id,
         humanDerived: true,
         derivedAt: new Date().toISOString(),

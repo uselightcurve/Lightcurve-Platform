@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { billingEvents, usageEvents, users } from '@/db/schema';
 import { getBillingSummary } from '@/lib/account';
+import { requestAdminActor } from '@/lib/adminAccess';
 
 export const maxDuration = 60;
 
@@ -11,9 +12,14 @@ function bearer(request: Request) {
   return request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
 }
 
-function authorized(request: Request) {
+function bearerAuthorized(request: Request) {
   const token = process.env.ADMIN_CREDITS_TOKEN?.trim();
   return Boolean(token && bearer(request) === token);
+}
+
+async function authorizedActor(request: Request) {
+  if (bearerAuthorized(request)) return 'admin-token';
+  return requestAdminActor();
 }
 
 function positiveNumber(value: unknown, max: number) {
@@ -27,7 +33,8 @@ function positiveInteger(value: unknown, max: number) {
 }
 
 export async function POST(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  const actor = await authorizedActor(request);
+  if (!actor) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
 
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
@@ -63,6 +70,7 @@ export async function POST(request: Request) {
         minutes,
         actions,
         note,
+        grantedBy: actor,
         grantedAt: new Date().toISOString(),
       },
     });
@@ -86,7 +94,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  const actor = await authorizedActor(request);
+  if (!actor) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   const email = new URL(request.url).searchParams.get('email')?.trim().toLowerCase();
   if (!email) return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
 

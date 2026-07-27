@@ -132,26 +132,28 @@ lightcurve.monitor(agent)`}
   );
 }
 
-export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}) {
+export function OrbitOnboarding({ onReachEnd, storageKeySuffix = 'default' }: { onReachEnd?: () => void; storageKeySuffix?: string } = {}) {
   const [activeOrbit, setActiveOrbit] = useState(0);
   const [completedOrbits, setCompletedOrbits] = useState<number[]>([]);
   const [completionNotified, setCompletionNotified] = useState(false);
+  const progressKey = `${ONBOARDING_PROGRESS_KEY}:${storageKeySuffix}`;
+  const completedKey = `${ONBOARDING_COMPLETED_KEY}:${storageKeySuffix}`;
 
   useEffect(() => {
-    const alreadyCompleted = localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
+    const alreadyCompleted = localStorage.getItem(completedKey) === 'true';
     if (alreadyCompleted) {
       setCompletionNotified(true);
       onReachEnd?.();
       return;
     }
 
-    const stored = localStorage.getItem(ONBOARDING_PROGRESS_KEY);
+    const stored = localStorage.getItem(progressKey);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
         setCompletedOrbits(parsed);
         if (Array.isArray(parsed) && parsed.includes(ORBITS.length - 1)) {
-          localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+          localStorage.setItem(completedKey, 'true');
           setCompletionNotified(true);
           onReachEnd?.();
           return;
@@ -162,16 +164,16 @@ export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}
         }
       } catch (e) {}
     }
-  }, [onReachEnd]);
+  }, [completedKey, onReachEnd, progressKey]);
 
   const handleComplete = (id: number) => {
     const newCompleted = Array.from(new Set([...completedOrbits, id]));
     setCompletedOrbits(newCompleted);
-    localStorage.setItem(ONBOARDING_PROGRESS_KEY, JSON.stringify(newCompleted));
+    localStorage.setItem(progressKey, JSON.stringify(newCompleted));
     if (id < ORBITS.length - 1) {
       setActiveOrbit(id + 1);
     } else {
-      localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      localStorage.setItem(completedKey, 'true');
       setCompletionNotified(true);
       onReachEnd?.();
     }
@@ -181,11 +183,11 @@ export function OrbitOnboarding({ onReachEnd }: { onReachEnd?: () => void } = {}
 
   useEffect(() => {
     if (!completionNotified && completedOrbits.includes(ORBITS.length - 1) && onReachEnd) {
-      localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      localStorage.setItem(completedKey, 'true');
       setCompletionNotified(true);
       onReachEnd();
     }
-  }, [completedOrbits, completionNotified, onReachEnd]);
+  }, [completedKey, completedOrbits, completionNotified, onReachEnd]);
 
   const detail = ORBIT_DETAILS[activeOrbit];
 

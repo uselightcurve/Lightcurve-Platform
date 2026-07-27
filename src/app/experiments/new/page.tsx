@@ -47,7 +47,7 @@ export default function NewExperimentPage() {
   const [seed, setSeed] = useState(20260620);
   const [judgePolicy, setJudgePolicy] = useState<'flash-pro-review' | 'flash' | 'pro'>('flash-pro-review');
   const [environmentMix, setEnvironmentMix] = useState<Record<string, number>>(defaultEnvironmentMix);
-  const [agentConfigs, setAgentConfigs] = useState<AgentConfigInput[]>([{ id: 'config-1', name: 'Baseline (GPT-4o)', stt: 'Deepgram', llm: 'GPT-4o', tts: 'ElevenLabs' }]);
+  const [agentConfigs, setAgentConfigs] = useState<AgentConfigInput[]>([{ id: 'config-1', name: 'Baseline', stt: 'faster-whisper distil-large-v3', llm: 'Qwen3 8B', tts: 'Kokoro-82M' }]);
   const [advanced, setAdvanced] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -197,7 +197,7 @@ export default function NewExperimentPage() {
             <div className="col-span-3 mt-4 pt-4 border-t border-slate-200">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-slate-700">Compare Models (Agent Configurations)</p>
-                <button type="button" onClick={() => setAgentConfigs(prev => [...prev, { id: `config-${Date.now()}`, name: `Config ${prev.length + 1}`, stt: 'Deepgram', llm: 'Claude 3.5 Sonnet', tts: 'Cartesia' }])} className="text-xs font-medium text-[#2f5ae0] hover:text-[#2040a0]">+ Add Configuration</button>
+                <button type="button" onClick={() => setAgentConfigs(prev => [...prev, { id: `config-${Date.now()}`, name: `Config ${prev.length + 1}`, stt: 'faster-whisper large-v3-turbo', llm: 'Qwen3 8B', tts: 'Piper' }])} className="text-xs font-medium text-[#2f5ae0] hover:text-[#2040a0]">+ Add Configuration</button>
               </div>
               <div className="space-y-3">
                 {agentConfigs.map((config, index) => (
@@ -205,23 +205,18 @@ export default function NewExperimentPage() {
                     <input className="input-field flex-1 text-sm font-medium" value={config.name} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].name = e.target.value; setAgentConfigs(newConfigs); }} placeholder="Config Name" />
                     <div className="flex gap-2 w-full sm:w-auto">
                       <select className="input-field text-xs flex-1" value={config.stt} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].stt = e.target.value; setAgentConfigs(newConfigs); }}>
-                        <option value="Deepgram">Deepgram</option>
-                        <option value="Gladia">Gladia</option>
-                        <option value="Whisper">Whisper</option>
+                        <option value="faster-whisper distil-large-v3">faster-whisper distil-large-v3</option>
+                        <option value="faster-whisper large-v3-turbo">faster-whisper large-v3-turbo</option>
+                        <option value="Parakeet TDT 0.6B v3">Parakeet TDT 0.6B v3</option>
                       </select>
                       <select className="input-field text-xs flex-1" value={config.llm} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].llm = e.target.value; setAgentConfigs(newConfigs); }}>
-                        <option value="GPT-4o">GPT-4o</option>
-                        <option value="GPT-4o-mini">GPT-4o-mini</option>
-                        <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                        <option value="Claude 3 Haiku">Claude 3 Haiku</option>
-                        <option value="Gemini 1.5 Pro">Gemini 1.5 Pro</option>
+                        <option value="Qwen3 8B">Qwen3 8B</option>
+                        <option value="Kimi K2.6">Kimi K2.6</option>
                         <option value="Llama 3 70B">Llama 3 70B</option>
                       </select>
                       <select className="input-field text-xs flex-1" value={config.tts} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].tts = e.target.value; setAgentConfigs(newConfigs); }}>
-                        <option value="ElevenLabs">ElevenLabs</option>
-                        <option value="Cartesia">Cartesia</option>
-                        <option value="PlayHT">PlayHT</option>
-                        <option value="OpenAI TTS">OpenAI TTS</option>
+                        <option value="Kokoro-82M">Kokoro-82M</option>
+                        <option value="Piper">Piper</option>
                       </select>
                       {agentConfigs.length > 1 && (
                         <button type="button" onClick={() => setAgentConfigs(prev => prev.filter(c => c.id !== config.id))} className="p-2 text-slate-400 hover:text-red-600 rounded-md border border-slate-200 hover:border-red-200">

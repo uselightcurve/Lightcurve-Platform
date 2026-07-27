@@ -4,7 +4,7 @@ import { downloadPrivateAudioObject, isPrivateAudioUri, privateAudioObjectName }
 
 export const dynamic = 'force-dynamic';
 
-const ownerScopedRoots = new Set(['captures', 'imports', 'replays']);
+const ownerScopedRoots = new Set(['audio-library', 'captures', 'imports', 'replays']);
 
 function contentTypeForObject(objectName: string) {
   const lower = objectName.toLowerCase();

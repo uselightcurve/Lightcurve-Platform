@@ -39,7 +39,15 @@ export function normalizeCaseLanguage(value: unknown): SupportedCaseLanguage {
     : 'en-US';
 }
 
+export function caseLanguageFromDetected(value: unknown): SupportedCaseLanguage {
+  const language = typeof value === 'string' ? value.toLowerCase() : '';
+  if (language === 'cs' || language.startsWith('cs-') || language.includes('czech')) return 'cs-CZ';
+  if (language === 'en' || language.startsWith('en-') || language.includes('english')) return 'en-US';
+  return 'en-US';
+}
+
 export function sttLanguageForCaseLanguage(value: unknown) {
+  if (!value || value === 'auto') return undefined;
   const code = normalizeCaseLanguage(value);
   return SUPPORTED_CASE_LANGUAGES.find((language) => language.code === code)?.sttLanguage ?? 'en';
 }
