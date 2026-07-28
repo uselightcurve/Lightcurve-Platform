@@ -25,7 +25,7 @@ type ModelAnalysisResult = {
 };
 
 const GRAPH_ANALYSIS_TIMEOUT_MS = 45_000;
-const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 60_000;
+const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 210_000;
 
 function importedAudioName(filename: string) {
   return filename.replace(/\.[^/.]+$/, '') || `Imported call ${new Date().toISOString().slice(0, 10)}`;
@@ -58,6 +58,10 @@ async function transcribeUploadedAudio(params: {
     });
   } catch (firstError) {
     if (!requestedLanguage) throw firstError;
+    const firstReason = firstError instanceof Error ? firstError.message : 'Unknown transcription failure.';
+    if (/timed out/i.test(firstReason)) {
+      throw new Error(`Audio transcription failed. ${firstReason}`);
+    }
     try {
       return await transcribeAudio({
         bytes: params.bytes,
@@ -66,7 +70,7 @@ async function transcribeUploadedAudio(params: {
         timeoutMs: UPLOAD_TRANSCRIPTION_TIMEOUT_MS,
       });
     } catch (fallbackError) {
-      const reason = fallbackError instanceof Error ? fallbackError.message : firstError instanceof Error ? firstError.message : 'Unknown transcription failure.';
+      const reason = fallbackError instanceof Error ? fallbackError.message : firstReason;
       throw new Error(`Audio transcription failed. ${reason}`);
     }
   }
