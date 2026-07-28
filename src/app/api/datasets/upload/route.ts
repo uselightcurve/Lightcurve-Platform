@@ -8,7 +8,7 @@ import { db } from '@/db';
 import { datasetCases, datasetCaseVersions, datasets } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 
-export const maxDuration = 300;
+export const maxDuration = 3_600;
 
 type ImportedAudioAnalysis = {
   transcript?: Array<{ speaker: 'human' | 'agent'; text: string }>;
@@ -25,7 +25,7 @@ type ModelAnalysisResult = {
 };
 
 const GRAPH_ANALYSIS_TIMEOUT_MS = 45_000;
-const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 210_000;
+const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 60 * 60 * 1_000;
 
 function importedAudioName(filename: string) {
   return filename.replace(/\.[^/.]+$/, '') || `Imported call ${new Date().toISOString().slice(0, 10)}`;
