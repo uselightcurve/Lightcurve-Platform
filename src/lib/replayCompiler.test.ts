@@ -13,13 +13,13 @@ const cases = [
   },
 ];
 
-test('Release preset compiles 100 deterministic unique manifests', () => {
+test('Release preset compiles 10 deterministic clean-baseline manifests', () => {
   const first = compileReplayManifests(cases, { preset: 'release', seed: 77 });
   const second = compileReplayManifests(cases, { preset: 'release', seed: 77 });
-  assert.equal(first.manifests.length, 100);
+  assert.equal(first.manifests.length, 10);
   assert.deepEqual(first, second);
-  assert.equal(new Set(first.manifests.map((item) => item.uniquenessSignature)).size, 100);
-  assert.equal(first.manifests.filter((item) => item.environment === 'clean').length, 20);
+  assert.equal(new Set(first.manifests.map((item) => item.uniquenessSignature)).size, 10);
+  assert.ok(first.manifests.every((item) => item.environment === 'clean'));
   assert.ok(first.manifests.every((item) => item.graphPath.every((node) => ['a', 'b'].includes(node))));
 });
 
@@ -41,8 +41,11 @@ test('config clamps unsafe concurrency and replay values', () => {
   assert.equal(config.maxConcurrency, 200);
 });
 
-test('Case policy prevents disallowed environments without changing graph paths', () => {
-  const result = compileReplayManifests([{ ...cases[0], variationPolicy: { environmentProfiles: ['clean', 'latency_jitter'] } }], { replayCount: 30, seed: 9 });
+test('Environment variation requires an explicit experiment opt-in', () => {
+  const result = compileReplayManifests(
+    [{ ...cases[0], variationPolicy: { environmentProfiles: ['clean', 'latency_jitter'] } }],
+    { replayCount: 30, seed: 9, environmentMix: { clean: 1, latency_jitter: 1 } },
+  );
   assert.ok(result.manifests.every((manifest) => ['clean', 'latency_jitter'].includes(manifest.environment)));
   assert.ok(result.manifests.every((manifest) => manifest.graphPath.every((node) => node === 'a')));
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { agentRuntimes, datasetCases, datasets, experiments, runs } from '@/db/schema';
+import { agentRuntimes, datasetCases, datasets, experiments, runs, scenarios } from '@/db/schema';
 import { assertUsageAvailable, requireAccount, unauthorizedJson } from '@/lib/account';
 import { createCompiledExperiment } from '@/lib/experimentRuns';
 import { normalizeReplayConfig } from '@/lib/replayCompiler';
@@ -59,6 +59,15 @@ export async function POST(req: Request) {
       : await db.select().from(agentRuntimes).where(eq(agentRuntimes.ownerUserId, account.userId))
           .orderBy(desc(agentRuntimes.lastSeenAt)).limit(1);
     if (!runtime) return NextResponse.json({ error: 'No Lightcurve-enabled runtime is registered.' }, { status: 409 });
+    const selectedScenarioIds = Array.isArray(body.scenarioIds)
+      ? body.scenarioIds.filter((id: unknown): id is string => typeof id === 'string')
+      : [];
+    const selectedScenarios = selectedScenarioIds.length
+      ? await db.select().from(scenarios).where(and(
+          eq(scenarios.ownerUserId, account.userId),
+          inArray(scenarios.id, selectedScenarioIds),
+        ))
+      : [];
     const config = normalizeReplayConfig({
       preset: body.preset,
       replayCount: body.replayCount,
@@ -68,7 +77,13 @@ export async function POST(req: Request) {
       environmentMix: body.environmentMix,
       playbookId: body.playbookId,
       guardrailIds: body.guardrailIds,
-      scenarioIds: body.scenarioIds,
+      scenarioIds: selectedScenarios.map((scenario) => scenario.id),
+      scenarioDirectives: selectedScenarios.map((scenario) => ({
+        id: scenario.id,
+        name: scenario.name,
+        type: scenario.type,
+        prompt: scenario.prompt,
+      })),
       agentConfigs: body.agentConfigs,
     });
     await assertUsageAvailable(account.userId, { actions: Math.max(config.replayCount, cases.length) });

@@ -4,6 +4,7 @@ import { compileTemporalScenario, type TemporalScenarioClone } from '@/lib/tempo
 export type ExperimentPreset = 'quick' | 'release' | 'stress';
 
 export type AgentConfigInput = { id: string; name: string; stt?: string; llm?: string; tts?: string };
+export type ScenarioDirective = { id: string; name: string; type: string; prompt: string };
 
 export type ReplayCompilerConfig = {
   preset?: ExperimentPreset;
@@ -15,6 +16,7 @@ export type ReplayCompilerConfig = {
   playbookId?: string;
   guardrailIds?: string[];
   scenarioIds?: string[];
+  scenarioDirectives?: ScenarioDirective[];
   agentConfigs?: AgentConfigInput[];
 };
 
@@ -50,6 +52,7 @@ export type ReplayManifest = {
   voice: { family: string; speakingRate: number; pitch: number };
   timing: { pauseScale: number; responseDelayMs: number; interruptionOffsetMs: number | null };
   scenarioClone: TemporalScenarioClone;
+  scenarioDirectives: ScenarioDirective[];
   environment: string;
   judgePolicy: 'flash-pro-review' | 'pro' | 'flash';
   impairment: ImpairmentProfile;
@@ -80,19 +83,13 @@ export type ImpairmentProfile = {
 };
 
 export const EXPERIMENT_PRESETS: Record<ExperimentPreset, Required<Pick<ReplayCompilerConfig, 'replayCount' | 'maxConcurrency' | 'judgePolicy'>>> = {
-  quick: { replayCount: 10, maxConcurrency: 3, judgePolicy: 'flash-pro-review' },
-  release: { replayCount: 100, maxConcurrency: 20, judgePolicy: 'flash-pro-review' },
-  stress: { replayCount: 500, maxConcurrency: 50, judgePolicy: 'flash-pro-review' },
+  quick: { replayCount: 3, maxConcurrency: 1, judgePolicy: 'flash-pro-review' },
+  release: { replayCount: 10, maxConcurrency: 3, judgePolicy: 'flash-pro-review' },
+  stress: { replayCount: 25, maxConcurrency: 5, judgePolicy: 'flash-pro-review' },
 };
 
 export const DEFAULT_ENVIRONMENT_MIX: Record<string, number> = {
-  clean: 20,
-  office_cafe: 20,
-  car_street: 15,
-  latency_jitter: 15,
-  packet_loss: 10,
-  codec_bandwidth: 10,
-  compound_stress: 10,
+  clean: 100,
 };
 
 const profiles: Record<string, ImpairmentProfile> = {
@@ -166,6 +163,7 @@ export function normalizeReplayConfig(config: ReplayCompilerConfig = {}) {
     playbookId: config.playbookId,
     guardrailIds: Array.isArray(config.guardrailIds) ? config.guardrailIds : [],
     scenarioIds: Array.isArray(config.scenarioIds) ? config.scenarioIds : [],
+    scenarioDirectives: Array.isArray(config.scenarioDirectives) ? config.scenarioDirectives : [],
     agentConfigs: Array.isArray(config.agentConfigs) && config.agentConfigs.length ? config.agentConfigs : undefined,
   };
 }
@@ -252,7 +250,7 @@ export function compileReplayManifests(cases: ReplayCaseInput[], rawConfig: Repl
     const graph = object(item.behaviorGraph);
     const policy = object(item.variationPolicy);
     const configuredEnvironments = Array.isArray(policy.environmentProfiles)
-      ? policy.environmentProfiles.filter((value): value is string => typeof value === 'string' && Boolean(profiles[value]))
+      ? policy.environmentProfiles.filter((value): value is string => typeof value === 'string' && Boolean(config.environmentMix[value]))
       : [];
     const allowedEnvironments = configuredEnvironments.length ? configuredEnvironments : Object.keys(config.environmentMix);
     const paths = graphPaths(graph);
@@ -304,6 +302,7 @@ export function compileReplayManifests(cases: ReplayCaseInput[], rawConfig: Repl
           voice,
           timing,
           scenarioClone,
+          scenarioDirectives: config.scenarioDirectives,
           environment,
           judgePolicy: config.judgePolicy,
           impairment: profiles[environment] ?? profiles.clean,

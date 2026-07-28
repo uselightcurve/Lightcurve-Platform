@@ -9,22 +9,15 @@ type Playbook = { id: string; name: string };
 type Guardrail = { id: string; name: string };
 type Scenario = { id: string; name: string; type: string };
 type Preset = 'quick' | 'release' | 'stress';
-type AgentConfigInput = { id: string; name: string; stt: string; llm: string; tts: string };
 
 const presets: Record<Preset, { label: string; calls: number; concurrency: number; description: string }> = {
-  quick: { label: 'Quick', calls: 10, concurrency: 3, description: 'Fast check before a small change.' },
-  release: { label: 'Release', calls: 100, concurrency: 20, description: 'Risk-weighted production readiness.' },
-  stress: { label: 'Stress', calls: 500, concurrency: 50, description: 'Broad compound coverage at scale.' },
+  quick: { label: 'Quick', calls: 3, concurrency: 1, description: 'Three variants of each production call.' },
+  release: { label: 'Release', calls: 10, concurrency: 3, description: 'Ten production-call variants.' },
+  stress: { label: 'Stress', calls: 25, concurrency: 5, description: 'Twenty-five broader variants.' },
 };
 
 const defaultEnvironmentMix = {
-  clean: 20,
-  office_cafe: 20,
-  car_street: 15,
-  latency_jitter: 15,
-  packet_loss: 10,
-  codec_bandwidth: 10,
-  compound_stress: 10,
+  clean: 100,
 };
 
 export default function NewExperimentPage() {
@@ -41,13 +34,12 @@ export default function NewExperimentPage() {
   const [guardrailIds, setGuardrailIds] = useState<string[]>([]);
   const [scenarioIds, setScenarioIds] = useState<string[]>([]);
   const [name, setName] = useState('');
-  const [preset, setPreset] = useState<Preset>('release');
-  const seed = 20260620;
-  const judgePolicy = 'flash-pro-review';
-  const environmentMix = defaultEnvironmentMix;
-  const [agentConfigs, setAgentConfigs] = useState<AgentConfigInput[]>([
-    { id: 'config-1', name: 'Baseline (GPT-4o)', stt: 'Deepgram', llm: 'GPT-4o', tts: 'ElevenLabs' },
-  ]);
+  const [preset, setPreset] = useState<Preset>('quick');
+  const [replayCount, setReplayCount] = useState(3);
+  const [maxConcurrency, setMaxConcurrency] = useState(1);
+  const [seed, setSeed] = useState(20260620);
+  const [judgePolicy, setJudgePolicy] = useState<'flash-pro-review' | 'flash' | 'pro'>('flash-pro-review');
+  const [advanced, setAdvanced] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -74,6 +66,8 @@ export default function NewExperimentPage() {
 
   function choosePreset(value: Preset) {
     setPreset(value);
+    setReplayCount(presets[value].calls);
+    setMaxConcurrency(presets[value].concurrency);
   }
 
   async function createExperiment(e: React.FormEvent) {
@@ -81,8 +75,6 @@ export default function NewExperimentPage() {
     if (!datasetId) return setError('Please select a dataset to test against.');
     if (!runtimeId) return setError('Please select an agent runtime to test.');
     
-    const { calls: replayCount, concurrency: maxConcurrency } = presets[preset];
-
     setSaving(true);
     setError('');
     try {
@@ -98,11 +90,10 @@ export default function NewExperimentPage() {
           maxConcurrency,
           seed,
           judgePolicy,
-          environmentMix,
+          environmentMix: defaultEnvironmentMix,
           playbookId,
           guardrailIds,
           scenarioIds,
-          agentConfigs,
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -118,8 +109,8 @@ export default function NewExperimentPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="page-title">Run experiment</h1>
-        <p className="page-subtitle">Test your agent against saved datasets and edge cases.</p>
+        <h1 className="page-title">Run a Voice Test</h1>
+        <p className="page-subtitle">Replay captured production calls against your selected agent and scenarios.</p>
       </div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       <form onSubmit={createExperiment} className="space-y-6 rounded-xl border border-slate-200 bg-white p-6">
@@ -179,72 +170,20 @@ export default function NewExperimentPage() {
           </div>
         </fieldset>
 
-        <section className="space-y-3 border-t border-slate-100 pt-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">Compare models</h2>
-              <p className="mt-1 text-xs text-slate-500">Run the same cases against multiple voice-agent configurations.</p>
-            </div>
-            <button
-              type="button"
-              className="btn-secondary shrink-0"
-              onClick={() => setAgentConfigs((current) => [
-                ...current,
-                {
-                  id: `config-${Date.now()}`,
-                  name: `Configuration ${current.length + 1}`,
-                  stt: 'Whisper',
-                  llm: 'Claude 3.5 Sonnet',
-                  tts: 'Cartesia',
-                },
-              ])}
-            >
-              Add model
-            </button>
-          </div>
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          Each run starts from the captured production call. Lightcurve varies caller phrasing, timing, and voice; only scenarios selected above add special behavior.
+        </div>
 
-          <div className="space-y-3">
-            {agentConfigs.map((config, index) => (
-              <div key={config.id} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(150px,1.3fr)_1fr_1fr_1fr_auto]">
-                <input
-                  className="input-field"
-                  aria-label={`Configuration ${index + 1} name`}
-                  value={config.name}
-                  onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, name: event.target.value } : item))}
-                />
-                <select className="input-field" aria-label={`Configuration ${index + 1} speech model`} value={config.stt} onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, stt: event.target.value } : item))}>
-                  <option>Deepgram</option>
-                  <option>Gladia</option>
-                  <option>Whisper</option>
-                </select>
-                <select className="input-field" aria-label={`Configuration ${index + 1} language model`} value={config.llm} onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, llm: event.target.value } : item))}>
-                  <option>GPT-4o</option>
-                  <option>GPT-4o-mini</option>
-                  <option>Claude 3.5 Sonnet</option>
-                  <option>Claude 3 Haiku</option>
-                  <option>Gemini 1.5 Pro</option>
-                  <option>Llama 3 70B</option>
-                </select>
-                <select className="input-field" aria-label={`Configuration ${index + 1} voice model`} value={config.tts} onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, tts: event.target.value } : item))}>
-                  <option>ElevenLabs</option>
-                  <option>Cartesia</option>
-                  <option>PlayHT</option>
-                  <option>OpenAI TTS</option>
-                </select>
-                <button
-                  type="button"
-                  aria-label={`Remove ${config.name}`}
-                  title="Remove model"
-                  disabled={agentConfigs.length === 1}
-                  className="h-10 w-10 rounded-md border border-slate-200 text-lg text-slate-500 hover:border-red-200 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => setAgentConfigs((current) => current.filter((item) => item.id !== config.id))}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
+        <button type="button" className="text-left text-sm font-medium text-[#2f5ae0]" onClick={() => setAdvanced((value) => !value)}>{advanced ? 'Hide advanced settings' : 'Advanced settings'}</button>
+        {advanced && (
+          <div className="grid grid-cols-3 gap-4 rounded-xl border border-slate-200 p-4">
+            <label className="text-sm text-slate-600">Replay calls<input type="number" min={1} max={5000} className="input-field mt-2" value={replayCount} onChange={(event) => setReplayCount(Number(event.target.value))} /></label>
+            <label className="text-sm text-slate-600">Max concurrency<input type="number" min={1} max={200} className="input-field mt-2" value={maxConcurrency} onChange={(event) => setMaxConcurrency(Number(event.target.value))} /></label>
+            <label className="text-sm text-slate-600">Seed<input type="number" min={1} className="input-field mt-2" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label>
+            <label className="col-span-3 text-sm text-slate-600">Judge mode<select className="input-field mt-2" value={judgePolicy} onChange={(event) => setJudgePolicy(event.target.value as typeof judgePolicy)}><option value="flash-pro-review">Flash + automatic Pro review</option><option value="flash">Flash only</option><option value="pro">Flash + Pro on every call</option></select></label>
+            <p className="col-span-3 text-xs text-slate-500">All calls use clean baseline audio. Flash reasons over every call; Pro review follows the selected policy.</p>
           </div>
-        </section>
+        )}
 
         <button type="submit" disabled={saving || !datasetId || !runtimeId} className="btn-primary w-full justify-center">{saving ? 'Starting experiment...' : 'Run experiment'}</button>
       </form>

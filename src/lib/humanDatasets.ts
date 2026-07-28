@@ -105,7 +105,7 @@ async function buildBehaviorGraph(
       allowEmotionVariation: true,
       allowPacingVariation: true,
       allowVoiceVariation: true,
-      allowedEnvironmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
+      allowedEnvironmentProfiles: ['clean'],
       unconstrainedCallerGeneration: false,
     },
   };
@@ -236,7 +236,7 @@ export async function deriveCaseFromCapture(params: {
         allowInterruptionVariation: true,
         allowVoiceVariation: true,
         allowVoiceCloning: params.voiceCloneConsent === true && Boolean(capture.humanAudioUrl),
-        environmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
+        environmentProfiles: ['clean'],
       },
     }).returning();
 

@@ -335,7 +335,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
           allowInterruptionVariation: true,
           allowVoiceVariation: true,
           allowVoiceCloning: false,
-          environmentProfiles: ['clean', 'office_cafe', 'car_street', 'latency_jitter', 'packet_loss', 'codec_bandwidth', 'compound_stress'],
+          environmentProfiles: ['clean'],
         },
       }).returning();
 

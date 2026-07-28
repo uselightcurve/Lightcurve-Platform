@@ -54,11 +54,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 Write the next caller utterance for a voice-agent evaluation. Return only the utterance.
   It must preserve the exact intent and facts of the human-observed baseline, respond
   naturally to the latest agent response, and stay inside the supplied temporal scenario.
+  Apply each selected scenario directive while preserving the production caller's original goal.
   Recreate the supplied speaking style and emotional state without copying the baseline
   sentence word-for-word. Do not add a new goal, fact, request, or persona. Keep it under 60 words.
 Replay seed: ${row.job.replaySeed}
   Replay manifest: ${JSON.stringify(manifest)}
   Temporal scenario turn: ${JSON.stringify(temporalTurn)}
+Selected scenario directives: ${JSON.stringify(manifest.scenarioDirectives ?? [])}
 Behavior graph: ${JSON.stringify(anonymizeBehaviorGraph(graph))}
 Human-observed baseline: ${baseline}
 Latest agent response: ${previousAgentText || '[opening turn]'}
