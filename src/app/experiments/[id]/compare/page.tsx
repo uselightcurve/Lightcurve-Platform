@@ -101,7 +101,7 @@ export default function CompareRunsPage({ params }: { params: Promise<{ id: stri
     <div className="space-y-6">
       <div>
         <Link href={`/experiments/${id}`} className="text-sm text-slate-500">← Back to Experiment</Link>
-        <h1 className="page-title mt-3">Compare Runs</h1>
+        <h1 className="page-title mt-3">Compare models</h1>
         <p className="page-subtitle">{expData.experiment?.name} · Side-by-side call comparison</p>
       </div>
 

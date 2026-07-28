@@ -45,7 +45,9 @@ export default function NewExperimentPage() {
   const seed = 20260620;
   const judgePolicy = 'flash-pro-review';
   const environmentMix = defaultEnvironmentMix;
-  const agentConfigs: AgentConfigInput[] = [{ id: 'config-1', name: 'Baseline (GPT-4o)', stt: 'Deepgram', llm: 'GPT-4o', tts: 'ElevenLabs' }];
+  const [agentConfigs, setAgentConfigs] = useState<AgentConfigInput[]>([
+    { id: 'config-1', name: 'Baseline (GPT-4o)', stt: 'Deepgram', llm: 'GPT-4o', tts: 'ElevenLabs' },
+  ]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -177,9 +179,72 @@ export default function NewExperimentPage() {
           </div>
         </fieldset>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <strong className="text-slate-800">Release mix:</strong> 20% clean, 20% office/café, 15% car/street, 15% latency/jitter, and 30% packet loss, bandwidth, and compound stress.
-        </div>
+        <section className="space-y-3 border-t border-slate-100 pt-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Compare models</h2>
+              <p className="mt-1 text-xs text-slate-500">Run the same cases against multiple voice-agent configurations.</p>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => setAgentConfigs((current) => [
+                ...current,
+                {
+                  id: `config-${Date.now()}`,
+                  name: `Configuration ${current.length + 1}`,
+                  stt: 'Whisper',
+                  llm: 'Claude 3.5 Sonnet',
+                  tts: 'Cartesia',
+                },
+              ])}
+            >
+              Add model
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {agentConfigs.map((config, index) => (
+              <div key={config.id} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(150px,1.3fr)_1fr_1fr_1fr_auto]">
+                <input
+                  className="input-field"
+                  aria-label={`Configuration ${index + 1} name`}
+                  value={config.name}
+                  onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, name: event.target.value } : item))}
+                />
+                <select className="input-field" aria-label={`Configuration ${index + 1} speech model`} value={config.stt} onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, stt: event.target.value } : item))}>
+                  <option>Deepgram</option>
+                  <option>Gladia</option>
+                  <option>Whisper</option>
+                </select>
+                <select className="input-field" aria-label={`Configuration ${index + 1} language model`} value={config.llm} onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, llm: event.target.value } : item))}>
+                  <option>GPT-4o</option>
+                  <option>GPT-4o-mini</option>
+                  <option>Claude 3.5 Sonnet</option>
+                  <option>Claude 3 Haiku</option>
+                  <option>Gemini 1.5 Pro</option>
+                  <option>Llama 3 70B</option>
+                </select>
+                <select className="input-field" aria-label={`Configuration ${index + 1} voice model`} value={config.tts} onChange={(event) => setAgentConfigs((current) => current.map((item) => item.id === config.id ? { ...item, tts: event.target.value } : item))}>
+                  <option>ElevenLabs</option>
+                  <option>Cartesia</option>
+                  <option>PlayHT</option>
+                  <option>OpenAI TTS</option>
+                </select>
+                <button
+                  type="button"
+                  aria-label={`Remove ${config.name}`}
+                  title="Remove model"
+                  disabled={agentConfigs.length === 1}
+                  className="h-10 w-10 rounded-md border border-slate-200 text-lg text-slate-500 hover:border-red-200 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setAgentConfigs((current) => current.filter((item) => item.id !== config.id))}
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <button type="submit" disabled={saving || !datasetId || !runtimeId} className="btn-primary w-full justify-center">{saving ? 'Starting experiment...' : 'Run experiment'}</button>
       </form>

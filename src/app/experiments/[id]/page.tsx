@@ -62,7 +62,7 @@ export default function ExperimentDetailPage({ params }: { params: Promise<{ id:
         <div className="flex flex-col items-end gap-2">
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium capitalize text-slate-600">{data.experiment.status}</span>
           {data.runs.length > 1 && (
-            <Link href={`/experiments/${id}/compare`} className="text-xs font-medium text-[#2f5ae0] hover:text-blue-800 transition-colors">Compare Runs →</Link>
+            <Link href={`/experiments/${id}/compare`} className="text-xs font-medium text-[#2f5ae0] hover:text-blue-800 transition-colors">Compare models →</Link>
           )}
         </div>
       </div>
