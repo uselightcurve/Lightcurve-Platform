@@ -45,9 +45,9 @@ async function transcribeUploadedAudio(params: {
   bytes: Buffer;
   mimeType: string;
   filename: string;
-  language: string;
+  language?: string;
 }) {
-  const requestedLanguage = sttLanguageForCaseLanguage(params.language);
+  const requestedLanguage = params.language ? sttLanguageForCaseLanguage(params.language) : undefined;
   try {
     return await transcribeAudio({
       bytes: params.bytes,
@@ -164,7 +164,10 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const datasetId = formData.get('datasetId');
-    const language = normalizeCaseLanguage(formData.get('language'));
+    const requestedLanguage = formData.get('language');
+    const language = typeof requestedLanguage === 'string' && requestedLanguage
+      ? normalizeCaseLanguage(requestedLanguage)
+      : 'en-US';
     
     if (!file || !file.type.startsWith('audio/')) {
       return NextResponse.json({ error: 'A valid audio file is required.' }, { status: 400 });
@@ -186,7 +189,7 @@ export async function POST(req: Request) {
         bytes,
         mimeType: file.type,
         filename: file.name,
-        language,
+        language: typeof requestedLanguage === 'string' && requestedLanguage ? language : undefined,
       });
     } catch (error) {
       console.error('Audio transcription failed; recording was not saved as a dataset case.', error);

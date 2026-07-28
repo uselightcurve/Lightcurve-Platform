@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { datasetCaseVersions, datasetCases, datasets } from '@/db/schema';
 import { requireAccount, unauthorizedJson } from '@/lib/account';
@@ -33,7 +33,35 @@ export async function GET(req: Request) {
       .where(eq(datasets.ownerUserId, account.userId))
       .groupBy(datasets.id)
       .orderBy(desc(datasets.updatedAt));
-    return NextResponse.json({ datasets: rows }, { headers: { 'Cache-Control': 'no-store' } });
+    const cases = await db
+      .select({
+        id: datasetCases.id,
+        datasetId: datasetCases.datasetId,
+        name: datasetCases.name,
+        language: datasetCases.language,
+        status: datasetCases.status,
+        provenance: datasetCases.provenance,
+        behaviorGraph: datasetCases.behaviorGraph,
+        createdAt: datasetCases.createdAt,
+      })
+      .from(datasetCases)
+      .innerJoin(datasets, and(
+        eq(datasetCases.datasetId, datasets.id),
+        eq(datasets.ownerUserId, account.userId),
+      ))
+      .orderBy(desc(datasetCases.createdAt));
+    const casesByDataset = new Map<string, typeof cases>();
+    for (const datasetCase of cases) {
+      const current = casesByDataset.get(datasetCase.datasetId) ?? [];
+      current.push(datasetCase);
+      casesByDataset.set(datasetCase.datasetId, current);
+    }
+    return NextResponse.json({
+      datasets: rows.map((dataset) => ({
+        ...dataset,
+        cases: casesByDataset.get(dataset.id) ?? [],
+      })),
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const unauthorized = unauthorizedJson(error);
     if (unauthorized) return unauthorized;
