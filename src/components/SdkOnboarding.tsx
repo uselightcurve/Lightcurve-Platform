@@ -43,11 +43,11 @@ export function SdkOnboarding({ showHeader = true }: { showHeader?: boolean }) {
   const [language, setLanguage] = useState<'python' | 'node'>('python');
 
   const installCommand = language === 'python'
-    ? 'pip install --upgrade https://app.uselightcurve.com/sdk/use_lightcurve-0.5.1-py3-none-any.whl'
+    ? 'pip install --upgrade https://app.uselightcurve.com/sdk/use_lightcurve-0.5.2-py3-none-any.whl'
     : 'npm install @use-lightcurve/sdk';
   const importSnippet = language === 'python' ? 'import lightcurve.auto' : "import { start } from '@use-lightcurve/sdk/dist/runtime';\n\nstart();";
   const runCommand = language === 'python' ? 'python app.py' : 'node index.js';
-  const versionInfo = language === 'python' ? 'Lightcurve SDK 0.5.1 · Python 3.10+' : 'Lightcurve SDK 0.2.2 · Node.js 18+';
+  const versionInfo = language === 'python' ? 'Lightcurve SDK 0.5.2 · Python 3.10+' : 'Lightcurve SDK 0.2.2 · Node.js 18+';
   const [secret, setSecret] = useState('');
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [creating, setCreating] = useState(false);

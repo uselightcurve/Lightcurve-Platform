@@ -78,7 +78,7 @@ class Lightcurve:
 
     def _request(self, method: str, path: str, payload: Mapping[str, Any] | None = None) -> JsonDict:
         body = json.dumps(payload).encode("utf-8") if payload is not None else None
-        headers = {"Accept": "application/json", "X-Lightcurve-SDK": "python/0.5.1"}
+        headers = {"Accept": "application/json", "X-Lightcurve-SDK": "python/0.5.2"}
         if body is not None:
             headers["Content-Type"] = "application/json"
         if self.api_key:

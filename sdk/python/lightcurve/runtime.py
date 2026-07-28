@@ -55,7 +55,7 @@ class RuntimeClient:
                 "Accept": "application/json",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}",
-                "X-Lightcurve-SDK": "python/0.5.1",
+                "X-Lightcurve-SDK": "python/0.5.2",
             },
         )
         try:
@@ -598,12 +598,15 @@ def install_pipecat_instrumentation() -> None:
 
 def install_livekit_instrumentation() -> None:
     try:
-        from livekit.agents import JobContext
-        from livekit.agents.voice_assistant import VoiceAssistant
+        from livekit.agents import AgentSession, JobContext
         from livekit import rtc
     except ImportError:
         logger.debug("livekit-agents is not installed; skipping LiveKit instrumentation.")
         return
+    try:
+        from livekit.agents.voice_assistant import VoiceAssistant
+    except ImportError:
+        VoiceAssistant = None
 
     if os.getenv("LIGHTCURVE_AGENT_FRAMEWORK") is None and runtime.framework == "pipecat":
         runtime.framework = "livekit"
@@ -620,8 +623,43 @@ def install_livekit_instrumentation() -> None:
         instrumented_job_init.__lightcurve_instrumented__ = True
         JobContext.__init__ = instrumented_job_init
 
-    original_agent_init = VoiceAssistant.__init__
-    if not getattr(original_agent_init, "__lightcurve_instrumented__", False):
+    original_session_init = AgentSession.__init__
+    if not getattr(original_session_init, "__lightcurve_instrumented__", False):
+        def instrumented_session_init(session, *args, **kwargs):
+            original_session_init(session, *args, **kwargs)
+
+            @session.on("conversation_item_added")
+            def on_conversation_item_added(event):
+                item = getattr(event, "item", None)
+                role = str(getattr(item, "role", "")).lower()
+                if role not in {"assistant", "agent"}:
+                    return
+                text = getattr(item, "text_content", "") or getattr(item, "raw_text_content", "")
+                if not text:
+                    return
+                for ctx in runtime.workers:
+                    capture_id = runtime.worker_sessions.get(id(ctx))
+                    if not capture_id:
+                        continue
+                    at_ms = int((time.monotonic() - runtime.capture_started.get(capture_id, time.monotonic())) * 1000)
+                    runtime.transcripts.setdefault(capture_id, []).append({
+                        "speaker": "agent",
+                        "text": str(text),
+                        "startedAtMs": at_ms,
+                    })
+                    stopped = runtime.bot_stopped_events.get(capture_id)
+                    if stopped and runtime.loop:
+                        runtime.loop.call_soon_threadsafe(stopped.set)
+                    break
+
+        instrumented_session_init.__lightcurve_instrumented__ = True
+        AgentSession.__init__ = instrumented_session_init
+
+    if VoiceAssistant is not None:
+        original_agent_init = VoiceAssistant.__init__
+    else:
+        original_agent_init = None
+    if original_agent_init is not None and not getattr(original_agent_init, "__lightcurve_instrumented__", False):
         def instrumented_agent_init(agent, *args, **kwargs):
             original_agent_init(agent, *args, **kwargs)
 
