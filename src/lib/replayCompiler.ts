@@ -220,10 +220,20 @@ function graphPaths(graph: Record<string, unknown>) {
     ? [path.filter((node): node is string => typeof node === 'string')]
     : []
   ).filter((path) => path.length);
-  if (allowed.length) return allowed;
+  if (allowed.length) return allowed.map(representativePath);
   const observed = Array.isArray(graph.observedPath) ? graph.observedPath : Array.isArray(graph.nodes) ? graph.nodes : [];
   const human = observed.map(object).filter((node) => node.speaker === 'human' && typeof node.id === 'string').map((node) => node.id as string);
-  return human.length ? [human] : [[]];
+  return human.length ? [representativePath(human)] : [[]];
+}
+
+const MAX_REPLAY_CALLER_TURNS = 8;
+
+function representativePath(path: string[]) {
+  if (path.length <= MAX_REPLAY_CALLER_TURNS) return path;
+  return Array.from({ length: MAX_REPLAY_CALLER_TURNS }, (_, index) => {
+    const sourceIndex = Math.round(index * (path.length - 1) / (MAX_REPLAY_CALLER_TURNS - 1));
+    return path[sourceIndex];
+  });
 }
 
 function riskTags(graph: Record<string, unknown>, environment: string) {

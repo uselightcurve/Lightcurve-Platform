@@ -38,6 +38,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       traces: traceRows,
       scores: scoreRows,
       replayResult: resultRows[0] ?? null,
+      replayJob: jobRows[0] ? {
+        status: jobRows[0].status,
+        attemptCount: jobRows[0].attemptCount,
+        maxAttempts: jobRows[0].maxAttempts,
+        lastError: jobRows[0].lastError,
+      } : null,
       audio: { cleanCaller: audio[0], impairedCaller: audio[1], agent: audio[2] },
     });
   } catch (error) {

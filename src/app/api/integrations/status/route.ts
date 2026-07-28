@@ -6,7 +6,7 @@ export async function GET() {
       id: 'pipecat-sdk',
       name: 'Lightcurve Pipecat SDK',
       mode: 'outbound-runtime',
-      sdkVersion: '0.5.0',
+      sdkVersion: '0.5.1',
       graphSchema: 'lightcurve.human_behavior_graph.v2',
       telephony: false,
       configured: true,

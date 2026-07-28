@@ -55,7 +55,7 @@ class RuntimeClient:
                 "Accept": "application/json",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}",
-                "X-Lightcurve-SDK": "python/0.5.0",
+                "X-Lightcurve-SDK": "python/0.5.1",
             },
         )
         try:
@@ -247,7 +247,21 @@ class RuntimeClient:
         self.bot_stopped_events[session_id] = asyncio.Event()
         graph_path: list[str] = []
         caller_artifacts: list[dict[str, Any]] = []
+        caller_room = None
+        caller_source = None
         try:
+            livekit_caller = command.get("livekitCaller")
+            if isinstance(livekit_caller, dict):
+                from livekit import rtc
+                caller_room = rtc.Room()
+                await caller_room.connect(str(livekit_caller["url"]), str(livekit_caller["token"]))
+                caller_source = rtc.AudioSource(16000, 1)
+                caller_track = rtc.LocalAudioTrack.create_audio_track("lightcurve_caller", caller_source)
+                await caller_room.local_participant.publish_track(
+                    caller_track,
+                    rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
+                )
+                await asyncio.sleep(1)
             for index, node in enumerate(human_nodes):
                 agent_turns_before = sum(1 for item in self._normalized_transcript(session_id) if item.get("speaker") == "agent")
                 node_id = str(node.get("id", ""))
@@ -277,8 +291,8 @@ class RuntimeClient:
                 response_delay = max(0, min(5000, int(timing.get("responseDelayMs", 0))))
                 if response_delay:
                     await asyncio.sleep(response_delay / 1000)
-                await self._feed_pcm(worker, audio, sample_rate, channels, turn.get("transport") or {}, command.get("replaySeed", 42) + index)
-                await self._feed_pcm(worker, bytes(int(sample_rate * channels * 2 * 0.5)), sample_rate, channels, {}, command.get("replaySeed", 42) + index + 1)
+                await self._feed_pcm(worker, audio, sample_rate, channels, turn.get("transport") or {}, command.get("replaySeed", 42) + index, caller_source)
+                await self._feed_pcm(worker, bytes(int(sample_rate * channels * 2 * 0.5)), sample_rate, channels, {}, command.get("replaySeed", 42) + index + 1, caller_source)
                 interruption_offset = timing.get("interruptionOffsetMs") if index + 1 < len(human_nodes) else None
                 if interruption_offset is not None:
                     await asyncio.sleep(max(0, min(5000, int(interruption_offset))) / 1000)
@@ -307,18 +321,20 @@ class RuntimeClient:
             except Exception as report_error:
                 logger.warning("Lightcurve could not report replay failure: %s", report_error)
         finally:
+            if caller_room is not None:
+                await caller_room.disconnect()
             self.bot_stopped_events.pop(session_id, None)
             self.release_worker(worker)
 
-    async def _feed_pcm(self, worker: Any, audio: bytes, sample_rate: int, channels: int, transport: dict[str, Any], seed: int) -> None:
+    async def _feed_pcm(self, worker: Any, audio: bytes, sample_rate: int, channels: int, transport: dict[str, Any], seed: int, replay_source: Any = None) -> None:
         worker_loop = self.worker_loops.get(id(worker))
         if worker_loop is None:
             raise RuntimeError("Agent pipeline has not started.")
 
         is_pipecat = hasattr(worker, "queue_frame")
-        livekit_source = None
+        livekit_source = replay_source
 
-        if not is_pipecat:
+        if not is_pipecat and livekit_source is None:
             room = getattr(worker, "room", None)
             if not room:
                 raise RuntimeError("LiveKit JobContext has no active room for replay audio.")

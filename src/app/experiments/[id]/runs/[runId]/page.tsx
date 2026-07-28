@@ -11,6 +11,7 @@ type RunData = {
   traces: Array<{ id: string; speaker?: string | null; text?: string | null }>;
   scores: Score[];
   replayResult?: { status: string; graphPath?: unknown; artifacts?: unknown } | null;
+  replayJob?: { status: string; attemptCount: number; maxAttempts: number; lastError?: string | null } | null;
   audio: { cleanCaller?: string | null; impairedCaller?: string | null; agent?: string | null };
 };
 
@@ -115,6 +116,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4"><div><Link href={`/experiments/${id}`} className="text-sm text-slate-500">← Experiment</Link><h1 className="page-title mt-3">{data.case?.name || 'Dataset case'}</h1><p className="page-subtitle">Production call replay · Variant #{(data.run.variantIndex ?? 0) + 1}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{displayStatus}</span></div>
       {data.run.failureSummary ? <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{data.run.failureSummary}</div> : null}
+      {data.replayJob?.lastError ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{data.replayJob.lastError} Attempt {data.replayJob.attemptCount} of {data.replayJob.maxAttempts}.</div> : null}
       {data.run.scoringStatus === 'queued' || data.run.scoringStatus === 'retry_exhausted' ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Scoring is waiting to retry. The replay and all private audio are preserved; no substitute score has been created.</div> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

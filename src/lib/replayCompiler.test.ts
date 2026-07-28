@@ -49,3 +49,14 @@ test('Environment variation requires an explicit experiment opt-in', () => {
   assert.ok(result.manifests.every((manifest) => ['clean', 'latency_jitter'].includes(manifest.environment)));
   assert.ok(result.manifests.every((manifest) => manifest.graphPath.every((node) => node === 'a')));
 });
+
+test('Long production calls compile to eight representative caller turns', () => {
+  const observedPath = Array.from({ length: 88 }, (_, index) => ({ id: `turn_${index + 1}`, speaker: 'human' }));
+  const result = compileReplayManifests([{
+    ...cases[0],
+    behaviorGraph: { observedPath, allowedPaths: [observedPath.map((node) => node.id)] },
+  }], { replayCount: 1 });
+  assert.equal(result.manifests[0].graphPath.length, 8);
+  assert.equal(result.manifests[0].graphPath[0], 'turn_1');
+  assert.equal(result.manifests[0].graphPath[7], 'turn_88');
+});
