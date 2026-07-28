@@ -42,13 +42,10 @@ export default function NewExperimentPage() {
   const [scenarioIds, setScenarioIds] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [preset, setPreset] = useState<Preset>('release');
-  const [replayCount, setReplayCount] = useState(100);
-  const [maxConcurrency, setMaxConcurrency] = useState(20);
-  const [seed, setSeed] = useState(20260620);
-  const [judgePolicy, setJudgePolicy] = useState<'flash-pro-review' | 'flash' | 'pro'>('flash-pro-review');
-  const [environmentMix, setEnvironmentMix] = useState<Record<string, number>>(defaultEnvironmentMix);
-  const [agentConfigs, setAgentConfigs] = useState<AgentConfigInput[]>([{ id: 'config-1', name: 'Baseline (GPT-4o)', stt: 'Deepgram', llm: 'GPT-4o', tts: 'ElevenLabs' }]);
-  const [advanced, setAdvanced] = useState(false);
+  const seed = 20260620;
+  const judgePolicy = 'flash-pro-review';
+  const environmentMix = defaultEnvironmentMix;
+  const agentConfigs: AgentConfigInput[] = [{ id: 'config-1', name: 'Baseline (GPT-4o)', stt: 'Deepgram', llm: 'GPT-4o', tts: 'ElevenLabs' }];
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -119,12 +116,12 @@ export default function NewExperimentPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="page-title">Run a Voice Test</h1>
+        <h1 className="page-title">Run experiment</h1>
         <p className="page-subtitle">Test your agent against saved datasets and edge cases.</p>
       </div>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       <form onSubmit={createExperiment} className="space-y-6 rounded-xl border border-slate-200 bg-white p-6">
-        <label className="block text-sm text-slate-600">Run name<input className="input-field mt-2" value={name} onChange={(event) => setName(event.target.value)} placeholder="Release candidate evaluation" /></label>
+        <label className="block text-sm text-slate-600">Experiment name<input className="input-field mt-2" value={name} onChange={(event) => setName(event.target.value)} placeholder="Release candidate evaluation" /></label>
         
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-slate-600">Dataset<select className="input-field mt-2" value={datasetId} onChange={(event) => setDatasetId(event.target.value)}>{datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.name} · {dataset.caseCount} Cases · v{dataset.currentVersion}</option>)}</select></label>
@@ -184,61 +181,7 @@ export default function NewExperimentPage() {
           <strong className="text-slate-800">Release mix:</strong> 20% clean, 20% office/café, 15% car/street, 15% latency/jitter, and 30% packet loss, bandwidth, and compound stress.
         </div>
 
-        <button type="button" className="text-left text-sm font-medium text-[#2f5ae0]" onClick={() => setAdvanced((value) => !value)}>{advanced ? 'Hide advanced settings' : 'Advanced settings'}</button>
-        {advanced && (
-          <div className="grid grid-cols-3 gap-4 rounded-xl border border-slate-200 p-4">
-            <label className="text-sm text-slate-600">Replay calls<input type="number" min={1} max={5000} className="input-field mt-2" value={replayCount} onChange={(event) => setReplayCount(Number(event.target.value))} /></label>
-            <label className="text-sm text-slate-600">Max concurrency<input type="number" min={1} max={200} className="input-field mt-2" value={maxConcurrency} onChange={(event) => setMaxConcurrency(Number(event.target.value))} /></label>
-            <label className="text-sm text-slate-600">Seed<input type="number" min={1} className="input-field mt-2" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label>
-            <label className="col-span-3 text-sm text-slate-600">Judge mode<select className="input-field mt-2" value={judgePolicy} onChange={(event) => setJudgePolicy(event.target.value as typeof judgePolicy)}><option value="flash-pro-review">Flash + automatic Pro review</option><option value="flash">Flash only</option><option value="pro">Flash + Pro on every call</option></select></label>
-            <div className="col-span-3"><p className="text-sm font-medium text-slate-700">Environment weights</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{Object.entries(environmentMix).map(([profile, weight]) => <label key={profile} className="text-xs text-slate-500">{profile.replaceAll('_', ' ')}<input type="number" min={0} max={100} className="input-field mt-1" value={weight} onChange={(event) => setEnvironmentMix((current) => ({ ...current, [profile]: Math.max(0, Number(event.target.value)) }))} /></label>)}</div></div>
-            <p className="col-span-3 text-xs text-slate-500">Weights are normalized automatically. Flash reasons over every call; Pro review follows the selected policy.</p>
-
-            <div className="col-span-3 mt-4 pt-4 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-slate-700">Compare Models (Agent Configurations)</p>
-                <button type="button" onClick={() => setAgentConfigs(prev => [...prev, { id: `config-${Date.now()}`, name: `Config ${prev.length + 1}`, stt: 'Deepgram', llm: 'Claude 3.5 Sonnet', tts: 'Cartesia' }])} className="text-xs font-medium text-[#2f5ae0] hover:text-[#2040a0]">+ Add Configuration</button>
-              </div>
-              <div className="space-y-3">
-                {agentConfigs.map((config, index) => (
-                  <div key={config.id} className="flex flex-col sm:flex-row gap-3 p-3 rounded-lg border border-slate-200 bg-white items-start sm:items-center">
-                    <input className="input-field flex-1 text-sm font-medium" value={config.name} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].name = e.target.value; setAgentConfigs(newConfigs); }} placeholder="Config Name" />
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <select className="input-field text-xs flex-1" value={config.stt} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].stt = e.target.value; setAgentConfigs(newConfigs); }}>
-                        <option value="Deepgram">Deepgram</option>
-                        <option value="Gladia">Gladia</option>
-                        <option value="Whisper">Whisper</option>
-                      </select>
-                      <select className="input-field text-xs flex-1" value={config.llm} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].llm = e.target.value; setAgentConfigs(newConfigs); }}>
-                        <option value="GPT-4o">GPT-4o</option>
-                        <option value="GPT-4o-mini">GPT-4o-mini</option>
-                        <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                        <option value="Claude 3 Haiku">Claude 3 Haiku</option>
-                        <option value="Gemini 1.5 Pro">Gemini 1.5 Pro</option>
-                        <option value="Llama 3 70B">Llama 3 70B</option>
-                      </select>
-                      <select className="input-field text-xs flex-1" value={config.tts} onChange={(e) => { const newConfigs = [...agentConfigs]; newConfigs[index].tts = e.target.value; setAgentConfigs(newConfigs); }}>
-                        <option value="ElevenLabs">ElevenLabs</option>
-                        <option value="Cartesia">Cartesia</option>
-                        <option value="PlayHT">PlayHT</option>
-                        <option value="OpenAI TTS">OpenAI TTS</option>
-                      </select>
-                      {agentConfigs.length > 1 && (
-                        <button type="button" onClick={() => setAgentConfigs(prev => prev.filter(c => c.id !== config.id))} className="p-2 text-slate-400 hover:text-red-600 rounded-md border border-slate-200 hover:border-red-200">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-slate-500">Adding multiple configurations will run the dataset against each variant so you can compare their performance side-by-side.</p>
-            </div>
-          </div>
-        )}
-
-
-        <button type="submit" disabled={saving || !datasetId || !runtimeId} className="btn-primary w-full justify-center">{saving ? 'Starting test...' : 'Start automated evaluation'}</button>
+        <button type="submit" disabled={saving || !datasetId || !runtimeId} className="btn-primary w-full justify-center">{saving ? 'Starting experiment...' : 'Run experiment'}</button>
       </form>
     </div>
   );
