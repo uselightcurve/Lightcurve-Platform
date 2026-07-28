@@ -10,6 +10,11 @@ function record(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function numberFrom(value: unknown, fallback: number) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
 export async function POST(req: Request) {
   try {
     const account = await requireSdkAccount(req);
@@ -22,7 +27,9 @@ export async function POST(req: Request) {
       eq(agentRuntimes.ownerUserId, account.userId),
     )).limit(1);
     if (!runtime) return NextResponse.json({ error: 'Runtime not found.' }, { status: 404 });
-    const availableCapacity = body.busy === true ? 0 : Math.max(0, Math.min(50, Math.round(Number(body.availableCapacity) || 1)));
+    const availableCapacity = body.busy === true ? 0 : Math.max(0, Math.min(50, Math.round(numberFrom(body.availableCapacity, 1))));
+    const activeSessions = Math.max(0, Math.floor(numberFrom(body.activeSessions, 0)));
+    const reportedCapacity = Math.max(0, Math.floor(numberFrom(body.capacity, activeSessions + availableCapacity)));
     const now = new Date();
     await db.update(agentRuntimes).set({
       status: 'online',
@@ -35,8 +42,14 @@ export async function POST(req: Request) {
     if (typeof body.instanceId === 'string') {
       await db.update(runtimeInstances).set({
         status: 'online',
-        activeSessions: Number.isFinite(body.activeSessions) ? Math.max(0, Math.floor(body.activeSessions)) : 0,
-        capacity: Math.max(1, availableCapacity),
+        activeSessions,
+        capacity: Math.max(1, reportedCapacity),
+        metadata: {
+          availableCapacity,
+          busy: availableCapacity === 0,
+          reportedCapacity,
+          lastPollAt: now.toISOString(),
+        },
         lastSeenAt: now,
       }).where(and(
         eq(runtimeInstances.id, body.instanceId),

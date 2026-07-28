@@ -8,11 +8,12 @@ export async function POST(req: Request) {
     const account = await requireSdkAccount(req);
     const body = await req.json().catch(() => ({}));
     const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'Pipecat agent';
+    const framework = typeof body.framework === 'string' && body.framework.trim() ? body.framework.trim() : 'pipecat';
     const now = new Date();
     const [runtime] = await db.insert(agentRuntimes).values({
       ownerUserId: account.userId,
       name,
-      framework: 'pipecat',
+      framework,
       version: typeof body.version === 'string' ? body.version : null,
       gitSha: typeof body.gitSha === 'string' ? body.gitSha : null,
       status: 'online',
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     }).onConflictDoUpdate({
       target: [agentRuntimes.ownerUserId, agentRuntimes.name],
       set: {
-        framework: 'pipecat',
+        framework,
         version: typeof body.version === 'string' ? body.version : null,
         gitSha: typeof body.gitSha === 'string' ? body.gitSha : null,
         status: 'online',

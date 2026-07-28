@@ -26,6 +26,7 @@ class RuntimeClient:
         self.api_key = os.getenv("LIGHTCURVE_API_KEY", "").strip()
         self.base_url = os.getenv("LIGHTCURVE_BASE_URL", "https://app.uselightcurve.com").rstrip("/")
         self.name = os.getenv("LIGHTCURVE_AGENT_NAME", "Pipecat agent").strip() or "Pipecat agent"
+        self.framework = os.getenv("LIGHTCURVE_AGENT_FRAMEWORK", "pipecat").strip() or "pipecat"
         self.instance_key = os.getenv("LIGHTCURVE_INSTANCE_ID", f"{socket.gethostname()}-{os.getpid()}")
         self.runtime_id: str | None = None
         self.instance_id: str | None = None
@@ -75,6 +76,7 @@ class RuntimeClient:
         self.loop = asyncio.get_running_loop()
         registered = await self.request_async("POST", "/api/sdk/runtime/register", {
             "name": self.name,
+            "framework": self.framework,
             "instanceKey": self.instance_key,
             "version": os.getenv("LIGHTCURVE_AGENT_VERSION"),
             "gitSha": os.getenv("GITHUB_SHA") or os.getenv("LIGHTCURVE_GIT_SHA"),
@@ -107,6 +109,8 @@ class RuntimeClient:
                     "runtimeId": self.runtime_id,
                     "instanceId": self.instance_id,
                     "busy": not available,
+                    "activeSessions": len(self.worker_sessions),
+                    "capacity": self.effective_capacity(),
                     "availableCapacity": len(available),
                 })
                 commands = result.get("commands")
@@ -580,6 +584,11 @@ def install_livekit_instrumentation() -> None:
     except ImportError:
         logger.debug("livekit-agents is not installed; skipping LiveKit instrumentation.")
         return
+
+    if os.getenv("LIGHTCURVE_AGENT_FRAMEWORK") is None and runtime.framework == "pipecat":
+        runtime.framework = "livekit"
+    if os.getenv("LIGHTCURVE_AGENT_NAME") is None and runtime.name == "Pipecat agent":
+        runtime.name = "LiveKit agent"
 
     original_job_init = JobContext.__init__
     if not getattr(original_job_init, "__lightcurve_instrumented__", False):
