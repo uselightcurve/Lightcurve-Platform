@@ -16,6 +16,19 @@ type RunData = {
 
 function label(value: string) { return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 
+function runStatusLabel(status: string, scoringStatus: string) {
+  if (status === 'scoring') return `Scoring ${label(scoringStatus)}`;
+  return label(status);
+}
+
+function emptyTraceMessage(status: string, scoringStatus: string) {
+  if (status === 'running') return 'Replay is running on the SDK runtime. Captured turns will appear here.';
+  if (status === 'scoring') return scoringStatus === 'complete' ? 'Replay completed. Trace artifacts are being prepared.' : 'Replay completed. AI scoring is running.';
+  if (status === 'queued' || status === 'pending') return 'Replay is queued and waiting for the SDK runtime to pick it up.';
+  if (status === 'failed' || status === 'scoring_failed') return 'Replay did not produce a conversation trace.';
+  return 'Replay trace is not available yet.';
+}
+
 export default function RunDetailPage({ params }: { params: Promise<{ id: string; runId: string }> }) {
   const { id, runId } = use(params);
   const [data, setData] = useState<RunData | null>(null);
@@ -96,10 +109,11 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   if (!data) return <div className="text-sm text-slate-500">Loading replay…</div>;
   const manifest = data.run.replayManifest ?? {};
   const scores = new Map(data.scores.flatMap((score) => score.metricName && typeof score.value === 'number' ? [[score.metricName, score.value] as const] : []));
-  const isPending = !['complete', 'failed', 'scoring_failed'].includes(data.run.status);
+  const displayStatus = runStatusLabel(data.run.status, data.run.scoringStatus);
+  const traceMessage = emptyTraceMessage(data.run.status, data.run.scoringStatus);
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4"><div><Link href={`/experiments/${id}`} className="text-sm text-slate-500">← Experiment</Link><h1 className="page-title mt-3">{data.case?.name || 'Dataset case'}</h1><p className="page-subtitle">Automated Test Call · {manifest.environment ? label(manifest.environment) : 'Clean'}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs capitalize text-slate-600">{isPending ? data.run.scoringStatus || data.run.status : data.run.status}</span></div>
+      <div className="flex items-start justify-between gap-4"><div><Link href={`/experiments/${id}`} className="text-sm text-slate-500">← Experiment</Link><h1 className="page-title mt-3">{data.case?.name || 'Dataset case'}</h1><p className="page-subtitle">Automated Test Call · {manifest.environment ? label(manifest.environment) : 'Clean'}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{displayStatus}</span></div>
       {data.run.failureSummary ? <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{data.run.failureSummary}</div> : null}
       {data.run.scoringStatus === 'queued' || data.run.scoringStatus === 'retry_exhausted' ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Scoring is waiting to retry. The replay and all private audio are preserved; no substitute score has been created.</div> : null}
 
@@ -111,7 +125,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
       {(data.audio.cleanCaller || data.audio.impairedCaller || data.audio.agent) ? <section className="card p-5"><h2 className="font-semibold text-slate-900">Private audio artifacts</h2><div className="mt-4 grid gap-4 lg:grid-cols-3">{([['Clean caller', data.audio.cleanCaller], ['Impaired caller', data.audio.impairedCaller], ['Agent output', data.audio.agent]] as const).map(([name, source]) => <div key={name}><p className="mb-2 text-xs text-slate-500">{name}</p>{source ? <audio className="w-full" controls preload="none" src={source} /> : <p className="text-sm text-slate-400">Pending</p>}</div>)}</div></section> : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Conversation trace</h2><p className="mt-1 text-xs text-slate-500">{data.run.turnCount ?? data.traces.length} captured turns</p></div>{data.traces.length ? data.traces.map((trace) => <div key={trace.id} className="border-b border-slate-100 px-5 py-4 last:border-0"><p className="text-xs font-medium uppercase text-slate-400">{trace.speaker}</p><p className="mt-1 text-sm text-slate-800">{trace.text}</p></div>) : <div className="px-5 py-10 text-center text-sm text-slate-500">Replay is waiting for available SDK capacity.</div>}</section>
+      <section className="rounded-xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Conversation trace</h2><p className="mt-1 text-xs text-slate-500">{data.run.turnCount ?? data.traces.length} captured turns</p></div>{data.traces.length ? data.traces.map((trace) => <div key={trace.id} className="border-b border-slate-100 px-5 py-4 last:border-0"><p className="text-xs font-medium uppercase text-slate-400">{trace.speaker}</p><p className="mt-1 text-sm text-slate-800">{trace.text}</p></div>) : <div className="px-5 py-10 text-center text-sm text-slate-500">{traceMessage}</div>}</section>
 
       {data.run.judgeMetadata ? <section className="card p-5"><h2 className="font-semibold text-slate-900">AI Evaluation</h2><p className="mt-1 text-sm text-slate-500">Evaluated by AI{data.run.judgeMetadata.pro ? ' · Pro model applied' : ''} · confidence {typeof data.run.judgeMetadata.confidence === 'number' ? data.run.judgeMetadata.confidence.toFixed(2) : '—'}</p>{data.run.judgeMetadata.failureTaxonomy?.length ? <div className="mt-3 flex flex-wrap gap-2">{data.run.judgeMetadata.failureTaxonomy.map((item) => <span key={item} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{label(item)}</span>)}</div> : null}{data.run.judgeMetadata.rationale ? <div className="mt-4 rounded-lg bg-slate-50 p-4 border border-slate-100"><h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Evaluation Reasoning</h3><p className="text-sm text-slate-700 whitespace-pre-wrap">{data.run.judgeMetadata.rationale}</p></div> : null}<details className="mt-4"><summary className="cursor-pointer text-sm font-medium text-blue-700">View judge record</summary><pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-white border border-slate-200 shadow-sm p-4 text-xs text-slate-800">{JSON.stringify(data.run.judgeMetadata, null, 2)}</pre></details></section> : null}
       {data.run.judgeMetadata?.actionableFixes?.length ? <section className="card p-5"><h2 className="font-semibold text-slate-900">Suggested Fixes</h2><p className="mt-1 text-sm text-slate-600">Here are the suggested rule changes to fix this issue:</p><ul className="mt-4 space-y-4">{data.run.judgeMetadata.actionableFixes.map((fix, idx) => {
