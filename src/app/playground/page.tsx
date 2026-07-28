@@ -251,7 +251,7 @@ export default function PlaygroundPage() {
                 <select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>
                   {runtimes.map((runtime) => (
                     <option key={runtime.id} value={runtime.id} disabled={runtime.status !== 'online'}>
-                      {runtime.name}{runtime.version ? ` - ${runtime.version}` : ''}{runtime.availability === 'busy' ? ' (busy)' : runtime.status !== 'online' ? ' (offline)' : ''}
+                      {runtime.name}{runtime.version ? ` - ${runtime.version}` : ''}{runtime.status !== 'online' ? ' (offline)' : ''}
                     </option>
                   ))}
                 </select>
