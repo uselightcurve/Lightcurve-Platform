@@ -261,7 +261,6 @@ export default function DatasetsPage() {
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 border-b border-slate-200 pb-3">
                 <div>
                   <h2 className="font-semibold text-slate-950">{dataset.name}</h2>
-                  {dataset.description && <p className="mt-1 text-sm text-slate-500">{dataset.description}</p>}
                 </div>
                 <span className="text-xs font-medium text-slate-500">{dataset.caseCount} {dataset.caseCount === 1 ? 'case' : 'cases'}</span>
               </div>
