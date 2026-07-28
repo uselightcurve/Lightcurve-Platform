@@ -249,6 +249,7 @@ class RuntimeClient:
         caller_artifacts: list[dict[str, Any]] = []
         try:
             for index, node in enumerate(human_nodes):
+                agent_turns_before = sum(1 for item in self._normalized_transcript(session_id) if item.get("speaker") == "agent")
                 node_id = str(node.get("id", ""))
                 if not node_id:
                     continue
@@ -283,9 +284,12 @@ class RuntimeClient:
                     await asyncio.sleep(max(0, min(5000, int(interruption_offset))) / 1000)
                 else:
                     try:
-                        await asyncio.wait_for(stopped.wait(), timeout=45)
+                        await asyncio.wait_for(stopped.wait(), timeout=12)
                     except asyncio.TimeoutError:
                         logger.warning("Agent did not finish a turn before the replay timeout.")
+                agent_turns_after = sum(1 for item in self._normalized_transcript(session_id) if item.get("speaker") == "agent")
+                if agent_turns_after <= agent_turns_before:
+                    raise RuntimeError("Agent did not produce a replay response. Check that the Lightcurve SDK is installed in the active LiveKit/Pipecat worker.")
                 graph_path.append(node_id)
 
             agent_audio_url = await self._upload_replay_agent_audio(job_id, session_id)
@@ -317,7 +321,7 @@ class RuntimeClient:
         if not is_pipecat:
             room = getattr(worker, "room", None)
             if not room:
-                return
+                raise RuntimeError("LiveKit JobContext has no active room for replay audio.")
             if not hasattr(worker, "_lightcurve_replay_source"):
                 from livekit import rtc
                 livekit_source = rtc.AudioSource(sample_rate, channels)

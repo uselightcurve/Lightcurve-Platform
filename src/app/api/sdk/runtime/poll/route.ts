@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { and, asc, eq, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { agentRuntimes, captureSessions, datasetCases, replayJobs, runs, runtimeInstances } from '@/db/schema';
+import { agentRuntimes, captureSessions, datasetCases, replayJobs, replayResults, runs, runtimeInstances } from '@/db/schema';
 import { requireSdkAccount, sdkUnauthorizedJson } from '@/lib/sdkAuth';
 import { iceServers } from '@/lib/webrtc';
 import { refreshExperimentProgress } from '@/lib/experimentRuns';
@@ -13,6 +13,18 @@ function record(value: unknown) {
 function numberFrom(value: unknown, fallback: number) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+const REPLAY_LEASE_MS = 2 * 60_000;
+const STALE_REPLAY_MS = 2 * 60_000;
+const MAX_REPLAY_GRAPH_NODES = 12;
+
+function replayManifest(value: unknown) {
+  const manifest = record(value);
+  const graphPath = Array.isArray(manifest.graphPath)
+    ? manifest.graphPath.filter((item): item is string => typeof item === 'string').slice(0, MAX_REPLAY_GRAPH_NODES)
+    : [];
+  return { ...manifest, graphPath };
 }
 
 export async function POST(req: Request) {
@@ -88,6 +100,24 @@ export async function POST(req: Request) {
       await db.update(runs).set({ status: 'failed', failureSummary: replay.job.lastError ?? 'SDK lease expired after maximum attempts.', endedAt: now }).where(eq(runs.id, replay.run.id));
       if (replay.run.experimentId) await refreshExperimentProgress(replay.run.experimentId);
     }
+    const staleSince = new Date(Date.now() - STALE_REPLAY_MS);
+    const stale = await db.select({ job: replayJobs, run: runs })
+      .from(replayJobs)
+      .innerJoin(runs, eq(runs.id, replayJobs.runId))
+      .where(and(
+        eq(replayJobs.runtimeId, runtime.id),
+        eq(replayJobs.status, 'running'),
+        lt(replayJobs.updatedAt, staleSince),
+        sql`${replayJobs.attemptCount} < ${replayJobs.maxAttempts}`,
+        sql`not exists (select 1 from ${replayResults} where ${replayResults.jobId} = ${replayJobs.id})`,
+      ))
+      .limit(10);
+    for (const replay of stale) {
+      const message = 'SDK replay lease produced no result before the watchdog timeout; retrying.';
+      await db.update(replayJobs).set({ status: 'queued', leaseOwner: null, leaseExpiresAt: null, lastError: message, updatedAt: now }).where(eq(replayJobs.id, replay.job.id));
+      await db.update(runs).set({ status: 'queued', failureSummary: null }).where(eq(runs.id, replay.run.id));
+      if (replay.run.experimentId) await refreshExperimentProgress(replay.run.experimentId);
+    }
     const remaining = Math.max(0, schedulingCapacity - commands.length);
     const candidates = remaining > 0 ? await db.select({ job: replayJobs, run: runs, case: datasetCases })
       .from(replayJobs)
@@ -107,7 +137,7 @@ export async function POST(req: Request) {
       const [leased] = await db.update(replayJobs).set({
         status: 'running',
         leaseOwner: typeof body.instanceId === 'string' ? body.instanceId : null,
-        leaseExpiresAt: new Date(Date.now() + 10 * 60_000),
+        leaseExpiresAt: new Date(Date.now() + REPLAY_LEASE_MS),
         attemptCount: sql`${replayJobs.attemptCount} + 1`,
         lastError: null,
         updatedAt: now,
@@ -125,7 +155,7 @@ export async function POST(req: Request) {
         jobId: replay.job.id,
         runId: replay.run.id,
         replaySeed: replay.job.replaySeed,
-        manifest: replay.run.replayManifest,
+        manifest: replayManifest(replay.run.replayManifest),
         case: {
           id: replay.case.id,
           name: replay.case.name,
