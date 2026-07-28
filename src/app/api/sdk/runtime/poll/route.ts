@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         eq(runtimeInstances.runtimeId, runtime.id),
       ));
     }
-    if (!availableCapacity) return NextResponse.json({ command: null, commands: [] });
+    const schedulingCapacity = Math.max(1, availableCapacity);
     const commands: Array<Record<string, unknown>> = [];
     const [capture] = await db.select().from(captureSessions).where(and(
       eq(captureSessions.runtimeId, runtime.id),
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       await db.update(runs).set({ status: 'failed', failureSummary: replay.job.lastError ?? 'SDK lease expired after maximum attempts.', endedAt: now }).where(eq(runs.id, replay.run.id));
       if (replay.run.experimentId) await refreshExperimentProgress(replay.run.experimentId);
     }
-    const remaining = availableCapacity - commands.length;
+    const remaining = Math.max(0, schedulingCapacity - commands.length);
     const candidates = remaining > 0 ? await db.select({ job: replayJobs, run: runs, case: datasetCases })
       .from(replayJobs)
       .innerJoin(runs, eq(runs.id, replayJobs.runId))
