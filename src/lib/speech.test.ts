@@ -59,7 +59,9 @@ test('speech transcription posts audio to Speaches', async () => {
     assert.equal(String(input), 'http://speech.test:8000/v1/audio/transcriptions');
     assert.equal(init?.method, 'POST');
     assert.ok(init?.body instanceof FormData);
-    return new Response(JSON.stringify({ text: 'hello from local speech' }), { status: 200 });
+    assert.equal(init.body.get('task'), 'transcribe');
+    assert.equal(init.body.get('response_format'), 'verbose_json');
+    return new Response(JSON.stringify({ text: 'नमस्ते', language: 'hi' }), { status: 200 });
   };
   try {
     const result = await transcribeAudio({
@@ -70,7 +72,8 @@ test('speech transcription posts audio to Speaches', async () => {
     });
     assert.equal(result.provider, 'speaches');
     assert.equal(result.model, 'Systran/faster-distil-whisper-large-v3');
-    assert.equal(result.text, 'hello from local speech');
+    assert.equal(result.text, 'नमस्ते');
+    assert.equal(result.language, 'hi');
   } finally {
     restoreEnv(env);
   }

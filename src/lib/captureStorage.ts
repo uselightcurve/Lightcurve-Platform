@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const LOCAL_URI_PREFIX = 'local://';
@@ -159,7 +159,7 @@ function azureBlobUrl(config: AzureStorageConfig, container: string, objectName:
   return new URL(`${config.blobEndpoint}/${container}/${objectName.split('/').map(encodeURIComponent).join('/')}`);
 }
 
-async function azureBlobFetch(method: 'GET' | 'PUT', container: string, objectName: string, body?: Buffer, contentType?: string) {
+async function azureBlobFetch(method: 'DELETE' | 'GET' | 'PUT', container: string, objectName: string, body?: Buffer, contentType?: string) {
   const config = azureStorageConfig();
   const url = azureBlobUrl(config, container, objectName);
   const headers = new Headers({
@@ -248,6 +248,26 @@ export async function downloadPrivateAudioObject(uri: string) {
     const response = await azureBlobFetch('GET', container, objectName);
     if (!response.ok) throw new Error(`Azure Blob download failed with ${response.status}: ${await response.text().catch(() => '')}`);
     return Buffer.from(await response.arrayBuffer());
+  }
+  throw new Error('A private local:// or azblob:// audio object is required.');
+}
+
+export async function deletePrivateAudioObject(uri: string) {
+  if (isLocalAudioUri(uri)) {
+    try {
+      await unlink(resolveLocalObjectPath(objectNameFromLocalUri(uri)));
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
+    }
+    return;
+  }
+  if (isAzureAudioUri(uri)) {
+    const { container, objectName } = partsFromAzureUri(uri);
+    const response = await azureBlobFetch('DELETE', container, objectName);
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`Azure Blob deletion failed with ${response.status}: ${await response.text().catch(() => '')}`);
+    }
+    return;
   }
   throw new Error('A private local:// or azblob:// audio object is required.');
 }

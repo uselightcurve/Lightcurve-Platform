@@ -193,6 +193,11 @@ function transcriptionSegments(body: unknown) {
   });
 }
 
+function transcriptionLanguage(body: unknown) {
+  const value = body && typeof body === 'object' ? body as Record<string, unknown> : {};
+  return typeof value.language === 'string' && value.language.trim() ? value.language.trim() : undefined;
+}
+
 export async function transcribeAudio(params: {
   bytes?: Buffer;
   uri?: string;
@@ -214,7 +219,8 @@ export async function transcribeAudio(params: {
   const form = new FormData();
   form.append('file', new Blob([new Uint8Array(bytes)], { type: params.mimeType || 'audio/wav' }), params.filename || 'audio.wav');
   form.append('model', model);
-  form.append('response_format', 'json');
+  form.append('task', 'transcribe');
+  form.append('response_format', 'verbose_json');
   if (params.language) form.append('language', params.language);
 
   const controller = params.timeoutMs ? new AbortController() : null;
@@ -236,7 +242,7 @@ export async function transcribeAudio(params: {
       text,
       provider: 'speaches',
       model,
-      language: params.language,
+      language: transcriptionLanguage(parsed) || params.language,
       segments: transcriptionSegments(parsed),
     };
   } catch (error) {

@@ -96,6 +96,9 @@ export default function DatasetsPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [expandedCaseId, setExpandedCaseId] = useState('');
+  const [retranscribingCaseId, setRetranscribingCaseId] = useState('');
+  const [deleteConfirmCaseId, setDeleteConfirmCaseId] = useState('');
+  const [deletingCaseId, setDeletingCaseId] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [name, setName] = useState('');
@@ -190,9 +193,48 @@ export default function DatasetsPage() {
     setSelectedFile(null);
   }
 
+  async function retranscribeRecording(datasetCase: DatasetCase) {
+    setError('');
+    setNotice('');
+    setRetranscribingCaseId(datasetCase.id);
+    try {
+      const response = await fetch(`/api/datasets/cases/${datasetCase.id}/retranscribe`, { method: 'POST' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? 'Recording could not be retranscribed.');
+      setNotice('Recording retranscribed in its detected source language.');
+      await loadDatasets();
+      setExpandedCaseId(datasetCase.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Recording could not be retranscribed.');
+    } finally {
+      setRetranscribingCaseId('');
+    }
+  }
+
+  async function deleteRecording(datasetCase: DatasetCase) {
+    setError('');
+    setNotice('');
+    setDeletingCaseId(datasetCase.id);
+    try {
+      const response = await fetch(`/api/datasets/cases/${datasetCase.id}`, { method: 'DELETE' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? 'Recording could not be deleted.');
+      setExpandedCaseId('');
+      setDeleteConfirmCaseId('');
+      setNotice('Recording and its private audio file were deleted.');
+      await loadDatasets();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Recording could not be deleted.');
+    } finally {
+      setDeletingCaseId('');
+    }
+  }
+
+  const selectedCase = datasets.flatMap((dataset) => dataset.cases).find((datasetCase) => datasetCase.id === expandedCaseId);
+
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
         <div>
           <h1 className="page-title">Dataset library</h1>
           <p className="page-subtitle">Call recordings and authored test cases, organized by dataset.</p>
@@ -205,7 +247,7 @@ export default function DatasetsPage() {
             <UploadIcon /> Upload recording
           </button>
         </div>
-      </header>
+      </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       {notice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
@@ -213,10 +255,10 @@ export default function DatasetsPage() {
       {loadingDatasets ? (
         <div className="flex min-h-52 items-center justify-center text-sm text-slate-500">Loading library...</div>
       ) : datasets.length ? (
-        <div className="space-y-5">
+        <div className="space-y-8">
           {datasets.map((dataset) => (
-            <section key={dataset.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-              <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <section key={dataset.id}>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 border-b border-slate-200 pb-3">
                 <div>
                   <h2 className="font-semibold text-slate-950">{dataset.name}</h2>
                   {dataset.description && <p className="mt-1 text-sm text-slate-500">{dataset.description}</p>}
@@ -225,50 +267,34 @@ export default function DatasetsPage() {
               </div>
 
               {dataset.cases.length ? (
-                <div className="divide-y divide-slate-200">
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {dataset.cases.map((datasetCase) => {
-                    const transcript = transcriptFor(datasetCase);
                     const source = sourceFor(datasetCase);
-                    const expanded = expandedCaseId === datasetCase.id;
                     return (
-                      <article key={datasetCase.id} className="px-5 py-5">
-                        <button
-                          type="button"
-                          className="flex w-full items-start justify-between gap-4 text-left"
-                          onClick={() => setExpandedCaseId(expanded ? '' : datasetCase.id)}
-                          aria-expanded={expanded}
-                        >
-                          <span className="min-w-0">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${source === 'Recording' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}`}>{source}</span>
-                              <span className="font-medium text-slate-900">{datasetCase.name}</span>
-                            </span>
-                            <span className="mt-1 block text-xs text-slate-500">{formatDate(datasetCase.createdAt)}{datasetCase.status ? ` · ${datasetCase.status}` : ''}</span>
-                          </span>
-                          <span className={`mt-1 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="m6 9 6 6 6-6" />
-                            </svg>
-                          </span>
-                        </button>
-                        {expanded && (
-                          <div className="mt-4 border-l-2 border-slate-200 pl-4">
-                            <p className="text-xs font-semibold uppercase text-slate-500">Transcript</p>
-                            <div className="mt-2 space-y-2">
-                              {transcript.map((turn, index) => (
-                                <p key={`${datasetCase.id}-${index}`} className="text-sm leading-6 text-slate-700">
-                                  <span className="font-medium text-slate-900">{turn.speaker}:</span> {turn.text}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </article>
+                      <button
+                        key={datasetCase.id}
+                        type="button"
+                        className="min-h-36 rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md"
+                        onClick={() => setExpandedCaseId(datasetCase.id)}
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${source === 'Recording' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}`}>{source}</span>
+                          <span className="text-xs text-slate-500">{datasetCase.language || 'Auto'}</span>
+                        </span>
+                        <span className="mt-4 block font-semibold text-slate-950">{datasetCase.name}</span>
+                        <span className="mt-2 block text-sm leading-5 text-slate-500">
+                          {source === 'Recording' ? 'Open the source-language transcript.' : 'Open the authored test transcript.'}
+                        </span>
+                        <span className="mt-4 block text-xs text-slate-500">
+                          {formatDate(datasetCase.createdAt)}
+                          {datasetCase.status ? ` · ${datasetCase.status}` : ''}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
               ) : (
-                <div className="px-5 py-8 text-center text-sm text-slate-500">No recordings or test cases in this group yet.</div>
+                <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm text-slate-500">No recordings or test cases in this group yet.</div>
               )}
             </section>
           ))}
@@ -280,6 +306,66 @@ export default function DatasetsPage() {
           <button type="button" className="btn-primary mt-5 inline-flex items-center gap-2" onClick={() => setCreateOpen(true)}>
             <PlusIcon /> Create group
           </button>
+        </div>
+      )}
+
+      {selectedCase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4" role="dialog" aria-modal="true" aria-labelledby="transcript-title">
+          <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-slate-200 px-5 py-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${sourceFor(selectedCase) === 'Recording' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}`}>{sourceFor(selectedCase)}</span>
+                  <span className="text-xs text-slate-500">{selectedCase.language || 'Auto-detected language'}</span>
+                </div>
+                <h2 id="transcript-title" className="mt-2 truncate text-lg font-semibold text-slate-950">{selectedCase.name}</h2>
+              </div>
+              <button type="button" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100" onClick={() => setExpandedCaseId('')} aria-label="Close transcript dialog"><CloseIcon /></button>
+            </div>
+            <div className="min-h-0 overflow-y-auto p-5">
+              <p className="text-xs font-semibold uppercase text-slate-500">Transcript</p>
+              <div className="mt-3 space-y-3">
+                {transcriptFor(selectedCase).map((turn, index) => (
+                  <p key={`${selectedCase.id}-${index}`} className="max-w-3xl text-sm leading-6 text-slate-700">
+                    <span className="font-medium text-slate-950">{turn.speaker}:</span> {turn.text}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
+              <span className="text-xs text-slate-500">{formatDate(selectedCase.createdAt)}{selectedCase.status ? ` · ${selectedCase.status}` : ''}</span>
+              <div className="flex gap-2">
+              <button type="button" className="btn-secondary" onClick={() => setExpandedCaseId('')}>Close</button>
+                {sourceFor(selectedCase) === 'Recording' && (
+                  <>
+                    {deleteConfirmCaseId === selectedCase.id ? (
+                      <>
+                        <button type="button" className="btn-secondary" onClick={() => setDeleteConfirmCaseId('')} disabled={Boolean(deletingCaseId)}>Keep recording</button>
+                        <button
+                          type="button"
+                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                          onClick={() => void deleteRecording(selectedCase)}
+                          disabled={Boolean(deletingCaseId)}
+                        >
+                          {deletingCaseId === selectedCase.id ? 'Deleting...' : 'Confirm delete'}
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirmCaseId(selectedCase.id)}>Delete recording</button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => void retranscribeRecording(selectedCase)}
+                      disabled={Boolean(retranscribingCaseId || deletingCaseId)}
+                    >
+                      {retranscribingCaseId === selectedCase.id ? 'Retranscribing...' : 'Retranscribe original language'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

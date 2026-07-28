@@ -27,6 +27,15 @@ type ModelAnalysisResult = {
 const GRAPH_ANALYSIS_TIMEOUT_MS = 45_000;
 const UPLOAD_TRANSCRIPTION_TIMEOUT_MS = 60 * 60 * 1_000;
 
+function caseLanguageForTranscription(language: string | undefined, fallback: string) {
+  if (!language) return fallback;
+  const normalized = language.toLowerCase();
+  if (normalized === 'hi') return 'hi-IN';
+  if (normalized === 'cs') return 'cs-CZ';
+  if (normalized === 'en') return 'en-US';
+  return language;
+}
+
 function importedAudioName(filename: string) {
   return filename.replace(/\.[^/.]+$/, '') || `Imported call ${new Date().toISOString().slice(0, 10)}`;
 }
@@ -285,6 +294,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
     }
 
     const nextDatasetVersion = targetDataset.currentVersion + 1;
+    const detectedLanguage = caseLanguageForTranscription(transcription.language, language);
     const behaviorGraph = analysis.behaviorGraph || {};
     const successCriteria = analysis.successCriteria || [];
 
@@ -292,7 +302,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
       const [created] = await tx.insert(datasetCases).values({
         datasetId: targetDataset.id,
         name: importedAudioName(file.name),
-        language,
+        language: detectedLanguage,
         domain: 'general',
         status: 'approved',
         visibility: 'private',
@@ -309,7 +319,7 @@ ${transcription?.text ?? '[transcription unavailable]'}
           analysisError: modelResult.error,
           transcriptionProvider: transcription?.provider,
           transcriptionModel: transcription?.model,
-          transcriptionLanguage: transcription?.language,
+          transcriptionLanguage: detectedLanguage,
           callerProfile: analysis.callerProfile,
           transcript: analysis.transcript,
           voiceCloneConsent: false,
