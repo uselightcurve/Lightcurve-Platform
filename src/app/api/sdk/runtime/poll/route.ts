@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { and, asc, eq, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { agentRuntimes, captureSessions, datasetCases, replayJobs, runs } from '@/db/schema';
+import { agentRuntimes, captureSessions, datasetCases, replayJobs, runs, runtimeInstances } from '@/db/schema';
 import { requireSdkAccount, sdkUnauthorizedJson } from '@/lib/sdkAuth';
 import { iceServers } from '@/lib/webrtc';
 import { refreshExperimentProgress } from '@/lib/experimentRuns';
@@ -23,6 +23,26 @@ export async function POST(req: Request) {
     )).limit(1);
     if (!runtime) return NextResponse.json({ error: 'Runtime not found.' }, { status: 404 });
     const availableCapacity = body.busy === true ? 0 : Math.max(0, Math.min(50, Math.round(Number(body.availableCapacity) || 1)));
+    const now = new Date();
+    await db.update(agentRuntimes).set({
+      status: 'online',
+      lastSeenAt: now,
+      updatedAt: now,
+    }).where(and(
+      eq(agentRuntimes.id, runtime.id),
+      eq(agentRuntimes.ownerUserId, account.userId),
+    ));
+    if (typeof body.instanceId === 'string') {
+      await db.update(runtimeInstances).set({
+        status: 'online',
+        activeSessions: Number.isFinite(body.activeSessions) ? Math.max(0, Math.floor(body.activeSessions)) : 0,
+        capacity: Math.max(1, availableCapacity),
+        lastSeenAt: now,
+      }).where(and(
+        eq(runtimeInstances.id, body.instanceId),
+        eq(runtimeInstances.runtimeId, runtime.id),
+      ));
+    }
     if (!availableCapacity) return NextResponse.json({ command: null, commands: [] });
     const commands: Array<Record<string, unknown>> = [];
     const [capture] = await db.select().from(captureSessions).where(and(
@@ -42,7 +62,6 @@ export async function POST(req: Request) {
       });
     }
 
-    const now = new Date();
     const exhausted = await db.select({ job: replayJobs, run: runs }).from(replayJobs)
       .innerJoin(runs, eq(runs.id, replayJobs.runId))
       .where(and(

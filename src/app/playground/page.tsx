@@ -61,7 +61,11 @@ export default function PlaygroundPage() {
       const loaded = (Array.isArray(body.runtimes) ? body.runtimes : []) as Runtime[];
       setRuntimes(loaded);
       const firstOnline = loaded.find((runtime) => runtime.status === 'online');
-      setRuntimeId((current) => current || firstOnline?.id || loaded[0]?.id || '');
+      setRuntimeId((current) => {
+        const selected = loaded.find((runtime) => runtime.id === current);
+        if (selected?.status === 'online') return selected.id;
+        return firstOnline?.id || selected?.id || loaded[0]?.id || '';
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Agent runtimes could not be loaded.');
     } finally {
@@ -84,6 +88,10 @@ export default function PlaygroundPage() {
 
   async function startCall() {
     setError('');
+    if (!selectedRuntime || selectedRuntime.status !== 'online') {
+      setError('Select an online agent runtime before starting a call.');
+      return;
+    }
     setState('connecting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -239,7 +247,11 @@ export default function PlaygroundPage() {
               <label className="block text-sm text-slate-600">
                 Agent version
                 <select className="input-field mt-2" value={runtimeId} onChange={(event) => setRuntimeId(event.target.value)}>
-                  {runtimes.map((runtime) => <option key={runtime.id} value={runtime.id}>{runtime.name}{runtime.version ? ` · ${runtime.version}` : ''}</option>)}
+                  {runtimes.map((runtime) => (
+                    <option key={runtime.id} value={runtime.id} disabled={runtime.status !== 'online'}>
+                      {runtime.name}{runtime.version ? ` - ${runtime.version}` : ''}{runtime.status !== 'online' ? ' (offline)' : ''}
+                    </option>
+                  ))}
                 </select>
               </label>
             )}
@@ -250,7 +262,7 @@ export default function PlaygroundPage() {
               <button
                 type="button"
                 className="btn-primary flex min-h-12 w-full items-center justify-center text-base"
-                disabled={state === 'connecting'}
+                disabled={state === 'connecting' || !selectedRuntime || selectedRuntime.status !== 'online'}
                 onClick={() => void startCall()}
               >
                 {state === 'connecting' ? 'Starting call…' : 'Start Call'}
